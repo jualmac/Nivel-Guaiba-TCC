@@ -1,0 +1,4 @@
+# config.yaml
+model:
+  prediction_horizon: 6
+  data_freq: 'MS'
