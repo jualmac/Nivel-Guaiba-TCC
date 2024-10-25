@@ -1,0 +1,143 @@
+\begin{thebibliography}{10}
+
+\bibitem{ibge}
+Bacias e divisões hidrográficas do brasil 2021.
+\newblock Accessed: 2024-10-19.
+
+\bibitem{inmet}
+Banco de dados meteorológicos.
+\newblock Accessed: 2024-10-19.
+
+\bibitem{dep}
+Departamento de esgotos pluviais.
+\newblock Accessed: 2024-10-19.
+
+\bibitem{snirh}
+Portal do snirh.
+\newblock Accessed: 2024-10-19.
+
+\bibitem{alcantara}
+Enner Alcântara, José Mantovani, Cheila Baião, Luana Pampuch, Marcelo
+  Curtarelli, Yasmim Guimarães, Luciana ~R. Londe, João ~Vitor Ribeiro,
+  Klécia Massi, Jose Marengo, Carlos Nobre, Arcilan Assireu, Cassiano
+  Bortolozo, Silvio  Jorge~Coelho Simões, Javier Tomasella, Osvaldo Moraes,
+  and Edward Park.
+\newblock {\em Unprecedented Flooding in Porto Alegre Metropolitan Region
+  (Southern Brazil) in May 2024: Causes, Risks, and Impacts}.
+\newblock 2024.
+
+\bibitem{atashi}
+Vida Atashi, Hamed~Taheri Gorji, Seyed~Mojtaba Shahabi, Ramtin Kardan, and
+  Yeo~Howe Lim.
+\newblock Water level forecasting using deep learning time-series analysis: A
+  case study of red river of the north.
+\newblock {\em Water}, 14(12):1971, 2022.
+
+\bibitem{challu}
+Cristian Challu, Kin~G. Olivares, Boris~N. Oreshkin, Federico Garza, Max
+  Mergenthaler-Canseco, and Artur Dubrawski.
+\newblock N-hits: Neural hierarchical interpolation for time series
+  forecasting, January 2022.
+
+\bibitem{chen}
+Si-An Chen, Chun-ang~Li Li, Nate Yoder, Sercan~O. Arik, and Tomas Pfister.
+\newblock Tsmixer: An all-mlp architecture for time series forecasting, March
+  2023.
+
+\bibitem{chen_xgboost}
+Tianqi Chen and Carlos Guestrin.
+\newblock {XGBoost}: A scalable tree boosting system.
+\newblock In {\em Proceedings of the 22nd ACM SIGKDD International Conference
+  on Knowledge Discovery and Data Mining}, KDD '16, pages 785--794, New York,
+  NY, USA, 2016. ACM.
+
+\bibitem{ta}
+Ta~Quang Chieu, Nguyen Thi~Phuong Thao, Dao Thi~Hue, and Nguyen Thi~Thu Huong.
+\newblock Prediction of the water level at the kien giang river based on
+  regression techniques.
+\newblock {\em River}, 3(1):59–68, January 2024.
+
+\bibitem{dunn}
+Robert J.~H. Dunn, Nicholas Herold, Lisa~V. Alexander, Markus~G. Donat, Rob
+  Allan, Margot Bador, Manola Brunet, Vincent Cheng, Wan Maisarah~Wan
+  Ibadullah, Muhammad Khairul Izzat~Bin Ibrahim, Andries Kruger, Hisayuki
+  Kubota, Tanya J.~R. Lippmann, Jose Marengo, Sifiso Mbatha, Simon McGree,
+  Sandile Ngwenya, Jose~Daniel Pabon~Caicedo, Andrea Ramos, Jim Salinger,
+  Gerard van~der Schrier, Arvind Srivastava, Blair Trewin, Ricardo~Vásquez
+  Yáñez, Jorge Vazquez‐Aguirre, Claudia~Villaroel Jiménez, Russ Vose, Mohd
+  Noor’Arifin Bin~Hj Yussof, and Xuebin Zhang.
+\newblock Observed global changes in sector‐relevant climate extremes
+  indices—an extension to hadex3.
+\newblock {\em Earth and Space Science}, 11(4), April 2024.
+
+\bibitem{hammond}
+M.J. Hammond, A.S. Chen, S.~Djordjević, D.~Butler, and O.~Mark.
+\newblock Urban flood impact assessment: A state-of-the-art review.
+\newblock {\em Urban Water Journal}, 12(1):14–29, November 2013.
+
+\bibitem{hochreiter}
+Sepp Hochreiter and Jürgen Schmidhuber.
+\newblock Long short-term memory.
+\newblock {\em Neural Computation}, 9(8):1735–1780, November 1997.
+
+\bibitem{iph}
+IPH.
+\newblock Iph - notícias.
+\newblock Accessed: 2024-10-21.
+
+\bibitem{tune}
+Richard Liaw, Eric Liang, Robert Nishihara, Philipp Moritz, Joseph~E Gonzalez,
+  and Ion Stoica.
+\newblock Tune: A research platform for distributed model selection and
+  training.
+\newblock {\em arXiv preprint arXiv:1807.05118}, 2018.
+
+\bibitem{zhang}
+Kaisheng Luo and Xuejun Zhang.
+\newblock Increasing urban flood risk in china over recent 40 years induced by
+  lucc.
+\newblock {\em Landscape and Urban Planning}, 219:104317, March 2022.
+
+\bibitem{nasa}
+NASA.
+\newblock Ges disc, October 2024.
+
+\bibitem{neria}
+Y.~Neria, A.~Nandi, and S.~Galea.
+\newblock Post-traumatic stress disorder following disasters: a systematic
+  review.
+\newblock {\em Psychological Medicine}, 38(4):467–480, September 2007.
+
+\bibitem{neuralforecast}
+Kin~G. Olivares, Cristian Challú, Federico Garza, Max~Mergenthaler Canseco,
+  and Artur Dubrawski.
+\newblock {NeuralForecast}: User friendly state-of-the-art neural forecasting
+  models.
+\newblock {PyCon} Salt Lake City, Utah, US 2022, 2022.
+
+\bibitem{oreshkin}
+Boris~N. Oreshkin, Dmitri Carpov, Nicolas Chapados, and Yoshua Bengio.
+\newblock N-beats: Neural basis expansion analysis for interpretable time
+  series forecasting, May 2019.
+
+\bibitem{pereira}
+Rodrigo da~Silva Pereira and André~Becker Nunes.
+\newblock Estudo climático dos eventos de precipitação associados a
+  alagamentos urbanos no estado do rio grande do sul (climatic study of
+  rainfall events related to urban flash floods in rio grande do sul state).
+\newblock {\em Revista Brasileira de Geografia Física}, 11(6):2010–2017,
+  January 2019.
+
+\bibitem{reardon}
+Sara Reardon.
+\newblock Hurricane katrina’s psychological scars revealed.
+\newblock {\em Nature}, 524(7566):395–396, August 2015.
+
+\bibitem{yang}
+Long Yang, Yixin Yang, Ye~Shen, Jiachuan Yang, Guang Zheng, James Smith, and
+  Dev Niyogi.
+\newblock Urban development pattern’s influence on extreme rainfall
+  occurrences.
+\newblock {\em Nature Communications}, 15(1), May 2024.
+
+\end{thebibliography}
