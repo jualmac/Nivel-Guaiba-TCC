@@ -11,13 +11,13 @@ clean it, add exeternal data, train the models and calculate the errors for the 
 import yaml
 import pandas as pd
 from ray import tune
-from source.data_creator import get_data
-from source.data_handler import clean, add_external_data
-from source.models_neural import NixtlaAutoModels
-from source.models_regression import run_all_regression_models
-from source.calculate_errors import errors
-from source.best_model import best_model
-from source.config_nixtla import lstm_config, nhits_config, nbeatsx_config, tsmixer_config, tsmixerx_config
+from source_backend.data_creator import get_data
+from source_backend.data_handler import clean, add_external_data
+from source_backend.models_neural import NixtlaAutoModels
+from source_backend.models_regression import run_all_regression_models
+from source_backend.calculate_errors import errors
+from source_backend.best_model import best_model
+from source_backend.config_nixtla import lstm_config, nhits_config, nbeatsx_config, tsmixer_config, tsmixerx_config
 
 ########################################################################################################################
 #                                                                  
@@ -26,7 +26,7 @@ from source.config_nixtla import lstm_config, nhits_config, nbeatsx_config, tsmi
 ########################################################################################################################
 def main() -> None:
     # Load configuration from YAML file;
-    with open('./source/config.yaml', 'r') as config_file:
+    with open('./source_backend/config.yaml', 'r') as config_file:
         config = yaml.safe_load(config_file)
 
     regions = data['region'].unique()

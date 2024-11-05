@@ -134,7 +134,7 @@ class NixtlaAutoModels:
             }
             best_param.append(serializable_dict)
 
-        with open('./source/nixtla_params.json', 'w') as file:
+        with open('./source_backend/nixtla_params.json', 'w') as file:
             json.dump(best_param, file, indent=4)
         return best_param
 

@@ -1,0 +1,33 @@
+import os
+import json
+import pandas as pd
+from dotenv import load_dotenv
+import requests
+
+load_dotenv()
+
+ID=os.getenv("ID")
+PASS=os.getenv("PASS")
+
+# Base URL;
+url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1"
+
+headers = {
+    'accept': '*/*',
+    'Identificador': ID,
+    'Senha': PASS
+}
+
+def get_auth() -> str:
+    # Create request;
+    print("Atempting connection...")
+    response = requests.get(url, headers=headers)
+
+    # Request Reponse:
+    if response.status_code == 200:
+        data = response.json()
+        print("Credentials adquired!", data)
+        return(data['items']['tokenautenticacao'])
+    else:
+        print(f"Request failed with status code {response.status_code}")
+        return 0

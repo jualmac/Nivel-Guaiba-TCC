@@ -84,7 +84,7 @@ def write_dataframe(dataframe, table_name, inplace=False):
         close_connection(sqlite_connection)
 
 # TODO SIMPLYFY Usage -> Transform into a Class;
-# from source.db_handler import connect_to_database, create_dataframe, write_dataframe, close_connection
+# from source_backend.db_handler import connect_to_database, create_dataframe, write_dataframe, close_connection
 # query = "a"
 # db_connection = connect_to_database()
 # dataframe = create_dataframe(query, db_connection)
