@@ -1,23 +1,18 @@
 import os
 import json
-import pandas as pd
-from dotenv import load_dotenv
 import requests
+import pandas as pd
+from source_database.auth import get_auth
 
-load_dotenv()
-
-TOKEN = os.getenv("TOKEN")
-if not TOKEN:
-    raise ValueError("TOKEN is not set in the environment variables")
-else:
-    print(TOKEN)
+# Get proper HidroWeb Token;
+token = get_auth()
 
 # Base URL;
 url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidrosatInventarioEstacoes/v1"
 
 # Headers with the authorization token;
 headers = {
-    "Authorization": f"Bearer {TOKEN}"
+    "Authorization": f"Bearer {token}"
 }
 
 # Create request;
@@ -29,3 +24,5 @@ if response.status_code == 200:
 else:
     print("Request failed with status code:", response.status_code)
     print("Response text:", response.text)
+
+print('DONE')

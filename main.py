@@ -8,7 +8,7 @@ clean it, add exeternal data, train the models and calculate the errors for the 
 # LIBRARIES
 #
 ########################################################################################################################
-import yaml
+import argparse
 import pandas as pd
 from ray import tune
 from source_backend.data_creator import get_data
@@ -24,14 +24,26 @@ from source_backend.config_nixtla import lstm_config, nhits_config, nbeatsx_conf
 # QUERY AND DEFINITIONS
 #
 ########################################################################################################################
-def main() -> None:
-    # Load configuration from YAML file;
-    with open('./source_backend/config.yaml', 'r') as config_file:
-        config = yaml.safe_load(config_file)
+def main(args) -> None:
+    # Argparse variables;
+    prediction_horizon = args.pred
+    data_freq = args.freq
+    batch_size = args.batch
+    n_samples = args.samples
 
-    regions = data['region'].unique()
-    pred_list = []
-    results = pd.DataFrame()
+    print(f'Selected variables: {args}')
+
+    # Change the batch_size for the defined Nixtla configurations;
+    configs = [
+        lstm_config, 
+        nhits_config, 
+        nbeatsx_config, 
+        tsmixer_config, 
+        tsmixerx_config
+        ]
+
+    for config in configs:
+        config["batch_size"] = batch_size
 
     # Run models for each reagion and merge the results in a single df;
     for region in regions:
@@ -86,4 +98,11 @@ def main() -> None:
     print('DONE')
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Get data from a specified HANA view in a given schema.')
+    parser.add_argument('--pred', type=int, default=6, help='The amount of fowards steps to be predicted')
+    parser.add_argument('--freq', type=str, choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], default='MS', help='Frequency of predictions (pandas offset)')
+    parser.add_argument('--batch', type=int, default=64, help='Training batch size')
+    parser.add_argument('--samples', type=int, default=2, help='Number of samples for the Nixtla models fine tunning')
+    args = parser.parse_args()
+    
+    main(args)

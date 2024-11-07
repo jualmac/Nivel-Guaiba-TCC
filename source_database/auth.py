@@ -9,16 +9,19 @@ load_dotenv()
 ID=os.getenv("ID")
 PASS=os.getenv("PASS")
 
-# Base URL;
-url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1"
-
-headers = {
-    'accept': '*/*',
-    'Identificador': ID,
-    'Senha': PASS
-}
-
 def get_auth() -> str:
+    '''
+    Gets the proper token necessary for the other API's from the HidroWeb service
+    '''
+    # Base URL;
+    url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1"
+
+    headers = {
+        'accept': '*/*',
+        'Identificador': ID,
+        'Senha': PASS
+    }
+
     # Create request;
     print("Atempting connection...")
     response = requests.get(url, headers=headers)

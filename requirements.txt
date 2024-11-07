@@ -1,37 +1,16 @@
-# geopandas==0.14.4
-# hyperopt==0.2.7
-# ipykernel==6.29.5
-# ipython==8.26.0
-# ipywidgets==8.1.5
-# jupyter==1.1.1
-# jupyterlab==4.2.5
-# neuralforecast==1.7.5
-# numpy==1.26.4
-# pandas==2.2.3
-# psycopg2==2.9.10
-# python-dotenv==1.0.1
-# PyYAML==6.0.2
-# ray==2.37.0
-# requests==2.32.3
-# scikit-learn==1.4.2
-# SQLAlchemy==2.0.36
-# statsmodels==0.14.2
-
-geopandas
-hyperopt
-ipykernel
-ipython
-ipywidgets
-jupyter
-jupyterlab
-neuralforecast
-numpy
-pandas
-psycopg2
-python-dotenv
-PyYAML
-ray
-requests
-scikit-learn
-SQLAlchemy
-statsmodels
+geopandas==1.0.1
+hyperopt==0.2.7
+ipykernel==6.29.5
+ipython==8.29.0
+ipywidgets==8.1.5
+jupyter==1.1.1
+jupyterlab==4.2.5
+neuralforecast==1.7.5
+numpy==1.26.4
+pandas==2.2.3
+python-dotenv==1.0.1
+PyYAML==6.0.2
+ray==2.38.0
+requests==2.32.3
+scikit-learn==1.5.2
+statsmodels==0.14.4
