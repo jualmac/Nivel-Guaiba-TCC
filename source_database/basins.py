@@ -9,11 +9,7 @@ from source_database.db_handler import SQLite_Handler
 token = get_auth()
 
 # Base URL;
-url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroInventarioEstacoes/v1"
-
-params = {
-    "Unidade Federativa": "RS"
-}
+url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroBacia/v1"
 
 # Headers with the authorization token;
 headers = {
@@ -21,7 +17,7 @@ headers = {
 }
 
 # Create request;
-response = requests.get(url, headers=headers, params=params)
+response = requests.get(url, headers=headers)
 
 # Request Reponse;
 if response.status_code == 200:
@@ -32,7 +28,7 @@ if response.status_code == 200:
     df = pd.DataFrame(stations['items'])
 
     db_handler = SQLite_Handler()
-    db_handler.write(df, 'stations', inplace=True)
+    db_handler.write(df, 'basins', inplace=True)
 else:
     print("Request failed with status code:", response.status_code)
     print("Response text:", response.text)
