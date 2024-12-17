@@ -1,4 +1,37 @@
+# LaTeX bullshit;
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+*.idx
+*.ilg
+*.ind
+*.dvi
+*.ps
+*.pdfsync
+*.acn
+*.glo
+*.ist
+*.glsdefs
+*.gls
+*.brf
+*.loq
+
+# SQLite Database;
 *.db
+*.sqlite3
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
