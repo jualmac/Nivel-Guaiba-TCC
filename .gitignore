@@ -28,6 +28,7 @@
 *.gls
 *.brf
 *.loq
+*.bbl
 
 # SQLite Database;
 *.db
