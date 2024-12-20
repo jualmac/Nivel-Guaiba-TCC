@@ -66,8 +66,12 @@
 % ---
 % Pacotes de citações
 % ---
-\usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
-\usepackage[alf]{abntex2cite}	% Citações padrão ABNT
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage[brazilian,hyperpageref]{backref}
+
+\bibliographystyle{plain}
+
 \usepackage{pdfpages} % necessário para comando \includepdf
 
 % --- 
@@ -112,8 +116,10 @@
 \tipotrabalho{Trabalho (Conclusão de Curso)}
 % O preambulo deve conter o tipo do trabalho, o objetivo, 
 % o nome da instituição e a área de concentração 
+% \preambulo{Modelo canônico de trabalho monográfico acadêmico em conformidade com
+% as normas ABNT apresentado à comunidade de usuários}
 \preambulo{Trabalho de Conclusão apresentado à Comissão de Graduação dos Cursos de Física da Universidade Federal do Rio
- Grande do Sul, como requisito parcial para obtenção do tı́tulo de Bacharel em Física.}
+ Grande do Sul, como requisito parcial para obtenção do título de Bacharel em Física.}
 % ---
 
 
@@ -314,37 +320,10 @@
 % ---
 
 % ---
-% Dedicatória
-% ---
-\begin{dedicatoria}
-   \vspace*{\fill}
-   \centering
-   \noindent
-   \textit{ Este trabalho é dedicado às crianças adultas que,\\
-   quando pequenas, sonharam em se tornar cientistas.} \vspace*{\fill}
-\end{dedicatoria}
-% ---
-
-% ---
 % Agradecimentos
 % ---
 \begin{agradecimentos}
-Os agradecimentos principais são direcionados à Gerald Weber, Miguel Frasson,
-Leslie H. Watter, Bruno Parente Lima, Flávio de Vasconcellos Corrêa, Otavio Real
-Salvador, Renato Machnievscz\footnote{Os nomes dos integrantes do primeiro
-projeto abn\TeX\ foram extraídos de
-\url{http://codigolivre.org.br/projects/abntex/}} e todos aqueles que
-contribuíram para que a produção de trabalhos acadêmicos conforme
-as normas ABNT com \LaTeX\ fosse possível.
-
-Agradecimentos especiais são direcionados ao Centro de Pesquisa em Arquitetura
-da Informação\footnote{\url{http://www.cpai.unb.br/}} da Universidade de
-Brasília (CPAI), ao grupo de usuários
-\emph{latex-br}\footnote{\url{http://groups.google.com/group/latex-br}} e aos
-novos voluntários do grupo
-\emph{\abnTeX}\footnote{\url{http://groups.google.com/group/abntex2} e
-\url{http://www.abntex.net.br/}}~que contribuíram e que ainda
-contribuirão para a evolução do \abnTeX.
+\lipsum[1]
 
 \end{agradecimentos}
 % ---
@@ -371,14 +350,7 @@ contribuirão para a evolução do \abnTeX.
 % resumo em português
 \setlength{\absparsep}{18pt} % ajusta o espaçamento dos parágrafos do resumo
 \begin{resumo}
- Segundo a \citeonline[3.1-3.2]{NBR6028:2003}, o resumo deve ressaltar o
- objetivo, o método, os resultados e as conclusões do documento. A ordem e a extensão
- destes itens dependem do tipo de resumo (informativo ou indicativo) e do
- tratamento que cada item recebe no documento original. O resumo deve ser
- precedido da referência do documento, com exceção do resumo inserido no
- próprio documento. (\ldots) As palavras-chave devem figurar logo abaixo do
- resumo, antecedidas da expressão Palavras-chave:, separadas entre si por
- ponto e finalizadas também por ponto.
+\lipsum[1]
 
  \textbf{Palavras-chave}: latex. abntex. editoração de texto.
 \end{resumo}
@@ -386,7 +358,7 @@ contribuirão para a evolução do \abnTeX.
 % resumo em inglês
 \begin{resumo}[Abstract]
  \begin{otherlanguage*}{english}
-   This is the english abstract.
+\lipsum[1]
 
    \vspace{\onelineskip}
  
@@ -395,48 +367,29 @@ contribuirão para a evolução do \abnTeX.
  \end{otherlanguage*}
 \end{resumo}
 
-% resumo em francês 
-\begin{resumo}[Résumé]
- \begin{otherlanguage*}{french}
-    Il s'agit d'un résumé en français.
- 
-   \textbf{Mots-clés}: latex. abntex. publication de textes.
- \end{otherlanguage*}
-\end{resumo}
+% % ---
+% % inserir lista de ilustrações
+% % ---
+% \pdfbookmark[0]{\listfigurename}{lof}
+% \listoffigures*
+% \cleardoublepage
+% % ---
 
-% resumo em espanhol
-\begin{resumo}[Resumen]
- \begin{otherlanguage*}{spanish}
-   Este es el resumen en español.
-  
-   \textbf{Palabras clave}: latex. abntex. publicación de textos.
- \end{otherlanguage*}
-\end{resumo}
-% ---
+% % ---
+% % inserir lista de quadros
+% % ---
+% \pdfbookmark[0]{\listofquadrosname}{loq}
+% \listofquadros*
+% \cleardoublepage
+% % ---
 
-% ---
-% inserir lista de ilustrações
-% ---
-\pdfbookmark[0]{\listfigurename}{lof}
-\listoffigures*
-\cleardoublepage
-% ---
-
-% ---
-% inserir lista de quadros
-% ---
-\pdfbookmark[0]{\listofquadrosname}{loq}
-\listofquadros*
-\cleardoublepage
-% ---
-
-% ---
-% inserir lista de tabelas
-% ---
-\pdfbookmark[0]{\listtablename}{lot}
-\listoftables*
-\cleardoublepage
-% ---
+% % ---
+% % inserir lista de tabelas
+% % ---
+% \pdfbookmark[0]{\listtablename}{lot}
+% \listoftables*
+% \cleardoublepage
+% % ---
 
 % ---
 % inserir lista de abreviaturas e siglas
@@ -447,16 +400,16 @@ contribuirão para a evolução do \abnTeX.
 \end{siglas}
 % ---
 
-% ---
-% inserir lista de símbolos
-% ---
-\begin{simbolos}
-  \item[$ \Gamma $] Letra grega Gama
-  \item[$ \Lambda $] Lambda
-  \item[$ \zeta $] Letra grega minúscula zeta
-  \item[$ \in $] Pertence
-\end{simbolos}
-% ---
+% % ---
+% % inserir lista de símbolos
+% % ---
+% \begin{simbolos}
+%   \item[$ \Gamma $] Letra grega Gama
+%   \item[$ \Lambda $] Lambda
+%   \item[$ \zeta $] Letra grega minúscula zeta
+%   \item[$ \in $] Pertence
+% \end{simbolos}
+% % ---
 
 % ---
 % inserir o sumario
@@ -465,7 +418,6 @@ contribuirão para a evolução do \abnTeX.
 \tableofcontents*
 \cleardoublepage
 % ---
-
 
 
 % ----------------------------------------------------------
@@ -479,43 +431,7 @@ contribuirão para a evolução do \abnTeX.
 \chapter{Introdução}
 % ----------------------------------------------------------
 
-Este documento e seu código-fonte são exemplos de referência de uso da classe
-\textsf{abntex2} e do pacote \textsf{abntex2cite}. O documento 
-exemplifica a elaboração de trabalho acadêmico (tese, dissertação e outros do
-gênero) produzido conforme a ABNT NBR 14724:2011 \emph{Informação e documentação
-- Trabalhos acadêmicos - Apresentação}.
-
-A expressão ``Modelo Canônico'' é utilizada para indicar que \abnTeX\ não é
-modelo específico de nenhuma universidade ou instituição, mas que implementa tão
-somente os requisitos das normas da ABNT. Uma lista completa das normas
-observadas pelo \abnTeX\ é apresentada em \citeonline{abntex2classe}.
-
-Sinta-se convidado a participar do projeto \abnTeX! Acesse o site do projeto em
-\url{http://www.abntex.net.br/}. Também fique livre para conhecer,
-estudar, alterar e redistribuir o trabalho do \abnTeX, desde que os arquivos
-modificados tenham seus nomes alterados e que os créditos sejam dados aos
-autores originais, nos termos da ``The \LaTeX\ Project Public
-License''\footnote{\url{http://www.latex-project.org/lppl.txt}}.
-
-Encorajamos que sejam realizadas customizações específicas deste exemplo para
-universidades e outras instituições --- como capas, folha de aprovação, etc.
-Porém, recomendamos que ao invés de se alterar diretamente os arquivos do
-\abnTeX, distribua-se arquivos com as respectivas customizações.
-Isso permite que futuras versões do \abnTeX~não se tornem automaticamente
-incompatíveis com as customizações promovidas. Consulte
-\citeonline{abntex2-wiki-como-customizar} para mais informações.
-
-Este documento deve ser utilizado como complemento dos manuais do \abnTeX\ 
-\cite{abntex2classe,abntex2cite,abntex2cite-alf} e da classe \textsf{memoir}
-\cite{memoir}. 
-
-Esperamos, sinceramente, que o \abnTeX\ aprimore a qualidade do trabalho que
-você produzirá, de modo que o principal esforço seja concentrado no principal:
-na contribuição científica.
-
-Equipe \abnTeX 
-
-Lauro César Araujo
+\input{introduction.tex}
 
 % ----------------------------------------------------------
 % PARTE
@@ -526,33 +442,33 @@ Lauro César Araujo
 % ---
 % Capitulo com exemplos de comandos inseridos de arquivo externo 
 % ---
-\include{abntex2-modelo-include-comandos}
+% \include{abntex2-modelo-include-comandos}
 % ---
 
-\chapter{Conteúdos específicos do modelo de trabalho acadêmico}\label{cap_trabalho_academico}
+% \chapter{Conteúdos específicos do modelo de trabalho acadêmico}\label{cap_trabalho_academico}
 
-\section{Quadros}
+% \section{Quadros}
 
-Este modelo vem com o ambiente \texttt{quadro} e impressão de Lista de quadros 
-configurados por padrão. Verifique um exemplo de utilização:
+% Este modelo vem com o ambiente \texttt{quadro} e impressão de Lista de quadros 
+% configurados por padrão. Verifique um exemplo de utilização:
 
-\begin{quadro}[htb]
-\caption{\label{quadro_exemplo}Exemplo de quadro}
-\begin{tabular}{|c|c|c|c|}
-	\hline
-	\textbf{Pessoa} & \textbf{Idade} & \textbf{Peso} & \textbf{Altura} \\ \hline
-	Marcos & 26    & 68   & 178    \\ \hline
-	Ivone  & 22    & 57   & 162    \\ \hline
-	...    & ...   & ...  & ...    \\ \hline
-	Sueli  & 40    & 65   & 153    \\ \hline
-\end{tabular}
-\fonte{Autor.}
-\end{quadro}
+% \begin{quadro}[htb]
+% \caption{\label{quadro_exemplo}Exemplo de quadro}
+% \begin{tabular}{|c|c|c|c|}
+% 	\hline
+% 	\textbf{Pessoa} & \textbf{Idade} & \textbf{Peso} & \textbf{Altura} \\ \hline
+% 	Marcos & 26    & 68   & 178    \\ \hline
+% 	Ivone  & 22    & 57   & 162    \\ \hline
+% 	...    & ...   & ...  & ...    \\ \hline
+% 	Sueli  & 40    & 65   & 153    \\ \hline
+% \end{tabular}
+% \fonte{Autor.}
+% \end{quadro}
 
-Este parágrafo apresenta como referenciar o quadro no texto, requisito
-obrigatório da ABNT. 
-Primeira opção, utilizando \texttt{autoref}: Ver o \autoref{quadro_exemplo}. 
-Segunda opção, utilizando  \texttt{ref}: Ver o Quadro \ref{quadro_exemplo}.
+% Este parágrafo apresenta como referenciar o quadro no texto, requisito
+% obrigatório da ABNT. 
+% Primeira opção, utilizando \texttt{autoref}: Ver o \autoref{quadro_exemplo}. 
+% Segunda opção, utilizando  \texttt{ref}: Ver o Quadro \ref{quadro_exemplo}.
 
 % ----------------------------------------------------------
 % PARTE
@@ -563,16 +479,16 @@ Segunda opção, utilizando  \texttt{ref}: Ver o Quadro \ref{quadro_exemplo}.
 % ---
 % Capitulo de revisão de literatura
 % ---
-\chapter{Lorem ipsum dolor sit amet}
+\chapter{Revisão dos modelos utilizados}
 % ---
 
-% ---
-\section{Aliquam vestibulum fringilla lorem}
-% ---
+\section{Long Short Term Memory}
 
-\lipsum[1]
+\section{Neural Hierarchical Interpolation for Time Series Forecasting}
 
-\lipsum[2-3]
+\section{Neural Basis Expansion Analysis for Interpretable Time Series Forecasting}
+
+\section{Neural Basis Expansion Analysis for Interpretable Time Series Forecasting}
 
 % ----------------------------------------------------------
 % PARTE
@@ -591,7 +507,7 @@ Segunda opção, utilizando  \texttt{ref}: Ver o Quadro \ref{quadro_exemplo}.
 posuere cubilia Curae}
 % ---
 
-\lipsum[21-22]
+\lipsum[21-25]
 
 % ---
 % segundo capitulo de Resultados
@@ -604,7 +520,7 @@ elementum}
 \section{Pellentesque sit amet pede ac sem eleifend consectetuer}
 % ---
 
-\lipsum[24]
+\lipsum[25-26]
 
 % ----------------------------------------------------------
 % Finaliza a parte no bookmark do PDF
@@ -619,7 +535,7 @@ elementum}
 \chapter{Conclusão}
 % ---
 
-\lipsum[31-33]
+\lipsum[31-36]
 
 % ----------------------------------------------------------
 % ELEMENTOS PÓS-TEXTUAIS
@@ -630,7 +546,7 @@ elementum}
 % ----------------------------------------------------------
 % Referências bibliográficas
 % ----------------------------------------------------------
-\bibliography{tcc_ref}
+\bibliography{references}
 
 % ----------------------------------------------------------
 % Glossário
@@ -650,19 +566,13 @@ elementum}
 \begin{apendicesenv}
 
 % Imprime uma página indicando o início dos apêndices
-\partapendices
+% \partapendices
 
 % ----------------------------------------------------------
 \chapter{Quisque libero justo}
 % ----------------------------------------------------------
 
 \lipsum[50]
-
-% ----------------------------------------------------------
-\chapter{Nullam elementum urna vel imperdiet sodales elit ipsum pharetra ligula
-ac pretium ante justo a nulla curabitur tristique arcu eu metus}
-% ----------------------------------------------------------
-\lipsum[55-57]
 
 \end{apendicesenv}
 % ---
@@ -678,25 +588,12 @@ ac pretium ante justo a nulla curabitur tristique arcu eu metus}
 \begin{anexosenv}
 
 % Imprime uma página indicando o início dos anexos
-\partanexos
+% \partanexos
 
 % ---
 \chapter{Morbi ultrices rutrum lorem.}
 % ---
 \lipsum[30]
-
-% ---
-\chapter{Cras non urna sed feugiat cum sociis natoque penatibus et magnis dis
-parturient montes nascetur ridiculus mus}
-% ---
-
-\lipsum[31]
-
-% ---
-\chapter{Fusce facilisis lacinia dui}
-% ---
-
-\lipsum[32]
 
 \end{anexosenv}
 
