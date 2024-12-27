@@ -18,6 +18,8 @@ impulsionado por uma combinação de fatores meteorológicos, e, combinado com a
 enchentes\cite{yang}\cite{hammond}\cite{zhang}\cite{pereira}, levou à um evento de devastação generalizada, com milhares
 de pessoas deslocadas e centenas de vítimas fatais\cite{alcantara}.
 
+% Falar das mudanças geográficas em POA?
+
 Durante a gestão da crise, o monitoramento e predição dos níveis de água do Rio Guaíba – o mais importante da região –
 foi fundamental para orientar os tomadores de decisão em suas ações de planejamento e para que à população pudesse
 reagir melhor à ameaça iminente. Essas previsões foram feitas principalmente através de modelos hidrológicos e
@@ -27,20 +29,70 @@ fator foi acentuado nos momentos mais delicados da crise, quando as previsões s
 frequência diária \cite{iph}, o que as tornou insuficientes para atender às demandas de previsões em tempo real ou de
 curto prazo \cite{atashi}.
 
-Uma alternativa que visa superar essas limitações são os modelos baseados em dados. Os mesmos utilizam técnicas como
-aprendizado de máquina (\textit{Machine Learning}) para identificar e explorar relações estatísticas entre os dados de
-entrada e saída. Com a prendizagem dos padrões presentes nos dados históricos, é possível mapear as dinâmicas
-subjacentes do sistema e utilizá-las para prever valores futuros. Assim, esses modelos são capazes de realizar previsões
-precisas com base em séries temporais, capturando tendências e comportamentos complexos que podem ser difíceis de
-modelar diretamente por meio de abordagens tradicionais. Modelos baseados em dados são mais rápidos e eficientes para
-previsões em tempo real, sendo uma escolha adequada para sistemas de alerta precoce e mitigação de desastres de
-cheias\cite{ta}.
+Uma alternativa que visa superar essas limitações são os modelos baseados em dados. Os mesmos utilizam técnicas para
+identificar e explorar relações estatísticas entre os dados de entrada e saída. Com a prendizagem dos padrões presentes
+nos dados históricos, é possível mapear as dinâmicas subjacentes do sistema e utilizá-las para prever valores futuros.
+Assim, esses modelos são capazes de realizar previsões precisas com base em séries temporais, capturando tendências e
+comportamentos complexos que podem ser difíceis de modelar diretamente por meio de abordagens tradicionais. Modelos
+baseados em dados são mais rápidos e eficientes para previsões em tempo real, sendo uma escolha adequada para sistemas
+de alerta precoce e mitigação de desastres de cheias\cite{ta}.
 
-Esses modelos podem seguir uma abordagem mais clássica na forma de modelos estatísticos, como o SARIMA (\textit{Seasonal
-Auto Regressive Integrated Moving Average}). O mesmo é uma representação matemática de um processo estocástico
-não-estacionário.
+% Ligar melhor a explicação dos modelos com o problema das enchentes para que o leitor não esqueça do que foi definido;
 
-(Quais são esses modelos? SARIMAx, LSTM, XGBoost, TimeLLM?)
+Uma das maiores vantagens de utilizar essa abordagem é o grande desenvolvimento do campo de Análise e Predição de Séries
+Temporais. Com isso, é possível utilizar a grande quantidade de técnicas desenvolvidas para a aplicação em problemas com
+uma modelagem semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro desta
+abordagem, uma ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma
+oportunidade de análise e comparação entre vantagens e desvantagens das mesmas com o intuíto de descobrir a mais efetiva
+para a situação particular \cite{makridakis}\cite{morales}.
 
+Uma abordagem mais clássica e altamente implementada destes modelos vem na na forma de modelos estatísticos, como o
+ARIMA (\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos
+usando uma combinação de autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da
+mesma, a média móvel - ajuste das previsões considerando os erros residuais das observações anteriores, o que permite
+capturar flutuações - e, por último, a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões
+de longo prazo e tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos em com uma certa
+frequência fixa, como padrões mensais ou trimestrais, podem ser compreendidos através de uma extensão do ARIMA, o
+SARIMA. 
 
-Este estudo visa a aplicação destes diferentes modelos de Aprendizado Profundo (\textit{Deep Learning})
+% Se for usar o ETC ou o DOT, aqui é o ponto para mencionar eles;
+
+Esses modelos, eficazes e de baixo custo computacional, apresentam tanto limitações quanto vantagens quando comparados
+com modelos mais recentes desenvolvidos nas áreas de Aprendizado de Máquina (\textit{Machine Learning}) e Aprendizado
+Profundo (\textit{Deep Learning}) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
+\textit{Gradient Boosting} têm se mostrado extremamente eficazes. Um exemplo amplamente utilizado é o XGBoost
+(\textit{eXtreme Gradient Boosting}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série, ajustando
+constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o risco de
+\textit{overfitting} e otimizações específicas para lidar com grandes volumes de dados. Uma implementação semelhante
+visando reduzir o tempo computacional é dada pelo LightGBM \cite{lightgbm}. Ela mantém as vantagens do XGBoost, como
+otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e regularização, mas altera o método de
+construção das árvores de decisão.
+
+Por outro lado, em Aprendizado Profundo, modelos baseados em Redes Neurais Recorrentes (RNNs), como o \textit{Long Short
+Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
+\cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo em séries temporais,
+garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que mantém o contexto de
+eventos mais recentes. Essa abordagem é particularmente útil em problemas onde padrões temporais complexos e não
+lineares precisam ser modelados.
+
+Além dos modelos baseados em RNNs, outra abordagem amplamente utilizada em Aprendizado Profundo são as baseadas em Redes
+Neurais Perceptron Multicamadas (MLP, \textit{Multilayer Perceptron}). Diferentemente das RNNs, que são projetadas para
+processar dados sequenciais, as MLPs utilizam camadas conectadas para identificar padrões em conjuntos de dados
+estruturados. Um exemplo é o modelo NHITS (\textit{Neural Hierarchical Interpolation for Time Series Forecasting})
+\cite{challu}, que adapta a arquitetura MLP para o contexto de séries temporais. O NHITS emprega uma estratégia
+hierárquica para interpolar e extrair características relevantes em diferentes escalas temporais, permitindo capturar
+tanto padrões de curto quanto de longo prazo. Com isso, o mesmo apresenta uma grande capacidade de lidar com séries
+temporais irregulares ou com alta variabilidade.
+
+Com todas essas diferentes abordagens em mente, este estudo visa a aplicação dos mesmos no mesmo contexto de predição do
+nível da água nas enchentes do Rio Guaíba em 2024 e a comparação entre os mesmos será feita com base em métricas de
+desempenho como o \textit{Root Mean Squared Error} (RMSE), \textit{Mean Absolute Error} (MAE) e o \textit{Nash-Sutcliffe
+Model Efficiency Coefficient} (NSE).
+
+Para isso, serão utilizados dados das séries temporais do Sistema Nacional de Informações sobre Recursos Hídricos
+(SNIRH), que disponibiliza informações das principais bacias hidrográficas do Brasil\cite{snirh}. Esses dados serão a
+base para as séries históricas do nível de água, complementados por dados externos, como os do MERRA-2
+(\textit{Modern-Era Retrospective analysis for Research and Applications, Version 2}), um projeto da NASA que integra
+observações de satélites e estações terrestres para gerar dados meteorológicos globais\cite{nasa}. Dados meteorológicos
+adicionais serão obtidos a partir de fontes públicas, como o Instituto Nacional de Meteorologia (INMET) e o Instituto
+Brasileiro de Geografia e Estatística (IBGE)\cite{inmet}\cite{ibge}.
