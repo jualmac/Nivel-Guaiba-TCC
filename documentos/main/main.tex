@@ -46,7 +46,7 @@
 	]{abntex2}
 
 % ---
-% Pacotes básicos 
+% Pacotes 
 % ---
 \usepackage{lmodern}			% Usa a fonte Latin Modern			
 \usepackage[T1]{fontenc}		% Selecao de codigos de fonte.
@@ -55,24 +55,22 @@
 \usepackage{color}				% Controle das cores
 \usepackage{graphicx}			% Inclusão de gráficos
 \usepackage{microtype} 			% para melhorias de justificação
-% ---
-		
-% ---
-% Pacotes adicionais, usados apenas no âmbito do Modelo Canônico do abnteX2
-% ---
+\usepackage{pdfpages}           % necessário para comando \includepdf
 \usepackage{lipsum}				% para geração de dummy text
 % ---
 
 % ---
 % Pacotes de citações
 % ---
+% Opção 1 -> Mais bonito e limpo, mas na sessão de referências, não fica da forma correta;
+\usepackage[brazilian,hyperpageref]{backref}
 \usepackage{cite}
 \usepackage{hyperref}
-\usepackage[brazilian,hyperpageref]{backref}
-
 \bibliographystyle{plain}
 
-\usepackage{pdfpages} % necessário para comando \includepdf
+% Opção 2 -> Provavelmente é a mais correta. Melhor deixar aqui caso eu precise mudar rapidamente para ficar dentro das regras;
+% \usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
+% \usepackage[alf]{abntex2cite}	% Citações padrão ABNT
 
 % --- 
 % CONFIGURAÇÕES DE PACOTES
@@ -392,6 +390,7 @@
   \item[RMPOA] Região Metropolitana de Porto Alegre 
   \item [MLP] Multilayer Perceptron
   \item [NHITS] Neural Hierarchical Interpolation for Time Series Forecasting
+  \item [SNIRH] Sistema Nacional de Informações sobre Recursos Hídricos
 \end{siglas}
 % ---
 
