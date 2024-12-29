@@ -7,13 +7,14 @@ ocorrências. Já o impacto social é, sem dúvida, o mais significativo. Este i
 gerações de pessoas afetadas por desastres, como evidenciado pelos efeitos do furacão Katrina
 \cite{reardon}\cite{neria}.
 
-Devido às mudanças climáticas, a frequência e intensidade dos desastres naturais vêm aumentando gradualmente desde os
-anos 1950 \cite{dunn}. Como resultado, muitas regiões vem sendo afetadas por eventos climáticos extremos de maneira
-acelerada, causando um significativo despreparo. Entre esses desastres, as enchentes se destacam pela sua capacidade de
-causar destruição generalizada e afetar áreas densamente povoadas, especialmente em regiões urbanas com infraestrutura
-inadequada para gerenciar grandes volumes de água. Em muitos casos, essa inadequação é agravada pela falta de manutenção
-de sistemas essenciais, como drenagem urbana, diques ou canais fluviais, tornando as cidades vulneráveis mesmo quando
-dispõem de estruturas projetadas para lidar com grandes fluxos de água. 
+Devido às mudanças climáticas, a frequência e intensidade dos desastres naturais vêm aumentando globalmente desde os
+anos 1950, como evidenciado por Dunn et al. (2024) \cite{dunn}. Como resultado, muitas regiões vem sendo afetadas por
+eventos climáticos extremos de maneira acelerada, causando um significativo despreparo. Entre esses desastres, as
+enchentes se destacam pela sua capacidade de causar destruição generalizada e afetar áreas densamente povoadas,
+especialmente em regiões urbanas com infraestrutura inadequada para gerenciar grandes volumes de água. Em muitos casos,
+essa inadequação é agravada pela falta de manutenção de sistemas essenciais, como drenagem urbana, diques ou canais
+fluviais, tornando as cidades vulneráveis mesmo quando dispõem de estruturas projetadas para lidar com grandes fluxos de
+água. 
 
 No final de abril e início de maio de 2024, o estado do Rio Grande do Sul passou por um período de alta precipitação que
 resultou na cheia das suas principais bacias hidrográficas. Na região metropolitana de Porto Alegre (RMPOA), esse
@@ -37,31 +38,34 @@ fator foi acentuado nos momentos mais delicados da crise, quando as previsões s
 frequência diária \cite{iph}, o que as tornou insuficientes para atender às demandas de previsões em curto prazo ou em
 tempo real\cite{atashi}.
 
-Uma alternativa que visa superar essas limitações são os modelos baseados em dados. Os mesmos utilizam técnicas para
+Uma alternativa que visa superar essas limitações são os modelos baseados em dados, que utilizam técnicas para
 identificar e explorar relações estatísticas entre os dados de entrada e saída. Com a prendizagem dos padrões presentes
 nos dados históricos, é possível mapear as dinâmicas subjacentes do sistema e utilizá-las para prever valores futuros.
 Assim, esses modelos são capazes de realizar previsões precisas com base em séries temporais, capturando tendências e
 comportamentos complexos que podem ser difíceis de modelar diretamente por meio de abordagens tradicionais.
-Diferentemente dessas abordagens, que demandam tempo e dados específicos, os modelos baseados em dados oferecem maior
-agilidade para previsões em tempo real, sendo uma escolha mais adequada para sistemas de alerta precoce e mitigação de
-desastres de cheias \cite{ta}.
+Diferentemente das mesmas, que demandam tempo e dados específicos, os modelos baseados em dados oferecem maior agilidade
+para previsões em tempo real, sendo uma escolha mais adequada para sistemas de alerta precoce e mitigação de desastres
+de cheias \cite{ta}.
 
 Uma das maiores vantagens de utilizar essa abordagem é o grande desenvolvimento do campo de Análise e Predição de Séries
 Temporais. Com isso, é possível utilizar as técnicas desenvolvidas para a aplicação em problemas com uma modelagem
-semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro desta abordagem,
-uma ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma oportunidade de
-análise e comparação entre as vantagens e desvantagens das mesmas com o intuíto de descobrir a mais efetiva para a
-situação particular \cite{makridakis}\cite{morales}.
+semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro deste contexto, uma
+ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma oportunidade de análise
+e comparação entre as vantagens e desvantagens das mesmas com o intuíto de descobrir a mais efetiva para a situação
+particular \cite{makridakis}\cite{morales}.
 
-Uma abordagem mais clássica e altamente implementada destes modelos vem na na forma de modelos estatísticos, como o
-ARIMA (\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos
-usando uma combinação de autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da
-mesma, a média móvel - ajuste das previsões considerando os erros residuais das observações anteriores, o que permite
-capturar flutuações - e, por último, a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões
-de longo prazo e tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos em com uma certa
-frequência fixa, como padrões mensais ou trimestrais, podem ser compreendidos através de uma extensão do ARIMA, o
-SARIMA. Historicamente, esses modelos têm sido usados em predições em contextos semelhantes como em Atashi et al.
-\cite{atashi} e Güldal et al. \cite{gudal}, oferecendo uma base sólida para comparações com métodos modernos.
+Uma abordagem mais clássica e altamente implementada destes modelos vem na forma de modelos estatísticos, como o ARIMA
+(\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos usando uma
+combinação de autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da mesma, a
+média móvel - ajuste das previsões considerando os erros residuais das observações anteriores, o que permite capturar
+flutuações - e, por último, a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões de longo
+prazo e tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos em com uma certa frequência
+fixa, como padrões mensais ou trimestrais, podem ser compreendidos através de uma extensão do ARIMA, o SARIMA.
+Historicamente, esses modelos têm sido usados em predições em contextos semelhantes como em Atashi et al. (2022)
+\cite{atashi} que comparou o desempenho do SARIMA com os modelos LSTM e \textit{Random Forest} para predição do nível da
+água no Rio Vermelho do Norte, localizado na fronteira entre os Estados Unidos e o Canadá, e Güldal et al. (2009)
+\cite{gudal} que utilizou o ARMA para a predição do Lago Eğirdir na Túrquia, oferecendo uma base sólida para comparações
+com métodos modernos.
 
 % Se for usar o ETC ou o DOT, aqui é o ponto para mencionar eles;
 
@@ -73,7 +77,7 @@ previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo ampl
 (\textit{eXtreme Gradient Boosting}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série, ajustando
 constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o risco de
 sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma implementação
-semelhante visando reduzir o tempo computacional é dada pelo LightGBM \cite{lightgbm}. Ela mantém as vantagens do
+semelhante, visando reduzir o tempo computacional, é dada pelo LightGBM \cite{lightgbm}. Ela mantém as vantagens do
 XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e regularização, mas
 altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter resultados semelhantes
 de forma mais eficaz, algo imprescindível no contexto de uma crise climática como a ocorrida.
@@ -82,17 +86,17 @@ Por outro lado, em Aprendizado Profundo, modelos baseados em Redes Neurais Recor
 Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
 \cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo em séries temporais,
 garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que mantém o contexto de
-eventos mais recentes. Essa abordagem é particularmente útil em problemas onde padrões temporais complexos e não
-lineares precisam ser modelados.
+eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais complexos e, geralmente,
+não lineares precisam ser modelados.
 
 Além dos modelos baseados em RNNs, outra abordagem amplamente utilizada em Aprendizado Profundo são as baseadas em Redes
 Neurais Perceptron Multicamadas (MLP, \textit{Multilayer Perceptron}). Diferentemente das RNNs, que são projetadas para
 processar dados sequenciais, as MLPs utilizam camadas conectadas para identificar padrões em conjuntos de dados
 estruturados. Um exemplo é o modelo NHITS (\textit{Neural Hierarchical Interpolation for Time Series Forecasting})
-\cite{challu}, que adapta a arquitetura MLP para o contexto de séries temporais. O NHITS emprega uma estratégia
+\cite{challu} que adapta a arquitetura MLP para o contexto de séries temporais. O NHITS emprega uma estratégia
 hierárquica para interpolar e extrair características relevantes em diferentes escalas temporais, permitindo capturar
-tanto padrões de curto quanto de longo prazo. Com isso, o mesmo apresenta uma grande capacidade de lidar com séries
-temporais irregulares ou com alta variabilidade.
+tanto padrões de curto quanto de longo prazo. Com isso, apresenta uma grande capacidade de lidar com séries temporais
+irregulares ou com alta variabilidade.
 
 Com todas essas diferentes abordagens em mente, este estudo tem como objetivo principal aplicar essas técnicas no
 contexto específico de predição do nível da água durante as enchentes do Rio Guaíba. O foco está em avaliar a eficácia
@@ -106,7 +110,7 @@ que avalia a eficiência preditiva em relação à média observada.
 
 Além disso, será considerada a capacidade dos modelos de lidar com variáveis externas, como precipitação, vento, nível
 de rios afluentes e outros fatores que influenciam diretamente o nível do Rio Guaíba. Com isso, busca-se não apenas
-determinar qual abordagem oferece o menor erro preditivo, mas também compreender como cada técnica responde a diferentes
+determinar qual análise oferece o menor erro preditivo, mas também compreender como cada técnica responde a diferentes
 dinâmicas do sistema e sua aplicabilidade em situações de gestão de desastres. Essa análise contribuirá para o
 desenvolvimento de estratégias mais robustas e eficazes para a mitigação de impactos de enchentes futuras.
 
