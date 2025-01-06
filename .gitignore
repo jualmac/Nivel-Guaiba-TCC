@@ -30,6 +30,18 @@
 *.loq
 *.bbl
 
+# Images for Latex:
+img
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.tif
+*.webp
+*.svg
+
 # SQLite Database;
 *.db
 *.sqlite3

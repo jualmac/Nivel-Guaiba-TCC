@@ -59,6 +59,7 @@
 \usepackage{lipsum}				% para geração de dummy text
 \usepackage{amsmath}
 \usepackage[braket, qm]{qcircuit}
+\usepackage[version=4]{mhchem}
 % ---
 
 % ---
@@ -447,7 +448,12 @@
     \section{Análise Comparativa da Literatura}
     \input{lit.tex}
 \chapter{Revisão dos Modelos}
-    \lipsum[1]    
+  Nesta sessão exploraremos os modelos escolhidos na parte experimental do projeto. Os motivos de escolha dos mesmos serão
+  desenvolvidos em cada respectivo capítulo. Contudo, um dos maiores critérios de escolha do mesmo se baseou em ter pelo
+  menos um representante das principais áreas de predição de séries temporais baseadas em dados. Logo, se viu necessária a
+  presença de um modelo estatístico clássico como base de comparação, modelos de Redes Neurais devido ao seus grandes usos
+  e efetividades e, por último, um modelo baseado em árvores de decisão devido a sua intuitiva compreensão e
+  permissividade em círculos de ciência de dados.  
     \section{Seasonal Autoregressive Integrated Moving Average (SARIMA)}
     \input{sarima.tex}
     \section{Long Short Term Memory (LSTM)}
@@ -558,36 +564,5 @@
 \phantompart
 \printindex
 %---------------------------------------------------------------------
-
-% % ---
-% % Capitulo com exemplos de comandos inseridos de arquivo externo 
-% % ---
-% \include{abntex2-modelo-include-comandos}
-% % ---
-
-% \chapter{Conteúdos específicos do modelo de trabalho acadêmico}\label{cap_trabalho_academico}
-
-% \section{Quadros}
-
-% Este modelo vem com o ambiente \texttt{quadro} e impressão de Lista de quadros 
-% configurados por padrão. Verifique um exemplo de utilização:
-
-% \begin{quadro}[htb]
-% \caption{\label{quadro_exemplo}Exemplo de quadro}
-% \begin{tabular}{|c|c|c|c|}
-% 	\hline
-% 	\textbf{Pessoa} & \textbf{Idade} & \textbf{Peso} & \textbf{Altura} \\ \hline
-% 	Marcos & 26    & 68   & 178    \\ \hline
-% 	Ivone  & 22    & 57   & 162    \\ \hline
-% 	...    & ...   & ...  & ...    \\ \hline
-% 	Sueli  & 40    & 65   & 153    \\ \hline
-% \end{tabular}
-% \fonte{Autor.}
-% \end{quadro}
-
-% Este parágrafo apresenta como referenciar o quadro no texto, requisito
-% obrigatório da ABNT. 
-% Primeira opção, utilizando \texttt{autoref}: Ver o \autoref{quadro_exemplo}. 
-% Segunda opção, utilizando  \texttt{ref}: Ver o Quadro \ref{quadro_exemplo}.
 
 \end{document}
