@@ -66,14 +66,15 @@
 % Pacotes de citações
 % ---
 % Opção 1 -> Mais bonito e limpo, mas na sessão de referências, não fica da forma correta;
-\usepackage[brazilian,hyperpageref]{backref}
-\usepackage{cite}
-\usepackage{hyperref}
-\bibliographystyle{plain}
+% \usepackage[brazilian,hyperpageref]{backref}
+% \usepackage{cite}
+% \usepackage{hyperref}
+% \bibliographystyle{plain}
 
 % Opção 2 -> Provavelmente é a mais correta. Melhor deixar aqui caso eu precise mudar rapidamente para ficar dentro das regras;
-% \usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
-% \usepackage[alf]{abntex2cite}	% Citações padrão ABNT
+\usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
+\usepackage[num]{abntex2cite}	% Citações padrão ABNT
+\citebrackets[]
 
 % --- 
 % CONFIGURAÇÕES DE PACOTES
@@ -442,7 +443,7 @@ América Latina. Será também explorado a vulnerabilidade intrinseca de centros
 prevenção e monitoramento para tais situações.
     \section{Mudanças climáticas e desastres naturais}
     \input{climate.tex}
-    \section{Enchente de 2024}
+    \section{Enchente de 2024 na Região Metropolitana de Porto Alegre}
     \input{flood.tex}
     \section{Análise geográfica da RMPOA}
     \input{geo.tex}
