@@ -91,20 +91,20 @@ garantindo que informações relevantes de eventos passados sejam preservadas, a
 eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais complexos e, geralmente,
 não lineares precisam ser modelados.
 
-Além dos modelos baseados em RNNs, outra abordagem amplamente utilizada em Aprendizado Profundo são as baseadas em Redes
-Neurais Perceptron Multicamadas (MLP, \textit{Multilayer Perceptron}). Diferentemente das RNNs, que são projetadas para
-processar dados sequenciais, as MLPs utilizam camadas conectadas para identificar padrões em conjuntos de dados
-estruturados. Um exemplo é o modelo NHITS (\textit{Neural Hierarchical Interpolation for Time Series Forecasting})
-\cite{challu} que adapta a arquitetura MLP para o contexto de séries temporais. O NHITS emprega uma estratégia
-hierárquica para interpolar e extrair características relevantes em diferentes escalas temporais, permitindo capturar
-tanto padrões de curto quanto de longo prazo. Com isso, apresenta uma grande capacidade de lidar com séries temporais
-irregulares ou com alta variabilidade.
+% Além dos modelos baseados em RNNs, outra abordagem amplamente utilizada em Aprendizado Profundo são as baseadas em
+% Redes Neurais Perceptron Multicamadas (MLP, \textit{Multilayer Perceptron}). Diferentemente das RNNs, que são
+% projetadas para processar dados sequenciais, as MLPs utilizam camadas conectadas para identificar padrões em conjuntos
+% de dados estruturados. Um exemplo é o modelo NHITS (\textit{Neural Hierarchical Interpolation for Time Series
+% Forecasting}) \cite{challu} que adapta a arquitetura MLP para o contexto de séries temporais. O NHITS emprega uma
+% estratégia hierárquica para interpolar e extrair características relevantes em diferentes escalas temporais,
+% permitindo capturar tanto padrões de curto quanto de longo prazo. Com isso, apresenta uma grande capacidade de lidar
+% com séries temporais irregulares ou com alta variabilidade.
 
 Com todas essas diferentes abordagens em mente, este estudo tem como objetivo principal aplicar essas técnicas no
 contexto específico de predição do nível da água durante as enchentes do Rio Guaíba. O foco está em avaliar a eficácia
 de cada modelo na previsão de séries temporais em um cenário crítico, onde precisão e rapidez são essenciais para a
 tomada de decisões. Para isso, serão utilizados diferentes métodos, abrangendo desde abordagens estatísticas, como
-SARIMA, até modelos mais recentes como XGBoost, LSTM, NHITS e outros. A comparação do desempenho desses modelos será
+SARIMA, até modelos mais recentes como XGBoost, LSTM e outros. A comparação do desempenho desses modelos será
 realizada com base em métricas amplamente reconhecidas na literatura, como o \textit{Root Mean Squared Error} (RMSE),
 que mede a magnitude média dos erros quadráticos; o \textit{Mean Absolute Error} (MAE), que avalia os erros médios
 absolutos e fornece uma visão clara da precisão geral; e o \textit{Nash-Sutcliffe Model Efficiency Coefficient} (NSE),
