@@ -60,6 +60,7 @@
 \usepackage{amsmath}
 \usepackage[braket, qm]{qcircuit}
 \usepackage[version=4]{mhchem}
+\usepackage{CJKutf8}
 % ---
 
 % ---
@@ -198,6 +199,8 @@
 % Início do documento
 % ----
 \begin{document}
+\begin{CJK*}{UTF8}{ipxm}
+\renewcommand{\familydefault}{\rmdefault} 
 
 % Seleciona o idioma do documento (conforme pacotes do babel)
 %\selectlanguage{english}
@@ -558,4 +561,5 @@ permissividade em círculos de ciência de dados.
 \printindex
 %---------------------------------------------------------------------
 
+\end{CJK*}
 \end{document}
