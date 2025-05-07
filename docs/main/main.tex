@@ -42,6 +42,7 @@
 	english,			% idioma adicional para hifenização
 	french,				% idioma adicional para hifenização
 	spanish,			% idioma adicional para hifenização
+  japanese,
 	brazil				% o último idioma é o principal do documento
 	]{abntex2}
 
@@ -60,7 +61,7 @@
 \usepackage{amsmath}
 \usepackage[braket, qm]{qcircuit}
 \usepackage[version=4]{mhchem}
-\usepackage{CJKutf8}
+
 % ---
 
 % ---
@@ -199,7 +200,6 @@
 % Início do documento
 % ----
 \begin{document}
-\begin{CJK*}{UTF8}{ipxm}
 \renewcommand{\familydefault}{\rmdefault} 
 
 % Seleciona o idioma do documento (conforme pacotes do babel)
@@ -559,5 +559,4 @@ permissividade em círculos de ciência de dados.
 \printindex
 %---------------------------------------------------------------------
 
-\end{CJK*}
 \end{document}
