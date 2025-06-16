@@ -1,1 +1,48 @@
-\lipsum[1-10]
+% Uma alternativa que visa superar essas limitações são os modelos baseados em dados, que utilizam técnicas para
+% identificar e explorar relações estatísticas entre os dados de entrada e saída. Com a aprendizagem dos padrões
+% presentes nos dados históricos, é possível mapear as dinâmicas subjacentes do sistema e utilizá-las para prever
+% valores futuros. Assim, esses modelos são capazes de realizar previsões precisas com base em séries temporais,
+% capturando tendências e comportamentos complexos que podem ser difíceis de modelar diretamente por meio de abordagens
+% tradicionais. Diferentemente das mesmas, que demandam tempo e dados específicos, os modelos baseados em dados oferecem
+% maior agilidade para previsões em tempo real, sendo uma escolha mais adequada para sistemas de alerta precoce e
+% mitigação de desastres de cheias \cite{ta}.
+
+% Uma das maiores vantagens de utilizar essa abordagem é o grande desenvolvimento do campo de Análise e Predição de
+% Séries Temporais. Com isso, é possível utilizar as técnicas desenvolvidas para a aplicação em problemas com uma
+% modelagem semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro deste
+% contexto, uma ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma
+% oportunidade de análise e comparação entre as vantagens e desvantagens das mesmas com o intuíto de descobrir a mais
+% efetiva para a situação particular \cite{makridakis, morales}.
+
+% Uma abordagem mais clássica e altamente implementada destes modelos vem na forma de modelos estatísticos, como o ARIMA
+% (\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos usando
+% uma combinação de autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da mesma,
+% a média móvel - ajuste das previsões considerando os erros residuais das observações anteriores, o que permite
+% capturar flutuações - e, por último, a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões
+% de longo prazo e tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos em com uma certa
+% frequência fixa, como padrões mensais ou trimestrais, podem ser compreendidos através de uma extensão do ARIMA, o
+% SARIMA. Historicamente, esses modelos têm sido usados em predições em contextos semelhantes como em Atashi et al.
+% (2022) \cite{atashi} que comparou o desempenho do SARIMA com os modelos LSTM e \textit{Random Forest} para predição do
+% nível da água no Rio Vermelho do Norte, localizado na fronteira entre os Estados Unidos e o Canadá, e Güldal et al.
+% (2009) \cite{gudal} que utilizou o ARMA para a predição do Lago Eğirdir na Túrquia, oferecendo uma base para
+% comparações com métodos modernos.
+
+% Esses modelos, eficazes e de baixo custo computacional, apresentam tanto limitações quanto vantagens quando comparados
+% com modelos mais recentes desenvolvidos nas áreas de Aprendizado de Máquina (\textit{Machine Learning}) e Aprendizado
+% Profundo (\textit{Deep Learning}) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
+% \textit{Gradient Boosting} têm se mostrado promissores em situações de desastres, onde a rapidez e precisão nas
+% previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo amplamente utilizado é o XGBoost
+% (\textit{eXtreme Gradient Boosting}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série, ajustando
+% constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o risco de
+% sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma
+% implementação semelhante, visando reduzir o tempo computacional, é dada pelo LightGBM \cite{lightgbm}. Ela mantém as
+% vantagens do XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e
+% regularização, mas altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter
+% resultados semelhantes de forma mais eficaz, algo imprescindível no contexto de uma crise climática como a ocorrida.
+
+% Por outro lado, em Aprendizado Profundo, modelos baseados em Redes Neurais Recorrentes (RNNs), como o \textit{Long
+% Short Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
+% \cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo em séries
+% temporais, garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que mantém o
+% contexto de eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais complexos
+% e, geralmente, não lineares precisam ser modelados.
