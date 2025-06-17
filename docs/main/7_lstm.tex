@@ -1,1 +1,72 @@
-\lipsum[1-10]
+O Memória de Curto e Longo Prazo (Long Short-Term Memory — LSTM) é uma variante das Redes Neurais Recorrentes (Recurrent
+Neural Networks — RNN) projetada para resolver o problema do gradiente desaparecendo (vanishing gradient problem) que
+afeta as RNNs quando precisam aprender dependências de longo prazo em sequências extensas. Enquanto uma RNN padrão
+transmite apenas seu estado oculto (hidden state) de um passo ao outro, sofrendo perda de informações importantes ao
+longo do tempo, o LSTM introduz um estado interno ou célula de memória que pode reter informações relevantes por vários
+\textit{timesteps}, de acordo com sua importância.
+
+Cada célula de LSTM é composta por quatro camadas neurais distintas: três portões — portão de esquecimento (forget
+gate), portão de entrada (input gate) e portão de saída (output gate) — e uma camada responsável por gerenciar o próprio
+estado interno. Esses portões combinam funções sigmoide e multiplicações ponto a ponto para controlar de forma
+diferenciada o que deve ser descartado, adicionado ou propagado ao passo seguinte. A figura a seguir compara o fluxo de
+informação em uma RNN simples e em uma célula de LSTM.  
+% FIGURE: insira “LSTM3-SimpleRNN.png” e “LSTM3-chain.png” para comparação RNN × LSTM
+
+O portão de esquecimento (forget gate) decide quais componentes de \(C_{t-1}\), o estado interno anterior, serão
+removidos:
+\[
+f_t = \sigma\bigl(W_f[h_{t-1}, x_t] + b_f\bigr),
+\]
+onde \(\sigma\) é a sigmoide, \(h_{t-1}\) o estado oculto anterior, \(x_t\) a entrada atual, e \(W_f, b_f\) pesos e
+vieses. Valores de \(f_t\) próximos a 0 indicam descarte, e próximos a 1 indicam retenção.  
+% FIGURE: insira “LSTM3-focus-f.png” ilustrando o portão de esquecimento
+
+O portão de entrada (input gate) regula a incorporação de novas informações através de duas etapas:  
+1. Um cálculo sigmoide determina as posições a serem atualizadas:
+   \[
+   i_t = \sigma\bigl(W_i[h_{t-1}, x_t] + b_i\bigr).
+   \]
+2. Uma camada \(\tanh\) gera o vetor de candidatos:
+   \[
+   \widetilde{C}_t = \tanh\bigl(W_c[h_{t-1}, x_t] + b_c\bigr),
+   \]
+   com valores em \([-1,1]\).  
+% FIGURE: insira “LSTM3-focus-i.png” ilustrando o portão de entrada
+
+Em seguida, o estado interno é atualizado por
+\[
+C_t = f_t \,\odot\, C_{t-1} \;+\; i_t \,\odot\, \widetilde{C}_t,
+\]
+onde \(\odot\) denota multiplicação ponto a ponto.  
+% FIGURE: insira “LSTM3-focus-C.png” mostrando a atualização de \(C_t\)
+
+Finalmente, o portão de saída (output gate) define a porção de \(C_t\) que se tornará o próximo estado oculto:
+\[
+o_t = \sigma\bigl(W_o[h_{t-1}, x_t] + b_o\bigr),
+\qquad
+h_t = o_t \,\odot\, \tanh(C_t).
+\]
+% FIGURE: insira “LSTM3-focus-o.png” ilustrando o portão de saída
+
+As equações essenciais de um LSTM resumem-se a:
+\[
+\begin{aligned}
+f_t &= \sigma(W_f[h_{t-1}, x_t] + b_f),\\
+i_t &= \sigma(W_i[h_{t-1}, x_t] + b_i),\\
+\widetilde{C}_t &= \tanh(W_c[h_{t-1}, x_t] + b_c),\\
+C_t &= f_t \,\odot\, C_{t-1} + i_t \,\odot\, \widetilde{C}_t,\\
+o_t &= \sigma(W_o[h_{t-1}, x_t] + b_o),\\
+h_t &= o_t \,\odot\, \tanh(C_t).
+\end{aligned}
+\]
+
+A função de ativação \(\tanh\) pode ser substituída por outras, como ReLU, conforme a aplicação. Graças à combinação de
+portões e do estado interno, o LSTM retém informações críticas por longos intervalos e descarta dados irrelevantes,
+superando com eficiência o problema do gradiente desaparecendo e viabilizando o aprendizado de dependências de longo
+prazo em tarefas de séries temporais e processamento de linguagem natural.
+
+
+
+% % \section*{Referências} \begin{itemize} \item \url{https://colah.github.io/posts/2015-08-Understanding-LSTMs/} \item
+% % \url{https://d2l.ai/chapter_recurrent-modern/lstm.html} \item %
+% \url{https://www.tensorflow.org/guide/keras/sequential_model} \end{itemize}
