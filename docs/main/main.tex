@@ -401,13 +401,15 @@
   \item[IPCC] Painel Intergovernamental sobre Mudanças Climáticas
   \item[LSTM] Long Short Term Memory (Memória de Longo Curto Prazo)
   \item[LightGBM] Light Gradient-Boosting Machine(Impulsionamento de Gradiente de Máquina Leve) 
-  \item[MLP] Multilayer Perceptron (Perceptron de Múltiplas Camadas)
+  % \item[MLP] Multilayer Perceptron (Perceptron de Múltiplas Camadas)
   \item[RMPOA] Região Metropolitana de Porto Alegre 
   \item[RNN] Rede Neural Recorrente
   \item[SARIMA] Seasonal AutoRegressive Integrated Moving Average (Média Móvel Integrada Auto-Regressiva com Sazonalidade)
   \item[SNIRH] Sistema Nacional de Informações sobre Recursos Hídricos
   \item[UNFCCC] United Nations Framework Convention on Climate Change (Convenção-Quadro das Nações Unidas sobre a Mudança do Clima)
   \item[XGBoost] eXtreme Gradient Boosting (Impulsionamento de Gradiente Extremo)
+  \item[UFRGS] Universidade Federal do Rio Grande do Sul
+  \item[IPH] Instituto de Pesquisas Hidráulicas  
 \end{siglas}
 % ---
 
@@ -461,12 +463,13 @@ sistemas de prevenção presentes na Região Metropolitana de Porto Alegre.
     \input{4_rsflood.tex}
 
 \chapter{Revisão bibliográfica}
-Neste capítulo exploraremos os modelos escolhidos na parte experimental do projeto. Os motivos de escolha dos mesmos
-serão desenvolvidos em cada respectivo capítulo. Contudo, um dos maiores critérios de escolha do mesmo se baseou em ter
-pelo menos um representante das principais áreas de predição de séries temporais baseadas em dados. Logo, se viu
-necessária a presença de um modelo estatístico clássico como base de comparação, modelos de Redes Neurais devido ao seus
-grandes usos e efetividades e, por último, um modelo baseado em árvores de decisão devido a sua intuitiva compreensão e
-permissividade em círculos de ciência de dados. 
+Neste capítulo exploraremos os modelos escolhidos na parte experimental do projeto. Os motivos de escolha de cada um
+serão desenvolvidos em seus respectivos capítulos. Contudo, um dos maiores critérios de escolha foi baseado em ter pelo
+menos um representante das principais áreas de predição de séries temporais baseadas em dados para obter-se uma
+comparação entres as diferentes famílias de métodos. Logo, se viu necessária a presença de um modelo estatístico
+clássico como base de comparação, modelos de Redes Neurais devido ao seus grandes usos e efetividades e, por último, um
+modelo baseado em árvores de decisão devido a sua intuitiva compreensão e permissividade em círculos de ciência de
+dados. 
     \section{Análise Comparativa da Literatura}
     \input{5_lit.tex}
     \section{Seasonal Autoregressive Integrated Moving Average (SARIMA)}
