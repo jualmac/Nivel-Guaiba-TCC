@@ -9,10 +9,10 @@ reconstrução não apenas física, mas também emocional e comunitária. Difere
 estruturais, que podem ser mitigados ao longo do tempo, os danos sociais muitas vezes deixam marcas irreversíveis,
 alterando permanentemente as comunidades afetadas.
 
-Devido às mudanças climáticas, a frequência e intensidade dos desastres naturais vêm aumentando globalmente. Como
+Devido às mudanças climáticas, a frequência e intensidade dos desastres naturais vêm aumentando globalmente, como
 resultado, muitas regiões são afetadas por eventos climáticos extremos de maneira acelerada, causando um significativo
 despreparo. Entre esses desastres, a ocorrência de enchentes se destacam pelo aumento de extremos de precipitação
-globais, como evidenciado por Dunn et al. (2024) \cite{dunn}. As memas apresentam uma capacidade de causar destruição
+globais, como evidenciado por Dunn et al. (2024) \cite{dunn}. As mesmas apresentam uma capacidade de causar destruição
 generalizada e afetar áreas densamente povoadas, especialmente em regiões urbanas com infraestrutura inadequada para
 gerenciar grandes volumes de água. Em muitos casos, essa inadequação é agravada pela falta de manutenção de sistemas
 essenciais, como drenagem urbana ou canais fluviais, tornando as cidades vulneráveis mesmo quando dispõem de estruturas
@@ -25,8 +25,8 @@ pela a cheia de 1941, até então considerada a mais devastadora da cidade \cite
 de 2024, o Rio Guaíba atingiu o nível de 5,33 metros devido à falhas no sistema de contenção de cheias, composto por
 muros, diques, comportas e estações de bombeamento \cite{comercio}. Bairros inteiros como Centro Histórico, Menino Deus
 e Sarandi foram alagados, forçando evacuações das áreas mais afetadas e tornando ruas transitáveis apenas de barco. As
-principais vias de acesso à capital foram interditadas, interrompendo abastecimentos e causando escassez de água e
-energia elétrica para milhares de moradores. Esse desastre foi impulsionado por uma combinação de fatores
+principais vias de acesso à capital foram interditadas, interrompendo abastecimentos, além de escassez generalizada de
+água e falhas na rede elétrica para milhares de moradores. Esse desastre foi impulsionado por uma séries de fatores
 meteorológicos, e, combinado com a maior vulnerabilidade de centros urbanos à enchentes \cite{yang, hammond, zhang,
 pereira}, levou à um evento de devastação generalizada, com milhares de pessoas deslocadas e centenas de vítimas fatais
 \cite{alcantara}.
@@ -44,36 +44,36 @@ Uma alternativa que visa superar essas limitações são os modelos baseados em 
 identificar e explorar relações estatísticas entre os dados de entrada e saída. Com a aprendizagem dos padrões presentes
 nos dados históricos, é possível mapear as dinâmicas subjacentes do sistema e utilizá-las para prever valores futuros.
 Assim, esses modelos são capazes de realizar previsões precisas com base em séries temporais, capturando tendências e
-comportamentos complexos que podem ser difíceis de modelar diretamente por meio de abordagens tradicionais.
-Diferentemente das mesmas, que demandam tempo e dados específicos, os modelos baseados em dados oferecem maior agilidade
-para previsões em tempo real, sendo uma escolha mais adequada para sistemas de alerta precoce e mitigação de desastres
-de cheias \cite{ta}.
+comportamentos complexos que podem ser difíceis de modelar diretamente por meio de abordagens tradicionais. Enquanto
+esses modelos demandam muito tempo e dados específicos, os modelos baseados em dados oferecem maior agilidade para
+previsões em tempo real, sendo uma escolha mais adequada para sistemas de alerta precoce e mitigação de desastres de
+cheias \cite{ta}.
 
-Uma das maiores vantagens de utilizar essa abordagem é o grande desenvolvimento do campo de Análise e Predição de Séries
-Temporais. Com isso, é possível utilizar as técnicas desenvolvidas para a aplicação em problemas com uma modelagem
-semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro deste contexto, uma
-ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma oportunidade de análise
-e comparação entre as vantagens e desvantagens das mesmas com o intuíto de descobrir a mais efetiva para a situação
-particular \cite{makridakis, morales}.
+% Uma das maiores vantagens de utilizar essa abordagem é o grande desenvolvimento do campo de Análise e Predição de
+% Séries Temporais. Com isso, é possível utilizar as técnicas desenvolvidas para a aplicação em problemas com uma
+% modelagem semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro deste
+% contexto, uma ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma
+% oportunidade de análise e comparação entre as vantagens e desvantagens das mesmas com o intuíto de descobrir a mais
+% efetiva para a situação particular \cite{makridakis, morales}.
 
 Uma abordagem mais clássica e altamente implementada destes modelos vem na forma de modelos estatísticos, como o ARIMA
-(\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos usando uma
-combinação de autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da mesma, a
-média móvel - ajuste das previsões considerando os erros residuais das observações anteriores, o que permite capturar
-flutuações - e, por último, a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões de longo
-prazo e tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos em com uma certa frequência
-fixa, como padrões mensais ou trimestrais, podem ser compreendidos através de uma extensão do ARIMA, o SARIMA.
-Historicamente, esses modelos têm sido usados em predições em contextos semelhantes como em Atashi et al. (2022)
-\cite{atashi} que comparou o desempenho do SARIMA com os modelos LSTM e \textit{Random Forest} para predição do nível da
-água no Rio Vermelho do Norte, localizado na fronteira entre os Estados Unidos e o Canadá, e Güldal et al. (2009)
-\cite{gudal} que utilizou o ARMA para a predição do Lago Eğirdir na Túrquia, oferecendo uma base para comparações com
-métodos modernos.
+(\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos usando
+três componentes: autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da mesma; a
+média móvel, um ajuste das previsões considerando os erros residuais das observações anteriores, o que permite capturar
+flutuações; e a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões de longo prazo e
+tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos com uma certa frequência fixa podem ser
+compreendidos através de uma extensão do ARIMA, o SARIMA. Historicamente, esses modelos têm sido usados em predições em
+contextos semelhantes como em Atashi et al. (2022) \cite{atashi} que comparou o desempenho do SARIMA com os modelos LSTM
+e \textit{Random Forest} para predição do nível da água no Rio Vermelho do Norte, localizado na fronteira entre os
+Estados Unidos e o Canadá, e Güldal et al. (2009) \cite{gudal} que utilizou o ARMA \footnote{Versão simplificada do
+ARIMA sem a diferenciação dos valores consecutivos} para a predição do Lago Eğirdir na Túrquia, oferecendo uma base para
+comparações com métodos modernos.
 
 % Se for usar o ETC ou o DOT, aqui é o ponto para mencionar eles;
 
 Esses modelos, eficazes e de baixo custo computacional, apresentam tanto limitações quanto vantagens quando comparados
-com modelos mais recentes desenvolvidos nas áreas de Aprendizado de Máquina (\textit{Machine Learning}) e Aprendizado
-Profundo (\textit{Deep Learning}) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
+com modelos mais recentes desenvolvidos nas áreas de \textit{Machine Learning} (Aprendizado de Máquina) e \textit{Deep
+Learning} (Aprendizado Profundo) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
 \textit{Gradient Boosting} têm se mostrado promissores em situações de desastres, onde a rapidez e precisão nas
 previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo amplamente utilizado é o XGBoost
 (\textit{eXtreme Gradient Boosting}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série, ajustando
@@ -84,8 +84,8 @@ XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas
 altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter resultados semelhantes
 de forma mais eficaz, algo imprescindível no contexto de uma crise climática como a ocorrida.
 
-Por outro lado, em Aprendizado Profundo, modelos baseados em Redes Neurais Recorrentes (RNNs), como o \textit{Long Short
-Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
+Por outro lado, em \textit{Deep Learning}, modelos baseados em Redes Neurais Recorrentes (RNNs), como o \textit{Long
+Short Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
 \cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo em séries temporais,
 garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que mantém o contexto de
 eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais complexos e, geralmente,
@@ -104,14 +104,14 @@ Com todas essas diferentes abordagens em mente, este estudo tem como objetivo pr
 contexto específico de predição do nível da água durante as enchentes do Rio Guaíba. O foco está em avaliar a eficácia
 de cada modelo na previsão de séries temporais em um cenário crítico, onde precisão e rapidez são essenciais para a
 tomada de decisões. Para isso, serão utilizados diferentes métodos, abrangendo desde abordagens estatísticas, como
-SARIMA, até modelos mais recentes como XGBoost, LSTM e outros. A comparação do desempenho desses modelos será
-realizada com base em métricas amplamente reconhecidas na literatura, como o \textit{Root Mean Squared Error} (RMSE),
-que mede a magnitude média dos erros quadráticos; o \textit{Mean Absolute Error} (MAE), que avalia os erros médios
-absolutos e fornece uma visão clara da precisão geral; e o \textit{Nash-Sutcliffe Model Efficiency Coefficient} (NSE),
-que avalia a eficiência preditiva em relação à média observada. 
+SARIMA, até modelos mais recentes como XGBoost, LSTM e outros. A comparação do desempenho desses modelos será realizada
+com base em métricas amplamente reconhecidas na literatura, como o \textit{Root Mean Squared Error} (RMSE), que mede a
+magnitude média dos erros quadráticos; o \textit{Mean Absolute Error} (MAE), que avalia os erros médios absolutos e
+fornece uma visão clara da precisão geral; e o \textit{Nash-Sutcliffe Model Efficiency Coefficient} (NSE), que avalia a
+eficiência preditiva em relação à média observada. 
 
-Além disso, será considerada a capacidade dos modelos de lidar com variáveis externas, como precipitação, vento, nível
-de rios afluentes e outros fatores que influenciam diretamente o nível do Rio Guaíba. Com isso, busca-se não apenas
+Também será considerada a capacidade dos modelos de lidar com variáveis externas, como precipitação, vento, nível de
+rios afluentes e outros fatores que influenciam diretamente o nível do Rio Guaíba. Este trabalho busca não apenas
 determinar qual análise oferece o menor erro preditivo, mas também compreender como cada técnica responde a diferentes
 dinâmicas do sistema e sua aplicabilidade em situações de gestão de desastres. Essa análise contribuirá para o
 desenvolvimento de estratégias mais robustas e eficazes para a mitigação de impactos de enchentes futuras.

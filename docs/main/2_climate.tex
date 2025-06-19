@@ -12,147 +12,82 @@ global e as enchentes é essencial para o desenvolvimento de estratégias eficaz
 
 % Chapter 2.3.1.1.3 (Temperatures during the instrumental period - surface) of the AR6 WGI;
 As últimas décadas foram marcadas por quebras constantes de recordes climáticos, especialmente em máximas de
-temperatura, evidenciando de forma empírica o impacto das mudanças climáticas em escala global. Esta tendência pode ser
-evidenciada através das Anomalias de Temperatura que são definidas como a diferença entre a temperatura observada em um
-determinado período e uma temperatura média de referência calculada para um período base. As mesmas são amplamente
-utilizadas como indicadores de tendências e mudanças de longo prazo nos padrões climáticos, pois podem capturar
-variações consistentes e sistemáticas não aparentes em dados absolutos, permitindo uma análise mais clara das mudanças
-globais. Nas últimas décadas, as Anomalias de Temperatura apresentam um padrão de crescimento constante, como pode
-evidenciar-se na Figura~\ref{temp_anomaly}.
-
-\begin{figure}[htb]
-	\caption{\label{temp_anomaly} Anomalia de Temperatura referente ao período de 1850 a 2024}
-	\begin{center}
-	    \includegraphics[scale=0.455]{img/Temperature Anomaly.png}
-	\end{center}
-	\legend{Fonte: \textit{National Oceanic and Atmospheric Administration} (NOAA) \cite{ncei_noaa}}
-\end{figure}
-
-De acordo com o sexto - e mais recente - relatório do Painel Intergovernamental sobre Mudanças Climáticas (IPCC),
-estabelecido pelas Nações Unidas e amplamente reconhecido como a principal referência na análise do conhecimento
-científico relacionado às mudanças climáticas, a superfície terrestre tem sofrido um aumento expressivo de temperatura
-em comparação com períodos históricos. Considerando o intervalo de 1850 a 1900 (utilizado como base pré-industrial por
-ser o primeiro período com boas observações de temperaturas registradas), a temperatura média da superfície
-terrestre\footnote{Dados referentes à medida do GMST - Temperatura Média Global da Superfície - que representa uma média
-ponderada entre as temperaturas das massas terrestres e das massas oceânicas.} no período de 2001 a 2020 foi
-aproximadamente 1.07ºC mais elevada. Além disso, o aumento da temperatura somente nas últimas quatro décadas (1980 a
-2020) é de 0,76ºC, evidenciando uma aceleração no aquecimento global \cite{gulev}.
+temperatura, evidenciando de forma empírica o impacto das mudanças climáticas em escala global. De acordo com o sexto -
+e mais recente - relatório do Painel Intergovernamental sobre Mudanças Climáticas (IPCC), estabelecido pelas Nações
+Unidas e amplamente reconhecido como a principal referência na análise do conhecimento científico relacionado às
+mudanças climáticas, a superfície terrestre tem sofrido um aumento expressivo de temperatura em comparação com períodos
+históricos. Considerando o intervalo de 1850 a 1900 (utilizado como base pré-industrial por ser o primeiro período com
+boas observações de temperaturas registradas), a temperatura média da superfície terrestre\footnote{Dados referentes à
+medida do GMST - Temperatura Média Global da Superfície - que representa uma média ponderada entre as temperaturas das
+massas terrestres e das massas oceânicas.} no período de 2001 a 2020 foi aproximadamente 1.07ºC mais elevada. Além
+disso, o aumento da temperatura somente nas últimas quatro décadas (1980 a 2020) é de 0,76ºC, evidenciando uma
+aceleração no aquecimento global \cite{gulev}.
 
 Esse aumento, aparentemente pequeno, não reflete a real magnitude das modificações no sistema terrestre como um todo. É
 importante notar que um aumento de 1ºC representa uma média global; portanto, houveram locais no qual o aquecimento foi
 significativamente mais pronunciado, como nos polos. Nessas regiões, mudanças pequenas na temperatura podem levar ao
 derretimento de geleiras e, logo, na diminuição do albedo da Terra, isto é, a capacidade de refletir os raios solares de
 volta para o espaço. Portanto, nessa situação, a Terra absorverá mais calor, levando à ainda mais derretimento das
-geleiras, criando assim um ciclo de retroalimentação. Além disso, é relevante destacar que um aquecimento de 1ºC em toda
-a superfície terrestre é extremamente significativo devido à massa do planeta. Para que um aumento dessa magnitude
-ocorra em um corpo com a massa da Terra, a quantidade de energia térmica\footnote{De forma bastante simplificada, essa
-energia pode ser vista pela fórmula $ Q = mc\Delta T $, onde $m$ é a massa, $c$ é o calor específico, e $\Delta T$ a
-variação de temperatura.} liberada é imensa.
+geleiras, levando à um ciclo de retroalimentação. É relevante também destacar a significância de um aquecimento de 1ºC
+em toda a superfície terrestre devido à massa do planeta. Para que um aumento dessa magnitude ocorra em um corpo com a
+massa da Terra, a quantidade de energia térmica liberada é imensa.
 
 % Chapter 3.3 (Human Influence on the Atmosphere and Surface) of the AR6 WGI;
-É indubitável que a ação humana foi o maior contribuinte para o Aquecimento Global \cite{ipcc, gillett}. As atividades
+É evidente que a ação humana foi o maior contribuinte para o Aquecimento Global \cite{ipcc, gillett}. As atividades
 industriais que sustentam os padrões de consumo modernos são as principais emissoras de gases responsáveis pelo efeito
 estufa, como dióxido de carbono (\ce{CO2}), metano (\ce{CH4}), óxido nitroso (\ce{N2O}), entre outros. Esses gases
 possuem a capacidade de absorver a radiação infravermelha emitida pela superfície da Terra, retendo o calor que, de
 outra forma, seria dissipado no espaço. 
 
-Embora o efeito estufa seja considerado um fenômeno essencial graças à concentração natural de certos GEEs (sem eles a
-temperatura média da superfície terrestre seria significativamente menor), a ação humana tem intensificado esse processo
-alarmantemente. Desde o início da Revolução Industrial, a concentração de GEEs na atmosfera aumentou de forma gradual,
-principalmente devido à queima de combustíveis fósseis como o carvão, o gás natural e o petróleo. Esses combustíveis são
-formados por compostos de carbono de estrutura complexa. Sua alta densidade energética permite que sejam facilmente
-queimados para gerar calor, que pode ser convertido em trabalho mecânico em motores, tornando-os a base da matriz
-energética global. O principal subproduto desta queima, porém, se dá na forma de gás carbonico (\ce{CO2}) que é liberado
-livremente na atmosfera. 
-
-Considerando que a formação de combustíveis fósseis se dá a partir da decomposição de matéria orgânica ao longo de
-milhões de anos, a emissão de \ce{CO2} desta forma representa a liberação de carbono na atmosfera que de outra forma
-permaneceria preso na superfície. Estima-se que, entre 1850 e 2019, as emissões acumuladas de \ce{CO2} foram de 2400±240
-Gt\ce{CO2} \cite{friedlingstein}, resultando em uma concentração de \ce{CO2} na atmosfera de 410 partes por milhão,
-comparavél com o início do máximo térmico do Paleoceno-Eoceno \cite{gingerich}, um período associado a uma das mais
-recentes extinções em massa.
+Embora o efeito estufa seja considerado um fenômeno essencial graças à concentração natural de certos GEEs, a ação
+humana tem intensificado esse processo alarmantemente. Desde o início da Revolução Industrial, a sua concentração na
+atmosfera aumentou de forma gradual, principalmente devido à queima de combustíveis fósseis como o carvão, o gás natural
+e o petróleo. O principal subproduto desta queima, porém, se dá na forma de gás carbonico (\ce{CO2}) que é liberado
+livremente na atmosfera. Considerando que a formação de combustíveis fósseis se dá a partir da decomposição de matéria
+orgânica ao longo de milhões de anos, a emissão de \ce{CO2} desta forma representa a liberação de carbono na atmosfera
+que de outra forma permaneceria preso na superfície. Estima-se que, entre 1850 e 2019, as emissões acumuladas de
+\ce{CO2} foram de 2400±240 Gt\ce{CO2} \cite{friedlingstein}, resultando em uma concentração de \ce{CO2} na atmosfera de
+410 partes por milhão.
 
 Esses dados destacam a intensidade das atividades humanas no agravamento do efeito estufa e evidenciam a necessidade
 urgente de iniciativas coordenadas em escala global para mitigar os danos climáticos e garantir um futuro mais
 sustentável. Iniciativas como o Acordo de Paris são essenciais para garantir a coordenação das ações climáticas ao
-estabelecer metas e responsabilidades de cada nação. 
+estabelecer metas e responsabilidades de cada nação. Firmado em 2015 pelas nações participantes do UNFCCC, o acordo
+estabelece a necessidade de reduzir as emissões de GEEs em escala global, visando manter o aumento de temperatura abaixo
+de 2ºC em relação à base pré-industrial, além de providenciar mecanismos para que nações em desenvolvimento possam
+mitigar os efeitos das mudanças climáticas e se adaptar a elas sem comprometer suas atividades econômicas.
 
-Firmado em 2015 pelas nações participantes do Convenção-Quadro das Nações Unidas sobre a Mudança do Clima (UNFCCC), o
-acordo estabelece a necessidade de reduzir as emissões de GEEs em escala global, visando manter o aumento de temperatura
-abaixo de 2ºC em relação à base pré-industrial, além de providenciar mecanismos para que nações em desenvolvimento
-possam mitigar os efeitos das mudanças climáticas e se adaptar a elas sem comprometer severamente suas atividades
-econômicas essenciais.
+% Chapter 8.2 of the AR6 WGII and Chapter 12.3.6 of the AR6 WGII; \subsection{Contribuições e vulnerabilidades
+% climáticas}
 
-% Chapter 8.2 of the AR6 WGII and Chapter 12.3.6 of the AR6 WGII;
-% \subsection{Contribuições e vulnerabilidades climáticas}
 A América Latina é um grande contribuinte na emissão de GEEs, contabilizando aproximadamente 11\% das emissões
 históricas globais de \ce{CO2} \cite{friedlingstein}. Contudo, a maior parte dessa emissão vem na forma de uso de terra,
 como agricultura, pecuária e desmatamento. Esse padrão é característico de muitas regiões em desenvolvimento, onde a
 produção industrial está voltada predominantemente para atender às demandas de exportação de bens e matéria-prima, em
 vez de ser direcionada ao consumo interno. Consequentemente, as contribuições dessas regiões para o aquecimento global
-vem com o papel de fornecedores globais, beneficiando outras partes do mundo, enquanto enfrentam os desafios associados
-a essas emissões.
+estão ligadas ao seu papel de fornecedores globais, beneficiando outras partes do mundo, enquanto enfrentam os impactos
+dessas emissões.
 
-\begin{figure}[htb]
-	\caption{\label{contrib} Emissões Cumulativas por Região (1850-2019)}
-	\begin{center}
-	    \includegraphics[scale=0.45]{img/contrib_regiao.png}
-	\end{center}
-	\legend{Fonte: \textit{Global Carbon Budget}, trauduzido pelo autor \cite{friedlingstein}}
-\end{figure}
+% \begin{figure}[htb] \caption{\label{contrib} Emissões Cumulativas por Região (1850-2019)} \begin{center}
+%   \includegraphics[scale=0.45]{img/contrib_regiao.png} \end{center} \legend{Fonte: \textit{Global Carbon Budget},
+%   trauduzido pelo autor \cite{friedlingstein}} \end{figure}
 
-Além disso, essas regiões são significativamente mais vulneráveis aos impactos das mudanças climáticas \cite{chambers},
-não apenas por estarem localizadas em áreas tipicamente mais tropicais, onde o aumento das temperaturas é mais intenso,
-mas também pela infraestrutura limitada para prevenir e mitigar desastres. Diversos fatores contribuem para a
-resiliência de uma região diante das mudanças climáticas, como o desenvolvimento desigual, a fragilidade das
-instituições e os altos índices de pobreza. Comunidades mais vulneráveis acabam sendo desproporcionalmente afetadas por
-perdas no setor agrícola, o que intensifica a insegurança alimentar e agrava as condições socioeconômicas da região. As
-mudanças climáticas também afetam a distribuição dos biomas e sua biodiversidade, criando desafios para as populações
-nativas que dependem diretamente desses recursos para sua subsistência e que já vivem em condições de vulnerabilidade.
-
-Na floresta amazônica, por exemplo, o aumento das queimadas, embora frequentemente associado a problemas socioeconômicos
-e à negligência governamental, tem sido intensificado pelas mudanças climáticas. O aumento da temperatura e da área
-suscetível ao fogo coloca em risco uma das regiões mais biodiversas do planeta e compromete a capacidade da Amazônia de
-atuar como um importante sumidouro de carbono, essencial para mitigar as emissões globais. As populações nativas dessas
-regiões, apesar de estarem entre as que menos contribuem para as emissões de carbono, são profundamente impactadas pelos
-efeitos das queimadas, que aumentam a incidência de doenças respiratórias, e tem a sua mobilidade restringida por
-mudanças no ciclo hidrológico que rege o transporte ribeirinho, o principal da região \cite{pinho}. A perda de
-biodiversidade afeta diretamente a subsistência desses grupos, que dependem dos recursos naturais para sua alimentação e
-sobrevivência. Como consequência da insegurança alimentar e da degradação de seus territórios, muitas comunidades acabam
-migrando para centros populacionais próximos, onde enfrentam condições ainda mais vulneráveis, exacerbadas por novos
-problemas socioeconômicos e pela dificuldade de adaptação ao ambiente urbano que frequentemente marginaliza suas
-necessidades e tradições.
-
-É a intrenseca vulnerabilidade de regiões como esta que torna mais importante as ações de prevenção e mitigação de
-desastres naturais causados pelo aumento climático. Pois, mesmo que com a tecnologia atual não se possa reverter o
-aumento de temperatura, é possível mitigar os efeitos derivados disto.
-
-% Desenvolvimento sustentável; -> Vulnerabilidade dos que contribuem menos. Tentar ao máximo ficar no tópico de América
-% Latina;
-
-% IPCC AR6 WGI Chapter 11.4 (Heavy Precipitation) and Chapter 11.5 (Floods); TODO IMAGEM!
+% IPCC AR6 WGI Chapter 11.4 (Heavy Precipitation) and Chapter 11.5 (Floods);
 \subsection{Mudanças nos padrões de precipitação}
 \label{rain}
-Mudanças em média de temperatura são processos graduais que se tornam difícies de perceber em espaços curtos de tempo. A
-comparação de temperatura entre um ano e o anterior não mostrará a tendência real das mudanças, especialmente
-considerando efeitos naturais de variabilidade climática, como o El Niño e a La Niña. No entanto, essas mudanças
-graduais afetam diretamente nos eventos climáticos extremos cuja visibilidade é mais clara. Esse aumento da temperatura,
-coloca em desequilibrio delicados mecanismos atmosfericos levando à mudanças visíveis em, por exemplo, recordes de
-temperaturas máximas e mínimas e maior ocorrência de ondas de calor\footnote{Definido por Dunn et al. (2024) \cite{dunn}
-como 3 ou mais dias no qual a temperatura se encontra acima do 90º percentil}.
-
-Um evento climático cujo mudança se destaca é a precipitação. Em essência, o aumento de temperatura leva à uma maior
-evaporação da água e também a maior capacidade atmosférica de reter esse vapor de água, o que resulta em chuvas mais
-intensas e irregulares. Uma definição mais completa pode ser dada por Seneviratne et al. (2021) no capítulo 11.1 do
-sexto relatório, segundo grupo, do IPCC (AR6 WGII): 
+O aumento gradual da temperatura média é imperceptível em curtas escalas temporais, mascarado pela variabilidade
+climática natural como El Niño e La Niña. No entanto, esse aquecimento gradual intensifica diretamente eventos extremos,
+desequilibrando mecanismos atmosféricos delicados, levando à mudanças visíveis em, por exemplo, recordes de temperaturas
+e maior ocorrência de ondas de calor\footnote{Definido por Dunn et al. (2024) \cite{dunn} como 3 ou mais dias no qual a
+temperatura se encontra acima do 90º percentil}. Um evento climático cuja mudança se destaca é a precipitação, como
+evidenciado por Seneviratne et al. (2021) no capítulo 11.1 do sexto relatório, segundo grupo, do IPCC (AR6 WGII): 
 
 \begin{citacao}
 As mudanças na temperatura também controlam as variações no vapor d'água por meio do aumento da evaporação e da
 capacidade de retenção de água da atmosfera. Em escala global, o conteúdo de vapor d'água integrado na coluna
-atmosférica aumenta aproximadamente de acordo com a relação de Clausius–Clapeyron, com um aumento de cerca de 7\% para
-cada 1°C de aquecimento médio global da superfície. (...) Projeções de modelos climáticos mostram que o aumento do vapor
-d'água resulta em elevações significativas nos extremos de precipitação em todas as regiões, com uma magnitude que varia
-entre 4\% e 8\% por 1°C de aquecimento da superfície.
+atmosférica aumenta (...) de cerca de 7\% para cada 1°C de aquecimento médio global. (...) Projeções de modelos
+climáticos mostram que o aumento do vapor d'água resulta em elevações significativas nos extremos de precipitação em
+todas as regiões, com uma magnitude que varia entre 4\% e 8\% por 1°C de aquecimento da superfície.
 
 \textit{Seneviratne et al. (2021)\cite{ipcc_ar6_wg2_chap11}, traduzido pelo autor.}
 
