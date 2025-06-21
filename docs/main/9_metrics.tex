@@ -1,27 +1,56 @@
-\subsection{Root Mean Squared Error}
-É um estimador da diferença entre o valor observado e o valor real; Dado pela seguinte fórmula $$ RMSE =
-\sqrt{\frac{1}{n}\sum_{i=1}^n(Y_i - Y_i')^2}$$ Yi são os valores reais e Y'i são os valores observados. Além disso, *n*
-é o número de amostras. Aquilo que é medido na verdade é a média do erro ao quadrado, ou seja, outliers são punidos mais
-fortemente do que outros pontos, pois quanto mais longe estiver, maior será o RMSE;
+Neste capítulo, serão exploradas as métricas escolhidas
 
+\subsection{Root Mean Squared Error (RMSE)}
+A Raíz do erro quadrado médio, ou \textit{Root Mean Squared Error} (RMSE) é uma métrica amplamente utilizada para
+avaliar a precisão de modelos de previsão. Ele mede a diferença entre os valores reais e os valores previstos por um
+modelo, sendo calculado pela fórmula:
 
-\subsection{Mean Absolute Error}
+\begin{equation}
+RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (Y_i - Y_i')^2}
+\end{equation}
 
+Em que: $Y_i$ representa os valores reais, $Y_i'$ os valores previstos pelo modelo, e $n$ é o número total de
+observações.
 
-\subsection{Nash-Sutcliffe Model Efficiency Coefficient}
-Nash Sutcliffe efficiency -> é uma Machine Learning Metrics|Métrica que compara a magnitude residual do resíduo em
-comparação com a variação dos dados medidos. Ou seja, ele server para compara dados simulados (modelo) com dado medido
-(real). É dado por (Com $Q_0$ como média dos dados observados e $Q_m$ os dados modelados e $Q^t_0$ os dados observados
-em um dado tempo):
+O RMSE calcula a média dos erros ao quadrado e, em seguida, aplica a raiz quadrada. Por elevar os erros ao quadrado, ele
+penaliza com mais intensidade os desvios maiores (outliers), sendo sensível a erros extremos. Quanto menor o RMSE,
+melhor o desempenho do modelo, indicando previsões mais próximas dos valores observados.
 
-\[
-\begin{aligned}
-NSE = 1 - \frac{\sum^T_{t=1} (Q^t_0 - Q^t_m)^2}{\sum^T_{t=1} (Q^t_0 - Q_0)^2}
-\end{aligned}
-\]
+\subsection{Mean Absolute Error (MAE)}
 
-Essa métrica é normalizada entre 0 e 1. Para o caso de 1, o modelo perfeitamente descreve os dados observados. Contudo,
-o que é interessante dessa métrica é para modelos com NSE 0. Para esses casos, o modelo teve a mesma habilidade
-preditiva do que a média de uma Série Temporal em relação à soma do erro quadrado; * Valores mais próximos de 1 sugerem
-uma habilidade preditiva maior; Como sempre, essa normalização não é perfeita. Para casos com NSE<0, a média do
-observado é um melhor preditor do que o modelo;
+O \textit{Mean Absolute Error} (MAE), ou Erro Absoluto Médio, é uma métrica que quantifica a média das diferenças
+absolutas entre os valores previstos por um modelo e os valores observados. Ele fornece uma medida direta da magnitude
+média do erro, sendo dado por:
+
+\begin{equation}
+MAE = \frac{1}{n} \sum_{i=1}^{n} \left| Y_i - Y'_i \right|
+\end{equation}
+
+Onde $Y_i$ são os valores observados (reais), $Y'_i$ são os valores previstos (modelados) e $n$ é o número total de
+observações.
+
+O MAE é sempre um valor não negativo e expressa, em média, o quanto os valores previstos se afastam dos valores reais.
+Por tratar os erros de forma linear (sem elevar ao quadrado, como no RMSE), o MAE é menos sensível a outliers, sendo
+mais representativo em cenários onde grandes desvios são raros ou indesejáveis. Valores mais próximos de zero indicam
+maior precisão nas predições do modelo.
+
+\subsection{Nash-Sutcliffe Model Efficiency Coefficient (NSE)}
+
+O \textit{Nash-Sutcliffe Efficiency} (NSE) é uma métrica estatística usada para avaliar o desempenho de modelos de
+predição, comparando os valores simulados com os dados observados. Ele expressa a razão entre o erro da predição do
+modelo e a variabilidade dos dados reais, sendo definido por:
+
+\begin{equation}
+NSE = 1 - \frac{\sum_{t=1}^{T} (Q^t_0 - Q^t_m)^2}{\sum_{t=1}^{T} (Q^t_0 - \overline{Q}_0)^2}
+\end{equation}
+
+Em que: $Q^t_0$ é o valor observado no tempo $t$, $Q^t_m$ é o valor simulado pelo modelo no tempo $t$, $\overline{Q}_0$
+é a média dos valores observados e $T$ é o número total de observações.
+
+O NSE varia entre $-\infty$ e $1$. Um valor de $NSE = 1$ indica uma correspondência perfeita entre os valores simulados
+e observados. Já um valor de $NSE = 0$ indica que o modelo não apresenta melhor desempenho do que simplesmente usar a
+média dos dados observados como preditor. Valores negativos ($NSE < 0$) indicam que a média dos dados observados é mais
+eficiente que o modelo na previsão.
+
+Essa métrica é especialmente útil para avaliar o quão bem um modelo captura a dinâmica temporal dos dados, sendo
+amplamente utilizada em estudos hidrológicos e ambientais.
