@@ -1,42 +1,88 @@
 % \cite{ta, makridakis, morales, hyndman, box, atashi, gudal, kontopoulou, albahri, chen_xgboost, lightgbm, borwarnginn}
 
-% Uma alternativa que visa superar essas limitações são os modelos baseados em dados, que utilizam técnicas para
-% identificar e explorar relações estatísticas entre os dados de entrada e saída. Com a aprendizagem dos padrões
-% presentes nos dados históricos, é possível mapear as dinâmicas subjacentes do sistema e utilizá-las para prever
-% valores futuros. Assim, esses modelos são capazes de realizar previsões precisas com base em séries temporais,
-% capturando tendências e comportamentos complexos que podem ser difíceis de modelar diretamente por meio de abordagens
-% tradicionais. Diferentemente das mesmas, que demandam tempo e dados específicos, os modelos baseados em dados oferecem
-% maior agilidade para previsões em tempo real, sendo uma escolha mais adequada para sistemas de alerta precoce e
-% mitigação de desastres de cheias \cite{ta}.
+Os avanços em Machine Learning têm impulsionado a aplicação de modelos preditivos na detecção de desastres naturais,
+integrando-se crescentemente a sistemas de monitoramento de risco nas últimas décadas. Essas abordagens visam
+compreender padrões temporais e espaciais associados a tais eventos, representando sistematicamente seus mecanismos
+subjacentes para respostas mais eficazes. Conforme evidenciado por Albahri et al. (2024) \cite{albahri}, observa-se uma
+significativa diversificação de modelos computacionais aplicados à previsão e gestão de desastres naturais, com ênfase
+particular em eventos hidrológicos.
 
-% Uma das maiores vantagens de utilizar essa abordagem é o grande desenvolvimento do campo de Análise e Predição de
-% Séries Temporais. Com isso, é possível utilizar as técnicas desenvolvidas para a aplicação em problemas com uma
-% modelagem semelhante, mas em contextos distintos \cite{hyndman}, como Economia, Biologia, entre outros. Dentro deste
-% contexto, uma ampla gama de modelagens são utilizadas para a predição de séries temporais. Isso apresenta uma
-% oportunidade de análise e comparação entre as vantagens e desvantagens das mesmas com o intuíto de descobrir a mais
-% efetiva para a situação particular \cite{makridakis, morales}.
+A utilização de modelos preditivos para enchentes não constitui novidade, com aplicações documentadas em diversos
+contextos para antecipação de riscos em corpos hídricos. Diferentes famílias de modelos têm sido empregadas, abrangendo
+desde técnicas estatísticas como SARIMA até métodos baseados em árvores de decisão e redes neurais complexas. O
+desenvolvimento contínuo dessas técnicas, aliado à crescente capacidade computacional disponível, tem permitido a
+implementação de abordagens cada vez mais sofisticadas e demandantes de recursos. Contudo, estes diferentes modelos
+apresentam desempenhos distintos conforme o cenário, especialmente quando combinados com dados externos ao nível da
+água, cujos padrões determinam diretamente o mesmo, como dados de precipitação, dados de temperatura, incidência solar,
+entre outros. 
 
-% Uma abordagem mais clássica e altamente implementada destes modelos vem na forma de modelos estatísticos, como o ARIMA
-% (\textit{Autoregressive Integrated Moving Average}) \cite{box}, um modelo que descreve processos estocásticos usando
-% uma combinação de autoregressão, isto é, a predição de uma Série Temporal usando somente valores anteriores da mesma,
-% a média móvel - ajuste das previsões considerando os erros residuais das observações anteriores, o que permite
-% capturar flutuações - e, por último, a diferenciação dos valores consecutivos da série, reduzindo o impacto de padrões
-% de longo prazo e tendências. Além disso, um elemento de sazionalidade, ou seja, padrões repetidos em com uma certa
-% frequência fixa, como padrões mensais ou trimestrais, podem ser compreendidos através de uma extensão do ARIMA, o
-% SARIMA. Historicamente, esses modelos têm sido usados em predições em contextos semelhantes como em Atashi et al.
-% (2022) \cite{atashi} que comparou o desempenho do SARIMA com os modelos LSTM e \textit{Random Forest} para predição do
-% nível da água no Rio Vermelho do Norte, localizado na fronteira entre os Estados Unidos e o Canadá, e Güldal et al.
-% (2009) \cite{gudal} que utilizou o ARMA para a predição do Lago Eğirdir na Túrquia, oferecendo uma base para
-% comparações com métodos modernos.
+Diferentes arquiteturas de modelagem podem produzir respostas divergentes, sendo algumas excessivamente sensíveis a
+pequenas variações nos dados, enquanto outras tendem a suavizar flutuações relevantes, o que pode introduzir vieses
+sistemáticos de sub ou superestimação. Diante dessa variabilidade, torna-se fundamental evitar a dependência exclusiva
+de um único modelo preditivo. A comparação entre modelos surge como uma estratégia para quantificar incertezas e buscar
+um equilíbrio entre sensibilidade e robustez. Essa prática pode ser extendida ao se incluir modelos de diferentes
+famílias, promovendo uma avaliação mais abrangente e metodologicamente rigorosa.
+
+Essa prática é amplamente adotada na literatura, como exemplifica o estudo de Atashi et al. (2022) \cite{atashi}, que
+comparou o desempenho dos modelos SARIMA, LSTM e \textit{Random Forest} na predição do nível da água do Rio Vermelho do
+Norte, localizado na fronteira entre os Estados Unidos e o Canadá. Modelos da família ARIMA, baseados em processos de
+autoregressão e média móvel, são frequentemente utilizados como referência nesse tipo de comparação. No estudo
+mencionado, o modelo SARIMA — uma extensão que incorpora componentes sazonais — apresentou bom desempenho em séries
+temporais com padrões lineares, mas teve dificuldades em capturar variações abruptas e comportamentos não lineares,
+frequentemente associados a eventos extremos.
+
+Semelhantemente, Güldal et al. (2009) \cite{gudal} utilizou modelos da família ARMA para prever os níveis do Lago
+Eğirdir, na Turquia, propondo-os como referência para comparações com métodos mais recentes, como redes neurais
+recorrentes (RNN) e ANFIS (EXPANDIR). Os resultados indicaram que os modelos baseados em RNN mostraram-se mais adequados
+para eventos hidrológicos com alta variabilidade, i.e., com a presença de precipitação. Contudo, durante situações de
+normalidade, variações do ARMA apresentaram bons resultados, levando-os como base no planejamento de políticas
+envolvendo o corpo hídrico. 
+
+Modelos baseados em LSTM \cite{hochreiter} mostram-se populares na literatura sobre predição de cheias, como no estudo
+supracitado de Atashi et al. (2022) \cite{atashi}, no qual superaram abordagens como o SARIMA e o \textit{Random
+Forest}. Sua principal vantagem reside na capacidade de lidar com novos dados sem perder a coerência temporal, o que se
+deve à sua estrutura de memória de longo e curto prazo (Long Short-Term Memory), tendo assim respostas equilibradas, mas
+que podem pecar em situações de grande variabilidade. Outro exemplo é o trabalho de Borwarnginn et al. (2022)
+\cite{borwarnginn}, que comparou o desempenho do LSTM com modelos baseados em SVR (\textit{Support Vector Regression}),
+uma extensão da regressão linear que utiliza funções de margem para modelar relações não lineares. Neste estudo, o
+modelo LSTM apresentou o menor erro médio entre os modelos analisados. No entanto, demonstrou limitações em capturar
+variações abruptas causadas por chuvas intensas. Abordagens híbridas, como a combinação LSTM–SVR, mostraram-se mais
+eficazes nesse contexto, oferecendo melhorias na resposta a eventos extremos.
+
+Outro exemplo de utilização do LSTM pode ser dado pelo trabalho de Herath et al. (2023) \cite{herath}. Nesse estudo,
+foram comparadas redes neurais do tipo \textit{Feed Forward} (FFNN) com modelos LSTM na tarefa de previsão do nível da
+água em uma zona úmida urbana no Sri Lanka. Para isso, os autores utilizaram leituras diárias de nível da água, além de
+temperatura, umidade, velocidade do vento e evaporação como variáveis de entrada. Os resultados demonstraram que o
+modelo LSTM superou o desempenho da FFNN, evidenciando que a consideração das dependências temporais é fundamental para
+prever com precisão os níveis d’água em ambientes úmidos.
+
+Outra família de modelos amplamente utilizada é a dos modelos de \textit{Gradient Boosting Machine} (GBM), com destaque
+para sua implementação algorítmica conhecida como XGBoost \cite{chen_xgboost}. Um exemplo relevante é o estudo de Ayus
+et al. (2023) \cite{ayus}, que comparou dois modelos de \textit{Machine Learning}, XGBoost e \textit{Random Forest}, com
+duas variações de redes LSTM Bidirecionais para a predição do nível do Lago Jezioro Kosno, na Polônia, utilizando uma
+série temporal de 30 anos de dados históricos diários de nível da água. Os resultados indicaram que, entre os modelos
+analisados, o XGBoost obteve o menor erro e a maior acurácia nas predições, exemplificando seu potencial competitivo em
+predições hidrológicas.
+
+Além disso, também vale notar o trabalho de Zakaria et al. (2023) \cite{zakaria}, que comparou modelos de
+\textit{Multi-layer Per­ceptron} (MLP) com LSTM e XGBoost para predições do nível da água no Rio Muda, na Malásia.
+Utilizando dados diários entre 2016 e 2018. O MLP obteve o melhor desempenho geral, seguido do LSTM e do XGBoost, sendo
+que a inclusão de dados meteorológicos não trouxe ganhos significativos. Apesar da menor acurácia, o XGBoost se destacou
+pela eficiência computacional, dada a sua capacidade avançada de processamento paralelo, enquanto o LSTM apresentou
+melhor desempenho em previsões com maior antecedência.
+
+Nesse ámbito, vale notar o LightGBM como uma alternativa moderna ao XGBoost. Vale citar o trabalho de Ta et al. (2024)
+\cite{ta}, que comparou modelos clássicos de regressão, como Regressão Linear e SVR com o moderno LightGBM.
+
 
 % Esses modelos, eficazes e de baixo custo computacional, apresentam tanto limitações quanto vantagens quando comparados
 % com modelos mais recentes desenvolvidos nas áreas de Aprendizado de Máquina (\textit{Machine Learning}) e Aprendizado
 % Profundo (\textit{Deep Learning}) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
-% \textit{Gradient Boosting} têm se mostrado promissores em situações de desastres, onde a rapidez e precisão nas
-% previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo amplamente utilizado é o XGBoost
-% (\textit{eXtreme Gradient Boosting}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série, ajustando
-% constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o risco de
-% sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma
+% \textit{Gradient Boosting Machine} têm se mostrado promissores em situações de desastres, onde a rapidez e precisão
+% nas previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo amplamente utilizado é o XGBoost
+% (\textit{eXtreme Gradient Boosting Machine}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série,
+% ajustando constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o
+% risco de sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma
 % implementação semelhante, visando reduzir o tempo computacional, é dada pelo LightGBM \cite{lightgbm}. Ela mantém as
 % vantagens do XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e
 % regularização, mas altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter
