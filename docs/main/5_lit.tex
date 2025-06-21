@@ -71,26 +71,26 @@ que a inclusão de dados meteorológicos não trouxe ganhos significativos. Apes
 pela eficiência computacional, dada a sua capacidade avançada de processamento paralelo, enquanto o LSTM apresentou
 melhor desempenho em previsões com maior antecedência.
 
-Nesse ámbito, vale notar o LightGBM como uma alternativa moderna ao XGBoost. Vale citar o trabalho de Ta et al. (2024)
-\cite{ta}, que comparou modelos clássicos de regressão, como Regressão Linear e SVR com o moderno LightGBM.
+Nesse ámbito, vale notar o LightGBM como uma alternativa moderna ao XGBoost. O mesmo visa reduzir o tempo computacional
+mantendo as vantagens do XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda
+e regularização, mas altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter
+resultados semelhantes de forma mais eficaz, algo imprescindível no contexto de uma crise.
 
+Vale citar os trabalhos de Ta et al. (2024) \cite{ta} e Ju et al. (2024) \cite{ju}. O primeiro comparou modelos
+clássicos de regressão, como Regressão Linear e SVR com o LightGBM para predições no Rio Kieng Gang. Enquanto o segundo
+combinou Redes Neurais Convolucionais (CNN) com o LightGBM no contexto de predição de energia eólica, que, embora não
+fazendo parte do mesmo contexto de modelos hídricos, o problema se constroi da mesma forma e com objetivos semelhantes,
+a predição a curto prazo. Ta et al. (2024) \cite{ta} encontrou melhores resultados com modelos mais simples, como a
+Regressão Linear, enquanto Ju et al. (2024) \cite{ju}, obteve melhores resultados com a combinação de LightGBM quando
+comparada com SVR.
 
-% Esses modelos, eficazes e de baixo custo computacional, apresentam tanto limitações quanto vantagens quando comparados
-% com modelos mais recentes desenvolvidos nas áreas de Aprendizado de Máquina (\textit{Machine Learning}) e Aprendizado
-% Profundo (\textit{Deep Learning}) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
-% \textit{Gradient Boosting Machine} têm se mostrado promissores em situações de desastres, onde a rapidez e precisão
-% nas previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo amplamente utilizado é o XGBoost
-% (\textit{eXtreme Gradient Boosting Machine}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série,
-% ajustando constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o
-% risco de sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma
-% implementação semelhante, visando reduzir o tempo computacional, é dada pelo LightGBM \cite{lightgbm}. Ela mantém as
-% vantagens do XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e
-% regularização, mas altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter
-% resultados semelhantes de forma mais eficaz, algo imprescindível no contexto de uma crise climática como a ocorrida.
+Vale destacar os trabalhos de Ta et al. (2024) \cite{ta} e Ju et al. (2024) \cite{ju}, que exploram o uso de modelos
+baseados em aprendizado de máquina para tarefas de previsão. Ta et al. aplicaram diferentes algoritmos, incluindo
+Regressão Linear, SVR e LightGBM, para prever o nível da água no rio Kien Giang. Seus resultados mostraram que a
+Regressão Linear superou os demais modelos em acurácia, inclusive o LightGBM, sugerindo que abordagens simples podem ser
+mais eficazes em certos contextos hidrológicos. Por outro lado, Ju et al. combinaram Redes Neurais Convolucionais (CNN)
+com o LightGBM para prever energia eólica — um problema fora do escopo hidrológico, mas com estrutura e objetivos
+semelhantes, a previsão em curto prazo. Neste caso, a combinação CNN-LightGBM superou modelos isolados, como SVR,
+demonstrando ganhos em precisão e robustez.
 
-% Por outro lado, em Aprendizado Profundo, modelos baseados em Redes Neurais Recorrentes (RNNs), como o \textit{Long
-% Short Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
-% \cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo em séries
-% temporais, garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que mantém o
-% contexto de eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais complexos
-% e, geralmente, não lineares precisam ser modelados.
+% Por fim, vale notar a utilização de métricas no contexto de predições hídricas. Albahri et al. (2024) \cite{albahri}
