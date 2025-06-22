@@ -1,10 +1,57 @@
-% ---
-% Equivalente à metodologia. De qual forma a pesquisa será realizada
-% ---
 
-\chapter{Fonte de Dados}
-\section{Pré-processamento de dados}
+\section{Fonte de Dados}
+Este trabalho emprega dados primários do Portal Hidroweb, integrante do Sistema Nacional de Informações sobre Recursos
+Hídricos (SNIRH) da Agência Nacional de Águas (ANA) \cite{snirh}. Este sistema consolida informações de estações
+hidrometeorológicas, incluindo níveis fluviais, vazões, precipitação, climatologia, qualidade da água e sedimentos. A
+coleta automatizada dos dados foi viabilizada mediante acesso à API do Hidroweb, concedido pela ANA ao autor.
 
-\chapter{Metodologia}
-\chapter{Ferramentas e recursos utilizados}
-\section{Setup Experimental}
+Priorizam-se séries históricas do nível do Guaíba e seus tributários, como o Rio Gravataí, Rio Jacuí, Rio dos Sinos e
+Rio Taquari, coletados a cada hora para um período histórico de 5 anos em centímetros. Para o próprio Guaíba, adotam-se
+complementarmente as estações do Caís da Mauá e do Gasômetro, estratégia necessária devido à descontinuidade nos
+registros da primeira estação em 2-3 de maio de 2024. Conforme atestado pela SEMA \cite{informativo_sema}, este hiato
+decorreu de danos nos equipamentos de medição durante as enchentes daquele ano.
+
+Para dados de metereológicos, também serão utilizados dados disponibilizados pelo SNIRH e os mesmos serão coletados com
+a mesma frequência e o mesmo período histórico, de forma a complementar os dados do nível da água.
+
+% \section{Pré-processamento de dados}
+
+\section{Metodologia}
+Este trabalho implementa uma abordagem experimental para avaliação comparativa dos modelos preditivos descritos
+anteriormente. Inicialmente, os dados do SNIRH serão submetidos a pré-processamento abrangente, incluindo tratamento de
+valores faltantes mediante técnicas de interpolação temporal, detecção de \textit{outliers} via análise por PCA, e
+normalização. Os dados serão então particionados cronologicamente em conjuntos de treino (70\%), validação (15\%) e
+teste (15\%), assegurando-se a preservação da sequência temporal para prevenir vazamento de informação.
+
+Cada categoria de modelo exigirá transformações específicas dos dados, visto que cada um conta com um algoritmo
+diferente de implementação e uma lógica interna distinta. Para o SARIMA, será aplicada diferenciação e decomposição
+sazonal. Modelos baseados em árvores requerem codificação de variáveis temporais. Já redes LSTM demandam janelamento
+sequencial. O treinamento será conduzido em \textit{pipelines} isolados, incorporando validação cruzada temporal e
+otimização bayesiana de hiperparâmetros para minimizar o RMSE no conjunto de validação.
+
+Na fase de avaliação, as predições geradas para o período de teste serão confrontadas com dados observados reservados de
+teste mediante métricas hidrologicamente relevantes - coeficiente de Nash-Sutcliffe (NSE), RMSE e erro absoluto médio
+(MAE) - complementadas por análise de sensibilidade a eventos extremos e avaliação de robustez computacional. Esta
+estrutura metodológica visa garantir comparação objetiva do desempenho preditivo.
+
+% quantificando incertezas através de intervalos de confiança derivados de \textit{bootstrapping}.
+
+\section{Ferramentas e recursos utilizados}
+O desenvolvimento da parte escrita deste trabalho será feita em \LaTeX, utilizando o modelo \abnTeX, desenvolvido por
+Araujo et al (2015) \cite{abntex2classe} de acordo com as regras da ABNT NBR 14724:2011, ABNT NBR 6024:2012 e outras.
+
+A implementação dos modelos será desenvolvida em Python, selecionado por seu ecossistema robusto para análise de dados e
+aprendizado de máquina. A biblioteca \textit{statsmodels} será empregada para modelagem SARIMA, enquanto redes LSTM
+serão construídas utilizando a API de baixo nível do \textit{TensorFlow}. Para os modelos baseados em árvores, serão
+adotadas as bibliotecas nativas do XGBoost e LightGBM. Uma arquitetura modular será implementada mediante classes
+especializadas para cada modelo, integrando \textit{pipelines} do \textit{scikit-learn} para garantir fluxos
+reprodutíveis de pré-processamento. O processamento numérico e manipulação de séries temporais serão realizados com
+\textit{NumPy} e \textit{Pandas}, respectivamente, assegurando eficiência computacional e tratamento adequado de dados
+hidrológicos.
+
+% \section{Setup Experimental para treinamento de modelos} The training process was conducted in a machine with the
+% following specifica- tions: 12th Gen Intel(R) Core(TM) i5-12500H, 16GB RAM and a NVIDIA GeForce RTX 3050 Laptop 4GB
+% VRAM. The LSTM model takes in training around 1.5 seconds per epoch, which led to around 2.5 to 4 minutes per
+% experiment. Additionally, the feature importance calculation for each prediction takes around 1 second per prediction.
+
+% O processo de treinamento será realizado em uma máquina com as seguintes especificações: Intel i5-7200U de 3.100GHz, 
