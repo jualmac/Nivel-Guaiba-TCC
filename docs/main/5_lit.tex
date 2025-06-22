@@ -73,22 +73,13 @@ mantendo as vantagens do XGBoost, como otimização para dados esparsos, treinam
 e regularização, mas altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter
 resultados semelhantes de forma mais eficaz, algo imprescindível no contexto de uma crise.
 
-Vale citar os trabalhos de Ta et al. (2024) \cite{ta} e Ju et al. (2024) \cite{ju}. O primeiro comparou modelos
-clássicos de regressão, como Regressão Linear e SVR com o LightGBM para predições no Rio Kieng Gang. Enquanto o segundo
-combinou Redes Neurais Convolucionais (CNN) com o LightGBM no contexto de predição de energia eólica, que, embora não
-fazendo parte do mesmo contexto de modelos hídricos, o problema se constroi da mesma forma e com objetivos semelhantes,
-a predição a curto prazo. Ta et al. (2024) \cite{ta} encontrou melhores resultados com modelos mais simples, como a
-Regressão Linear, enquanto Ju et al. (2024) \cite{ju}, obteve melhores resultados com a combinação de LightGBM quando
-comparada com SVR.
-
-Vale destacar os trabalhos de Ta et al. (2024) \cite{ta} e Ju et al. (2024) \cite{ju}, que exploram o uso de modelos
-baseados em aprendizado de máquina para tarefas de previsão. Ta et al. aplicaram diferentes algoritmos, incluindo
-Regressão Linear, SVR e LightGBM, para prever o nível da água no rio Kien Giang. Seus resultados mostraram que a
-Regressão Linear superou os demais modelos em acurácia, inclusive o LightGBM, sugerindo que abordagens simples podem ser
-mais eficazes em certos contextos hidrológicos. Por outro lado, Ju et al. combinaram Redes Neurais Convolucionais (CNN)
-com o LightGBM para prever energia eólica — um problema fora do escopo hidrológico, mas com estrutura e objetivos
-semelhantes, a previsão em curto prazo. Neste caso, a combinação CNN-LightGBM superou modelos isolados, como SVR,
-demonstrando ganhos em precisão e robustez.
+Vale destacar os trabalhos de Ta et al. (2024) \cite{ta} e Ju et al. (2024) \cite{ju}. Ta et al. aplicaram diferentes
+algoritmos, incluindo Regressão Linear, SVR e LightGBM, para prever o nível da água no rio Kien Giang. Seus resultados
+mostraram que a Regressão Linear superou os demais modelos em acurácia, inclusive o LightGBM, sugerindo que abordagens
+simples podem ser mais eficazes em certos contextos hidrológicos. Por outro lado, Ju et al. combinaram Redes Neurais
+Convolucionais (CNN) com o LightGBM para prever energia eólica — um problema fora do escopo hidrológico, mas com
+estrutura e objetivos semelhantes, a previsão em curto prazo. Neste caso, a combinação CNN-LightGBM superou modelos
+isolados, como SVR, demonstrando ganhos em precisão e robustez.
 
 Neste trabalho, optou-se por comparar modelos de três famílias distintas. Primeiramente, o modelo estatístico SARIMA foi
 escolhido por sua capacidade de capturar padrões sazonais, especialmente relevantes em regiões com estações bem

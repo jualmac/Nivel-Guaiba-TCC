@@ -76,20 +76,20 @@ com modelos mais recentes desenvolvidos nas áreas de \textit{Machine Learning} 
 Learning} (Aprendizado Profundo) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
 \textit{Gradient Boosting Machine} têm se mostrado promissores em situações de desastres, onde a rapidez e precisão nas
 previsões são essenciais para mitigar impactos \cite{albahri}. Um exemplo amplamente utilizado é o XGBoost
-(\textit{eXtreme Gradient Boosting Machine Machine}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série, ajustando
-constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o risco de
-sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma implementação
-semelhante, visando reduzir o tempo computacional, é dada pelo LightGBM \cite{lightgbm}. Ela mantém as vantagens do
-XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e regularização, mas
-altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter resultados semelhantes
-de forma mais eficaz, algo imprescindível no contexto de uma crise climática como a ocorrida.
+(\textit{eXtreme Gradient Boosting Machine Machine}) \cite{chen_xgboost}. O mesmo utiliza árvores de decisão em série,
+ajustando constantemente os erros das previsões anteriores. Além disso, ele incorpora regularização para reduzir o risco
+de sobreajuste (\textit{overfitting}) e otimizações específicas para lidar com grandes volumes de dados. Uma
+implementação semelhante, visando reduzir o tempo computacional, é dada pelo LightGBM \cite{lightgbm}. Ela mantém as
+vantagens do XGBoost, como otimização para dados esparsos, treinamento paralelo, múltiplas funções de perda e
+regularização, mas altera o método de construção das árvores de decisão, mostrando-se uma boa alternativa para obter
+resultados semelhantes de forma mais eficaz, algo imprescindível no contexto de uma crise climática como a ocorrida.
 
 Por outro lado, em \textit{Deep Learning}, modelos baseados em Redes Neurais Recorrentes (RNNs), como o \textit{Long
-Short Term Memory} (LSTM), são amplamente utilizados em situações semelhantes, como demonstrado por Borwarnginn et al.
-\cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo em séries temporais,
-garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que mantém o contexto de
-eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais complexos e, geralmente,
-não lineares precisam ser modelados.
+Short Term Memory} (LSTM) \cite{hochreiter}, são amplamente utilizados em situações semelhantes, como demonstrado por
+Borwarnginn et al. \cite{borwarnginn}. O LSTM foi projetado especificamente para lidar com dependências de longo prazo
+em séries temporais, garantindo que informações relevantes de eventos passados sejam preservadas, ao mesmo tempo que
+mantém o contexto de eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais
+complexos e, geralmente, não lineares precisam ser modelados.
 
 % Além dos modelos baseados em RNNs, outra abordagem amplamente utilizada em Aprendizado Profundo são as baseadas em
 % Redes Neurais Perceptron Multicamadas (MLP, \textit{Multilayer Perceptron}). Diferentemente das RNNs, que são

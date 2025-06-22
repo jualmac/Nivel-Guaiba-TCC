@@ -1,2 +1,15 @@
-\subsection{eXtreme Gradient Boosting Machine}
-\subsection{Light Gradient-Boosting Machine}
+O \textit{Gradient Boosting} é um método de aprendizado de máquina baseado em conjuntos de árvores de decisão que
+constrói modelos preditivos sequencialmente. Esta técnica combina modelos fracos (tipicamente árvores rasas) para formar
+um preditor robusto, onde cada novo modelo corrige os erros residuais do conjunto anterior \cite{friedman}. O processo
+inicia-se com um modelo constante $F_0(x) = min_{\gamma} \sum_{i=1}^n \mathcal{L}(y_i, \gamma)$, geralmente a média
+dos valores-alvo. 
+
+Em cada iteração $m$, o algoritmo calcula o gradiente negativo da função de perda $\mathcal{L}$ em relação às predições
+atuais: $r_{im} = -\left[ \frac{\partial \mathcal{L}(y_i, F_{m-1}(x_i))}{\partial F_{m-1}(x_i)} \right]$.
+Subsequentemente, ajusta-se uma árvore de decisão $h_m(x)$ a esses resíduos e atualiza o modelo conforme $F_m(x) =
+F_{m-1}(x) + \gamma_m h_m(x)$, onde $\gamma_m$ denota a taxa de aprendizado. 
+
+Entre suas vantagens destacam-se a alta precisão preditiva, flexibilidade para dados heterogêneos, suporte a funções de
+perda personalizadas e aplicabilidade em regressão e classificação. Contudo, apresenta sensibilidade a
+\textit{overfitting} (controlável via \textit{early stopping}), demanda ajuste rigoroso de hiperparâmetros como
+profundidade das árvores, taxa de aprendizado e número de iteradores, além de custo computacional elevado.
