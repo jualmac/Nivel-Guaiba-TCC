@@ -341,52 +341,52 @@
 % ---
 
 % resumo em português
-\setlength{\absparsep}{18pt} % ajusta o espaçamento dos parágrafos do resumo
-\begin{resumo}
-Desastres naturais associados a eventos climáticos extremos têm impactado severamente regiões vulneráveis, como
-evidenciado pelas enchentes que ocorreram no estado brasileiro do Rio Grande do Sul em 2024. Este trabalho propõe uma
-análise comparativa de modelos de predição do nível da água do Rio Guaíba, visando aprimorar sistemas de alerta precoce
-para gestão de crises. Foram avaliados quatro modelos baseados em dados: SARIMA (estatístico), LSTM (rede neural
-recorrente), XGBoost e LightGBM (baseados em Gradient Boosting), utilizando séries temporais horárias de nível d'água e
-variáveis meteorológicas (2019-2024) do Sistema Nacional de Informações sobre Recursos Hídricos (SNIRH). Os dados foram
-pré-processados com interpolação de falhas e normalização, e os modelos otimizados via validação cruzada temporal. O
-desempenho foi quantificado por métricas hidrologicamente relevantes: RMSE (raiz do erro quadrático médio), MAE (erro
-absoluto médio) e NSE (coeficiente de eficiência de Nash-Sutcliffe). 
+% \setlength{\absparsep}{18pt} % ajusta o espaçamento dos parágrafos do resumo
+% \begin{resumo}
+% Desastres naturais associados a eventos climáticos extremos têm impactado severamente regiões vulneráveis, como
+% evidenciado pelas enchentes que ocorreram no estado brasileiro do Rio Grande do Sul em 2024. Este trabalho propõe uma
+% análise comparativa de modelos de predição do nível da água do Rio Guaíba, visando aprimorar sistemas de alerta precoce
+% para gestão de crises. Foram avaliados quatro modelos baseados em dados: SARIMA (estatístico), LSTM (rede neural
+% recorrente), XGBoost e LightGBM (baseados em Gradient Boosting), utilizando séries temporais horárias de nível d'água e
+% variáveis meteorológicas (2019-2024) do Sistema Nacional de Informações sobre Recursos Hídricos (SNIRH). Os dados foram
+% pré-processados com interpolação de falhas e normalização, e os modelos otimizados via validação cruzada temporal. O
+% desempenho foi quantificado por métricas hidrologicamente relevantes: RMSE (raiz do erro quadrático médio), MAE (erro
+% absoluto médio) e NSE (coeficiente de eficiência de Nash-Sutcliffe). 
 
-% Resultados preliminares indicam que o LightGBM obteve o melhor equilíbrio entre acurácia (RMSE = 8,3 cm; NSE = 0,96) e
-% eficiência computacional (< 2 segundos para previsões em tempo real), superando modelos tradicionais em cenários de
-% variação abrupta. Conclui-se que modelos baseados em boosting são alternativas viáveis para sistemas de alerta
-% integrados, reduzindo a dependência de simulações hidrodinâmicas complexas e democratizando o acesso a informações
-% críticas para tomada de decisão em eventos extremos.
+% % Resultados preliminares indicam que o LightGBM obteve o melhor equilíbrio entre acurácia (RMSE = 8,3 cm; NSE = 0,96) e
+% % eficiência computacional (< 2 segundos para previsões em tempo real), superando modelos tradicionais em cenários de
+% % variação abrupta. Conclui-se que modelos baseados em boosting são alternativas viáveis para sistemas de alerta
+% % integrados, reduzindo a dependência de simulações hidrodinâmicas complexas e democratizando o acesso a informações
+% % críticas para tomada de decisão em eventos extremos.
 
- \textbf{Palavras-chave}: Predição de enchentes; Séries temporais; Rio Guaíba; Machine Learning; Gestão de desastres;
-\end{resumo}
+%  \textbf{Palavras-chave}: Predição de enchentes; Séries temporais; Rio Guaíba; Machine Learning; Gestão de desastres;
+% \end{resumo}
 
-% resumo em inglês
-\begin{resumo}[Abstract]
- \begin{otherlanguage*}{english}
+% % resumo em inglês
+% \begin{resumo}[Abstract]
+%  \begin{otherlanguage*}{english}
 
-Natural disasters linked to extreme weather events have severely impacted vulnerable regions, notably the 2024 floods in
-Rio Grande do Sul, Brazil. This study presents a comparative analysis of water-level prediction models for the Guaíba
-River, aiming to enhance early-warning systems for crisis management. Four data-driven models were evaluated: SARIMA
-(statistical), LSTM (recurrent neural network), XGBoost, and LightGBM (gradient-boosting-based), using hourly
-water-level time series and meteorological variables (2019-2024) from the National Water Resources Information System
-(SNIRH). Data underwent gap-filling interpolation and normalization, with models optimized via temporal
-cross-validation. Performance was assessed using hydrologically relevant metrics: RMSE (root mean squared error), MAE
-(mean absolute error), and NSE (Nash-Sutcliffe efficiency coefficient).
+% Natural disasters linked to extreme weather events have severely impacted vulnerable regions, notably the 2024 floods in
+% Rio Grande do Sul, Brazil. This study presents a comparative analysis of water-level prediction models for the Guaíba
+% River, aiming to enhance early-warning systems for crisis management. Four data-driven models were evaluated: SARIMA
+% (statistical), LSTM (recurrent neural network), XGBoost, and LightGBM (gradient-boosting-based), using hourly
+% water-level time series and meteorological variables (2019-2024) from the National Water Resources Information System
+% (SNIRH). Data underwent gap-filling interpolation and normalization, with models optimized via temporal
+% cross-validation. Performance was assessed using hydrologically relevant metrics: RMSE (root mean squared error), MAE
+% (mean absolute error), and NSE (Nash-Sutcliffe efficiency coefficient).
 
-% Preliminary results indicate that LightGBM achieved the best balance between accuracy (RMSE = 8.3 cm; NSE = 0.96) and
-% computational efficiency (< 2 seconds for real-time predictions), outperforming traditional models in scenarios of
-% abrupt variation. We conclude that boosting-based models are viable alternatives for integrated alert systems, reducing
-% reliance on complex hydrodynamic simulations and democratizing access to critical information for decision-making during
-% extreme events.
+% % Preliminary results indicate that LightGBM achieved the best balance between accuracy (RMSE = 8.3 cm; NSE = 0.96) and
+% % computational efficiency (< 2 seconds for real-time predictions), outperforming traditional models in scenarios of
+% % abrupt variation. We conclude that boosting-based models are viable alternatives for integrated alert systems, reducing
+% % reliance on complex hydrodynamic simulations and democratizing access to critical information for decision-making during
+% % extreme events.
 
-   \vspace{\onelineskip}
+%    \vspace{\onelineskip}
  
-   \noindent 
-   \textbf{Keywords}: Flood prediction; Time series; Guaíba River; Machine Learning; Disaster management;
- \end{otherlanguage*}
-\end{resumo}
+%    \noindent 
+%    \textbf{Keywords}: Flood prediction; Time series; Guaíba River; Machine Learning; Disaster management;
+%  \end{otherlanguage*}
+% \end{resumo}
 
 % % ---
 % % inserir lista de ilustrações
