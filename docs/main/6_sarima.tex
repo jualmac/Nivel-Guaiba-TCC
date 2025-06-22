@@ -1,0 +1,52 @@
+O modelo de Média Móvel Integrada Auto-Regressiva com Sazonalidade (SARIMA) é uma extensão do modelo de Média Móvel
+Integrada Auto-Regressiva (ARIMA) que combina três elementos específicos em sua composição, a autoregressão (AR), a
+média móvel (MA) e a diferenciação dos valores consecutivos da série (I), sendoexpandido para lidar com padrões sazonais
+\cite{box}.
+
+A componente de autoregressão descreve a dependência de uma observação atual e observações anteriores, em defasagens
+$p$. Em um modelo puramente autorregressivo, uma nova observação $X_t$ é expressa como uma combinação linear dos $p$
+valores anteriores, ponderados por coeficientes $\alpha_i$, conforme a equação \autoref{ar}, onde $\epsilon_t$
+representa um termo de erro aleatório:
+
+\begin{equation}
+    \label{ar}
+    X_t=\alpha_1X_{t-1} + \alpha_2X_{t-2} +(...) + \alpha_pX_{t-p} + \epsilon_t
+\end{equation}
+
+Já a componente de média model indica a relação de dependência de uma observação e o erro residual em pontos anteriores.
+Isto é, $X_t$ depende de perturbações aleatórias anteriores $\epsilon_{t-i}$ moduladas por coeficientes $\theta_i$,
+conforme \autoref{ma}:
+
+\begin{equation}
+    \label{ma}
+    X_t=\theta_1\epsilon_{t-1} + \theta_2\epsilon_{t-2} + (...) + \theta_q\epsilon_{t-q}
+\end{equation}
+
+A combinação dos dois componentes forma o modelo ARMA, como mostrado na equação \autoref{arma}:
+
+\begin{equation}
+    \label{arma}
+    X_t = \epsilon_t + \sum_{i=1}^{p}\phi_i X_{t-i} + \sum_{i=1}^q \theta_i \epsilon_{t-i}
+\end{equation}
+
+Para tornar a série estacionária, o ARIMA inclui um termo de diferenciação dos valores consecutivos da série, que remove
+tendências de longo prazo. A diferenciação é representada pelo operador $(1 - L)$, onde $L^i$ é o operador de defasagem,
+definido como $L^i = \frac{X_{t-i}}{X_t}$, ou seja, uma defasagem de $X_t$ por $i$ períodos. Aplicando isto, temos:
+
+\begin{equation}
+    \label{arima}
+    (1-\sum_{i-1}^p \phi_i L^i)(1-L)^dX_t = (1+\sum_{i=1}^q\theta_iL^i)\epsilon_t
+\end{equation} 
+
+A extensão SARIMA incorpora componentes sazonais adicionais para lidar com padrões que se repetem em intervalos fixos,
+como meses ou trimestres. Esses termos sazonais seguem a mesma estrutura do ARIMA, com parâmetros $P$, $D$, $Q$ e
+período de sazonalidade $s$. Essa estrutura permite ao modelo capturar tanto as dependências de curto prazo quanto os
+padrões cíclicos de longo prazo presentes em séries temporais com sazonalidade definida.
+
+% \begin{equation} \label{sarima} \Phi_P(L^s) \phi_p(L)(1 - L)^d (1 - L^s)^D X_t = \Theta_Q(L^s) \theta_q(L) \epsilon_t
+%     \end{equation}
+
+% Nessa expressão $\phi_p(L)$ e $\theta_q(L)$ são os polinômios não sazonais AR e MA, respectivamente, $\Phi_P(L^s)$ e
+% $\Theta_Q(L^s)$ são os polinômios sazonais AR e MA, aplicados com defasagem múltipla de $s$ períodos e $(1 - L)^d$
+% representa a diferenciação não sazonal e $(1 - L^s)^D$ a diferenciação sazonal.
+

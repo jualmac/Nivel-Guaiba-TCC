@@ -8,35 +8,32 @@ significativa diversificação de modelos computacionais aplicados à previsão 
 particular em eventos hidrológicos.
 
 A utilização de modelos preditivos para enchentes não constitui novidade, com aplicações documentadas em diversos
-contextos para antecipação de riscos em corpos hídricos. Diferentes famílias de modelos têm sido empregadas, abrangendo
-desde técnicas estatísticas como SARIMA até métodos baseados em árvores de decisão e redes neurais complexas. O
-desenvolvimento contínuo dessas técnicas, aliado à crescente capacidade computacional disponível, tem permitido a
-implementação de abordagens cada vez mais sofisticadas e demandantes de recursos. Contudo, estes diferentes modelos
-apresentam desempenhos distintos conforme o cenário, especialmente quando combinados com dados externos ao nível da
-água, cujos padrões determinam diretamente o mesmo, como dados de precipitação, dados de temperatura, incidência solar,
-entre outros. 
+contextos para antecipação de riscos em corpos hídricos. O desenvolvimento contínuo dessas técnicas, aliado à crescente
+capacidade computacional disponível, tem permitido a implementação de abordagens cada vez mais sofisticadas e
+demandantes de recursos. Contudo, estes diferentes modelos apresentam desempenhos distintos conforme o cenário,
+especialmente quando combinados com dados externos ao nível da água, cujos padrões determinam diretamente o mesmo, como
+dados de precipitação, dados de temperatura, incidência solar, entre outros. 
 
 Diferentes arquiteturas de modelagem podem produzir respostas divergentes, sendo algumas excessivamente sensíveis a
 pequenas variações nos dados, enquanto outras tendem a suavizar flutuações relevantes, o que pode introduzir vieses
 sistemáticos de sub ou superestimação. Diante dessa variabilidade, torna-se fundamental evitar a dependência exclusiva
 de um único modelo preditivo. A comparação entre modelos surge como uma estratégia para quantificar incertezas e buscar
-um equilíbrio entre sensibilidade e robustez. Essa prática pode ser extendida ao se incluir modelos de diferentes
-famílias, promovendo uma avaliação mais abrangente e metodologicamente rigorosa.
+um equilíbrio entre sensibilidade e robustez.
 
 Essa prática é amplamente adotada na literatura, como exemplifica o estudo de Atashi et al. (2022) \cite{atashi}, que
 comparou o desempenho dos modelos SARIMA, LSTM e \textit{Random Forest} na predição do nível da água do Rio Vermelho do
-Norte, localizado na fronteira entre os Estados Unidos e o Canadá. Modelos da família ARIMA, baseados em processos de
-autoregressão e média móvel, são frequentemente utilizados como referência nesse tipo de comparação. No estudo
-mencionado, o modelo SARIMA — uma extensão que incorpora componentes sazonais — apresentou bom desempenho em séries
-temporais com padrões lineares, mas teve dificuldades em capturar variações abruptas e comportamentos não lineares,
-frequentemente associados a eventos extremos.
+Norte, que é historicamente vulnerável à enchentes relâmpago devido ao rápido derretimento de neve no começo da
+primavera. Modelos da família ARIMA, baseados em processos de autoregressão e média móvel, são frequentemente utilizados
+como referência nesse tipo de comparação. No estudo mencionado, o modelo SARIMA — uma extensão que incorpora componentes
+sazonais — apresentou bom desempenho em séries temporais com padrões lineares, mas teve dificuldades em capturar
+variações abruptas e comportamentos não lineares, frequentemente associados a eventos extremos.
 
 Semelhantemente, Güldal et al. (2009) \cite{gudal} utilizou modelos da família ARMA para prever os níveis do Lago
 Eğirdir, na Turquia, propondo-os como referência para comparações com métodos mais recentes, como redes neurais
-recorrentes (RNN) e ANFIS (EXPANDIR). Os resultados indicaram que os modelos baseados em RNN mostraram-se mais adequados
-para eventos hidrológicos com alta variabilidade, i.e., com a presença de precipitação. Contudo, durante situações de
-normalidade, variações do ARMA apresentaram bons resultados, levando-os como base no planejamento de políticas
-envolvendo o corpo hídrico. 
+recorrentes (RNN) e um Sistema de inferência neuro-borroso adaptativo (ANFIS). Os resultados indicaram que os modelos
+baseados em RNN mostraram-se mais adequados para eventos hidrológicos com alta variabilidade, i.e., com a presença de
+precipitação. Contudo, durante situações de normalidade, variações do ARMA apresentaram bons resultados, levando-os como
+base no planejamento de políticas envolvendo o corpo hídrico. 
 
 Modelos baseados em LSTM \cite{hochreiter} mostram-se populares na literatura sobre predição de cheias, como no estudo
 supracitado de Atashi et al. (2022) \cite{atashi}, no qual superaram abordagens como o SARIMA e o \textit{Random
@@ -92,5 +89,16 @@ mais eficazes em certos contextos hidrológicos. Por outro lado, Ju et al. combi
 com o LightGBM para prever energia eólica — um problema fora do escopo hidrológico, mas com estrutura e objetivos
 semelhantes, a previsão em curto prazo. Neste caso, a combinação CNN-LightGBM superou modelos isolados, como SVR,
 demonstrando ganhos em precisão e robustez.
+
+Neste trabalho, optou-se por comparar modelos de três famílias distintas. Primeiramente, o modelo estatístico SARIMA foi
+escolhido por sua capacidade de capturar padrões sazonais, especialmente relevantes em regiões com estações bem
+definidas, como o Sul do Brasil. Espera-se que ele consiga representar adequadamente ciclos de precipitação regulares,
+apesar de sua menor sensibilidade a variações abruptas. Em seguida, foi selecionado o modelo LSTM, uma rede neural
+recorrente devido ao seu uso amplo na literatura por sua capacidade de adaptação a novos dados e de captura de
+dependências temporais complexas. A versão bidirecional do LSTM também pode ser facilmente incorporada, ampliando sua
+robustez. Por fim, foram incluídos dois modelos baseados em GBM, o XGBoost e o LightGBM, devido à sua eficiência, bom
+desempenho em sistemas não lineares e tempo reduzido de treinamento e inferência. A escolha do LightGBM se justifica
+ainda por seu uso menos frequente em contextos hidrológicos, o que motiva sua avaliação comparativa ante modelos já
+estabelecidos.
 
 % Por fim, vale notar a utilização de métricas no contexto de predições hídricas. Albahri et al. (2024) \cite{albahri}
