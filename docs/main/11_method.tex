@@ -2,14 +2,14 @@
 \section{Fonte de Dados}
 Este trabalho emprega dados primários do Portal Hidroweb, integrante do Sistema Nacional de Informações sobre Recursos
 Hídricos (SNIRH) da Agência Nacional de Águas (ANA) \cite{snirh}. Este sistema consolida informações de estações
-hidrometeorológicas, incluindo níveis fluviais, vazões, precipitação, climatologia, qualidade da água e sedimentos. A
-coleta automatizada dos dados foi viabilizada mediante acesso à API do Hidroweb, concedido pela ANA ao autor.
+hidrometeorológicas, incluindo níveis fluviais, vazões, precipitação, entre outros. A coleta automatizada dos dados foi
+viabilizada mediante acesso à API do Hidroweb, concedido pela ANA ao autor.
 
 Priorizam-se séries históricas do nível do Guaíba e seus tributários, como o Rio Gravataí, Rio Jacuí, Rio dos Sinos e
 Rio Taquari, coletados a cada hora para um período histórico de 5 anos em centímetros. Para o próprio Guaíba, adotam-se
 complementarmente as estações do Caís da Mauá e do Gasômetro, estratégia necessária devido à descontinuidade nos
 registros da primeira estação em 2-3 de maio de 2024. Conforme atestado pela SEMA \cite{informativo_sema}, este hiato
-decorreu de danos nos equipamentos de medição durante as enchentes daquele ano.
+decorreu de danos nos equipamentos de medição durante as enchentes.
 
 Para dados de metereológicos, também serão utilizados dados disponibilizados pelo SNIRH e os mesmos serão coletados com
 a mesma frequência e o mesmo período histórico, de forma a complementar os dados do nível da água.
@@ -36,6 +36,13 @@ estrutura metodológica visa garantir comparação objetiva do desempenho predit
 
 % quantificando incertezas através de intervalos de confiança derivados de \textit{bootstrapping}.
 
+Os resultados da análise comparativa serão disponibilizados através de um painel interativo (dashboard) desenvolvido
+após a consolidação das avaliações dos modelos. Esta plataforma de visualização, hospedada em acesso aberto, integrará
+dados históricos do nível do Rio Guaíba com as predições geradas pelos diferentes modelos, apresentando múltiplos
+cenários hidrológicos contextualizados por análises explicativas. Os usuários poderão explorar dinamicamente os dados
+mediante filtros temporais personalizáveis, permitindo focalizar períodos de interesse específico como eventos extremos
+ou fases sazonais críticas.
+
 \section{Ferramentas e recursos utilizados}
 O desenvolvimento da parte escrita deste trabalho será feita em \LaTeX, utilizando o modelo \abnTeX, desenvolvido por
 Araujo et al (2015) \cite{abntex2classe} de acordo com as regras da ABNT NBR 14724:2011, ABNT NBR 6024:2012 e outras.
@@ -46,8 +53,12 @@ serão construídas utilizando a API de baixo nível do \textit{TensorFlow}. Par
 adotadas as bibliotecas nativas do XGBoost e LightGBM. Uma arquitetura modular será implementada mediante classes
 especializadas para cada modelo, integrando \textit{pipelines} do \textit{scikit-learn} para garantir fluxos
 reprodutíveis de pré-processamento. O processamento numérico e manipulação de séries temporais serão realizados com
-\textit{NumPy} e \textit{Pandas}, respectivamente, assegurando eficiência computacional e tratamento adequado de dados
-hidrológicos.
+\textit{NumPy} e \textit{Pandas}, respectivamente, assegurando eficiência computacional e tratamento dos dados.
+
+O painel interativo utilizará \textit{Streamlit} para conversão ágil de scripts Python em aplicações web visuais,
+garantindo integração nativa com bibliotecas científicas (\textit{Pandas}, \textit{Matplotlib}, \textit{Plotly}). A
+hospedagem no \textit{Streamlit Community Cloud} assegurará disponibilidade pública contínua e atualizações automáticas
+conforme novos dados ou modelos forem incorporados.
 
 % \section{Setup Experimental para treinamento de modelos} The training process was conducted in a machine with the
 % following specifica- tions: 12th Gen Intel(R) Core(TM) i5-12500H, 16GB RAM and a NVIDIA GeForce RTX 3050 Laptop 4GB
