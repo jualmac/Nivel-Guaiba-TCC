@@ -164,4 +164,4 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
 # Example usage
 if __name__ == "__main__":
     # Example call with date range
-    get_station_data(station_code="87450004", start_date="2025-04-01", end_date="2025-07-11", table_name="gasometro_teste")
+    get_station_data(station_code="87444000", start_date="2025-04-01", end_date="2025-07-11", table_name="gasometro_teste")
