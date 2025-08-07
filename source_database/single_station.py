@@ -3,7 +3,7 @@ import json
 import requests
 import pandas as pd
 from source_database.auth import get_auth
-from source_database.db_handler import SQLite_Handler
+from source_database.db_handler_sqlite import SQLite_Handler
 
 def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_LEITURA", table_name="gasometro"):
     '''
@@ -117,6 +117,7 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
             "Range Intervalo de busca": range_days
         }
         
+
         # Create request for this chunk;
         print(f"Chunk {chunk_number}: Getting data from {search_date} using {range_days} (actual days: {actual_chunk_days})...")
         response = requests.get(url, headers=headers, params=params)
@@ -133,13 +134,18 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
                 print(f'  → Chunk {chunk_number}: {len(df)} records collected')
             else:
                 print(f'  → Chunk {chunk_number}: No data items found in the response')
+
+            # Move to next chunk only if status_code == 200;
+            current_date = chunk_end_date + timedelta(days=1)
+            chunk_number += 1
+
+        # Get authentication again if the token has expired;
+        elif response.status_code == 401:
+            token = get_auth()
+
         else:
             print(f'✗ Chunk {chunk_number}: Request failed with status code:', response.status_code)
             print(f'  → Response text:', response.text)
-        
-        # Move to next chunk
-        current_date = chunk_end_date + timedelta(days=1)
-        chunk_number += 1
     
     # Combine all dataframes and save to database
     print("\n" + "-" * 40)
@@ -165,3 +171,4 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
 if __name__ == "__main__":
     # Example call with date range
     get_station_data(station_code="87444000", start_date="2024-05-03", end_date="2025-07-16", table_name="station_gasometro")
+    print('Done')
