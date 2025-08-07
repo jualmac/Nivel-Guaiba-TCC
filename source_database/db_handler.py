@@ -1,105 +1,128 @@
 """
-This file is used to handle the connection and the interactions with the SQLite database;
+Database Connection Handler for PostgreSQL. This module provides the `DBConnection` class to facilitate interactions 
+with the PostgreSQL database. It supports connection management, execution of SQL queries, and data manipulation using 
+Pandas DataFrames;
 """
 
 ########################################################################################################################
-#
+#                                                                  
 # LIBRARIES
 #
 ########################################################################################################################
-import sqlite3
-import datetime
+import os
 import pandas as pd
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.engine.url import URL
 
 ########################################################################################################################
-#
-# DATABASE MANIPULATION FUNCTIONS
+#                                                                  
+# DATABASE CONNECTION
 #
 ########################################################################################################################
-class SQLite_Handler:
-    def __init__(self, db_file='znivel.db'):
-        """Initialize the SQLite_Handler with the specified SQLite database file."""
-        self.db_file = db_file
-        self.connection = None
+class DBConnection:
+    def __init__(self, sql: str = "", params: dict = None, schema_name: str = "public"):
+        self.sql = sql
+        self.params = params
+        self.pg_schema = schema_name
+        self.engine = self.create_db_engine()
 
-    def connect(self):
-        """Establish a connection to the SQLite database."""
+    def create_db_engine(self):
+        """Creates a SQLAlchemy engine with the proper connection and schema."""
+        db_url = URL.create(
+            drivername="postgresql",
+            username=os.environ["PG_USER"],
+            password=os.environ["PG_PASS"],
+            host=os.environ["PG_HOST"],
+            port=os.environ["PG_PORT"],
+            database=os.environ["PG_NAME"]
+        )
+        engine = create_engine(db_url, connect_args={"options": f"-c search_path={self.pg_schema}"})
+        print(f"Connected to the Database {os.environ['PG_HOST']} on Schema {self.pg_schema}")
+        return engine
+
+    def run_sql(self) -> dict:
+        """
+        Executes SQL queries provided as either a string or a dictionary.
+        Returns a dictionary where each key corresponds to a query's result DataFrame.
+        """
+        results = {}
         try:
-            self.connection = sqlite3.connect(self.db_file)
-            self.connection.row_factory = sqlite3.Row
-            print(f"\033[2;30;41m Connected to SQLite version: {sqlite3.sqlite_version} \033[0;0m")
-        except sqlite3.Error as error:
-            print("Error while opening SQLite connection:", error)
-
-    def close(self):
-        """Close the SQLite database connection."""
-        try:
-            if self.connection:
-                self.connection.close()
-                print(f"\033[2;30;43m Disconnected from SQLite version: {sqlite3.sqlite_version} \033[0;0m")
-        except sqlite3.Error as error:
-            print("Error while closing SQLite connection:", error)
-
-    def read(self, query):
-        """Create a DataFrame by executing the given SQL query on the database."""
-        if not self.connection:
-            self.connect()
-        try:
-            dataframe = pd.read_sql_query(query, self.connection)
-            return dataframe
-        except sqlite3.Error as error:
-            print("Error executing query:", error)
-        finally:
-            self.close()
-
-    def write(self, dataframe, table_name, inplace=False):
-        """Write a DataFrame to the specified table in the database."""
-        if not self.connection:
-            self.connect()
-        try:
-            # Save index if it's a time series
-            if dataframe.index.dtype == 'datetime64[ns]':
-                dataframe = dataframe.reset_index(drop=False)
-                
-            # Check if table exists
-            cursor = self.connection.cursor()
-            cursor.execute(f"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{table_name}'")
-
-            if (cursor.fetchone()[0] == 0) or inplace:
-                dataframe.to_sql(table_name, self.connection, if_exists='replace', index=False)
-                print(f"DataFrame successfully written to new SQLite table '{table_name}'")
-            else:
-                # Append data without duplicates
-                existing_data = pd.read_sql(f"SELECT * FROM {table_name}", self.connection)
-                
-                # Convert date columns to datetime for comparison
-                datetime_cols = ['date', 'ds']
-                for col in datetime_cols:
-                    if col in existing_data.columns:
-                        existing_data[col] = pd.to_datetime(existing_data[col])
-
-                # Merge data and remove duplicates
-                new_data = pd.concat([existing_data, dataframe], axis=0, ignore_index=True)
-                new_data = new_data.drop_duplicates(ignore_index=True)
-                new_data.to_sql(table_name, self.connection, if_exists='replace', index=False)
-
-                if not new_data.equals(existing_data):
-                    print(f"New data appended to SQLite table '{table_name}'")
+            with self.engine.connect() as connection:
+                if isinstance(self.sql, dict):
+                    for key, query in self.sql.items():
+                        res = connection.execute(text(query), self.params or {})
+                        data = res.fetchall()
+                        results[key] = pd.DataFrame(data, columns=res.keys())
                 else:
-                    print(f"No new data to append to table '{table_name}'")
-        except sqlite3.Error as error:
-            print(f"Error while writing DataFrame to SQLite table '{table_name}':", error)
-        finally:
-            self.close()
+                    res = connection.execute(text(self.sql), self.params or {})
+                    data = res.fetchall()
+                    results["result"] = pd.DataFrame(data, columns=res.keys())
+            return results
+        except Exception as e:
+            print(f"SQL execute query failed due to: {e}")
+            return results
 
-########################################################################################################################
-# Usage Examples:
-# # Initialize the SQLite_Handler
-# db_handler = SQLite_Handler()
+    def insert_dataframe(self, df: pd.DataFrame, table_name: str, if_exists: str = "append", index: bool = False) -> None:
+        """
+        Inserts a DataFrame into the specified table using SQLAlchemy's to_sql method.
+        
+        Args:
+            df: The DataFrame to insert.
+            table_name: The target table name.
+            if_exists: How to behave if the table already exists.
+                       Options: 'fail', 'replace', 'append'. Default is 'append'.
+            index: Whether to write DataFrame's index as a column. Default is False.
+        """
+        print(f"Inserting data into table {table_name}...")
+        try:
+            df.to_sql(table_name, self.engine, if_exists=if_exists, index=index)
+            print(f"Data inserted successfully into table {table_name}")
+        except Exception as e:
+            print(f"Failed to insert data into table {table_name} due to: {e}")
 
-# # Query data
-# query = "SELECT * FROM some_table"
-# dataframe = db_handler.read(query)
+    def create_view(self, query: str) -> None:
+        """Creates or replaces a view in the database using SQLAlchemy."""
+        try:
+            with self.engine.connect() as connection:
+                connection.execute(text(query))
+                connection.commit()  # Commit DDL changes
+            print("View created (or replaced) successfully.")
+        except SQLAlchemyError as e:
+            print(f"Failed to create view due to: {e}")
 
-# # Write data
-# db_handler.write(dataframe, 'new_table', inplace=True)
+    def drop_objects(self, objects: dict) -> None:
+        """
+        Drops multiple tables and/or views at the same time.
+        The objects parameter should be a dictionary with keys "table" and/or "view"
+        and values as lists of object names. For example:
+        
+            objects = {
+                "table": ["raw_clean", "data_item"],
+                "view": ["cliente_por_produto", "rfv"]
+            }
+        
+        Each drop is executed with CASCADE.
+        """
+        try:
+            with self.engine.connect() as connection:
+                for obj_type, names in objects.items():
+                    if not names:
+                        continue
+                    if obj_type.lower() == "table":
+                        query = f"DROP TABLE IF EXISTS {', '.join(names)} CASCADE;"
+                    elif obj_type.lower() == "view":
+                        query = f"DROP VIEW IF EXISTS {', '.join(names)} CASCADE;"
+                    else:
+                        print(f"Unsupported object type: {obj_type}")
+                        continue
+                    connection.execute(text(query))
+                connection.commit()
+            print("Specified tables and views dropped successfully.")
+        except Exception as e:
+            print(f"Failed to drop objects due to: {e}")
+    
+    def close_connection(self):
+        """Closes the database connection."""
+        self.engine.dispose()
+        print("Database connection closed.")
