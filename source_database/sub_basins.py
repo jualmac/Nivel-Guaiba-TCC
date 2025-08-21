@@ -3,7 +3,7 @@ import json
 import requests
 import pandas as pd
 from source_database.auth import get_auth
-from source_database.db_handler import SQLite_Handler
+from source_database.db_handler_sqlite import SQLite_Handler
 
 # Get proper HidroWeb Token;
 token = get_auth()
