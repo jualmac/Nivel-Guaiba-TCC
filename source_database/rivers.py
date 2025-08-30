@@ -3,7 +3,7 @@ import json
 import requests
 import pandas as pd
 from source_database.auth import get_auth
-from source_database.db_handler_sqlite import SQLite_Handler
+from source_database.db_handler import DBConnection
 
 # Get proper HidroWeb Token;
 token = get_auth()
@@ -27,7 +27,7 @@ if response.status_code == 200:
     #Turn station json into a proper dataframe;
     df = pd.DataFrame(stations['items'])
 
-    db_handler = SQLite_Handler()
+    db_handler = DBConnection()
     db_handler.write(df, 'rivers', inplace=True)
 else:
     print("Request failed with status code:", response.status_code)

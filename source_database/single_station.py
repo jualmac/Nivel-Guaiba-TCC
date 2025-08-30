@@ -3,7 +3,7 @@ import json
 import requests
 import pandas as pd
 from source_database.auth import get_auth
-from source_database.db_handler_sqlite import SQLite_Handler
+from source_database.db_handler import DBConnection
 
 def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_LEITURA", table_name="gasometro"):
     '''
@@ -157,7 +157,7 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
         print(f"✓ Total records collected: {len(combined_df)}")
         
         print(f"→ Saving data to database table '{table_name}'...")
-        db_handler = SQLite_Handler()
+        db_handler = DBConnection()
         db_handler.write(combined_df, table_name, inplace=True)
         print(f"✓ All data successfully saved to table '{table_name}'")
     else:
