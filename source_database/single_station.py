@@ -1,3 +1,15 @@
+"""
+This code is used to pull all the informations from a single station considering the limits the API has to pull data on
+specific predetermined chunks of data, determined on the variable 'available_ranges'. This function divides the required
+data range on appropriate chunks, make the requests for each chunk and concats everything. On the main call of the
+function, multiple stations should be defined by defining multiple executions of the 'get_station_data' data. This will
+garantee the reproductability of the data colletion;
+"""
+########################################################################################################################
+#
+# LIBRARIES
+#
+########################################################################################################################
 import os
 import json
 import requests
@@ -5,8 +17,19 @@ import pandas as pd
 from source_database.auth import get_auth
 from source_database.db_handler import DBConnection
 
-def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_LEITURA", table_name="gasometro"):
-    '''
+########################################################################################################################
+#
+# FUNCTION
+#
+########################################################################################################################
+def get_station_data(station_code: str, 
+                    start_date: str, 
+                    end_date: str, 
+                    inplace: bool = True, 
+                    date_filter_type: str ="DATA_LEITURA", 
+                    table_name: str = "gasometro",
+                    ):
+    """
     Gets detailed telemetric series data for a specific station from HidroWeb API
     
     Parameters:
@@ -15,7 +38,7 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
     - end_date: End date (format: yyyy-MM-dd)
     - date_filter_type: Type of date filter (default: "DATA_LEITURA")
     - table_name: Name of the table to save in database (default: "gasometro")
-    '''
+    """
     
     print(f"\n{'='*60}")
     print(f"STARTING DATA COLLECTION FOR STATION {station_code}")
@@ -117,7 +140,6 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
             "Range Intervalo de busca": range_days
         }
         
-
         # Create request for this chunk;
         print(f"Chunk {chunk_number}: Getting data from {search_date} using {range_days} (actual days: {actual_chunk_days})...")
         response = requests.get(url, headers=headers, params=params)
@@ -158,7 +180,7 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
         
         print(f"→ Saving data to database table '{table_name}'...")
         db_handler = DBConnection()
-        db_handler.write(combined_df, table_name, inplace=True)
+        db_handler.write(combined_df, table_name, inplace=inplace)
         print(f"✓ All data successfully saved to table '{table_name}'")
     else:
         print("✗ No data was collected from any chunk")
@@ -170,5 +192,5 @@ def get_station_data(station_code, start_date, end_date, date_filter_type="DATA_
 # Example usage
 if __name__ == "__main__":
     # Example call with date range
-    get_station_data(station_code="87444000", start_date="2024-05-03", end_date="2025-07-16", table_name="station_gasometro")
+    get_station_data(station_code="87444000", start_date="2024-05-03", end_date="2025-08-30", table_name="station_gasometro")
     print('Done')
