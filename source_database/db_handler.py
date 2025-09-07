@@ -34,7 +34,7 @@ class DBConnection:
             """
             test_connection = self.run(test_query)
 
-            if not test_connection.empty:
+            if not test_connection.get('result').empty:
                 print(f"Connection successful to database on file {self.path}")
                 return self.connection
             else:
@@ -43,15 +43,38 @@ class DBConnection:
             print(f"Error on connect(): {e}")
             raise
 
-    def run(self, query: str, params: Tuple = None) -> pd.DataFrame:
+    def run(self, query, params: Tuple = None) -> dict:
         """
-        Run a query and return a Pandas DataFrame (to mirror PostgreSQL handler).
+        Run one or multiple query and return results as Pandas DataFrames;
+        
+        Args:
+            query (str | dict): A single SQL query string or a dict of {key: query}.
+            params (tuple, optional): Parameters for the query (applied only when query is a string).
+        
+        Returns:
+            dict: Dictionary with DataFrames as values.
+                  - {"result": DataFrame} if a single query string is passed;
+                  - {key: DataFrame} if a dictionary of query is passed;
         """
-        if params:
-            result = self.connection.execute(query, params)
-            return pd.DataFrame(result.fetchall(), columns=[d[0] for d in result.description])
-        else:
-            return self.connection.sql(query).df()
+        results = {}
+        try:
+            if isinstance(query, dict):
+                for key, q in query.items():
+                    if params:
+                        res = self.connection.execute(q, params)
+                        results[key] = pd.DataFrame(res.fetchall(), columns=[d[0] for d in res.description])
+                    else:
+                        results[key] = self.connection.sql(q).df()
+            else:  # Single query string
+                if params:
+                    res = self.connection.execute(query, params)
+                    results["result"] = pd.DataFrame(res.fetchall(), columns=[d[0] for d in res.description])
+                else:
+                    results["result"] = self.connection.sql(query).df()
+            return results
+        except Exception as e:
+            print(f"SQL execution failed due to: {e}")
+            return results
 
     def write(self, df: pd.DataFrame, table_name: str, inplace: bool = False) -> None:
         """Insert a Pandas DataFrame into DuckDB."""
@@ -109,3 +132,15 @@ class DBConnection:
     def close(self):
         """Close the DuckDB connection"""
         self.connection.close()
+
+########################################################################################################################
+# # Usage Examples:
+# # Initialize the Connection;
+# db_handler = DBConnection()
+
+# # Query data;
+# query = "SELECT * FROM table"
+# dataframe = db_handler.run(query=query)
+
+# # Write data;
+# db_handler.write(df=dataframe, table_name='new_table', inplace=True)
