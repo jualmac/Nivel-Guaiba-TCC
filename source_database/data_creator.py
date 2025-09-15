@@ -12,7 +12,7 @@ different sources;
 import numpy as np
 import pandas as pd
 from source_database.db_handler import DBConnection
-
+from util import convert_to_float
 ########################################################################################################################
 #                                                                  
 # FUNCTION
@@ -27,7 +27,6 @@ def get_data():
 
     # Query data;
     query = {
-        'cai_2':        'SELECT * FROM station_cai_2',
         'gravatai_1':   'SELECT * FROM station_gravatai_1',
         'guaiba_1':     'SELECT * FROM station_guaiba_1', 
         'guaiba_2':     'SELECT * FROM station_guaiba_2',
@@ -35,15 +34,14 @@ def get_data():
         'sinos_2':      'SELECT * FROM station_sinos_2',
         'sinos_3':      'SELECT * FROM station_sinos_3',
         'taquari_1':    'SELECT * FROM station_taquari_1', 
-        'taquari_2':    'SELECT * FROM station_taquari_2',
+        # 'taquari_2':    'SELECT * FROM station_taquari_2',
+        # 'jacui_1':      'SELECT * FROM station_jacui_1',
+        # 'cai_1':        'SELECT * FROM station_cai_1',
+        # 'cai_2':        'SELECT * FROM station_cai_2',
         }
     dataframe = db_handler.run(query=query)
 
-    # Close connection;
-    db_handler.close()
-
     # Open query into single dfs;
-    cai_2       =   dataframe.get('cai_2')
     gravatai_1  =   dataframe.get('gravatai_1')
     guaiba_1    =   dataframe.get('guaiba_1')
     guaiba_2    =   dataframe.get('guaiba_2')
@@ -51,19 +49,27 @@ def get_data():
     sinos_2     =   dataframe.get('sinos_2')
     sinos_3     =   dataframe.get('sinos_3')
     taquari_1   =   dataframe.get('taquari_1')
-    taquari_2   =   dataframe.get('taquari_2')
-    
+    # taquari_2   =   dataframe.get('taquari_2')
+    # jacui_1     =   dataframe.get('jacui_1')
+    # cai_1       =   dataframe.get('cai_1')
+    # cai_2       =   dataframe.get('cai_2')
+
+    # Merge guaiba_1 and guaiba_2 into a single dataframe;
+    guaiba_1 = pd.concat([guaiba_1, guaiba_2])
+    guaiba_1['codigoestacao'] = '87450004'
+
     # Create a dictionary mapping station names to dataframes for easier identification;
     dataframes = {
-        'cai_2':        cai_2,
         'gravatai_1':   gravatai_1, 
         'guaiba_1':     guaiba_1,
-        'guaiba_2':     guaiba_2,
         'sinos_1':      sinos_1,
         'sinos_2':      sinos_2,
         'sinos_3':      sinos_3,
         'taquari_1':    taquari_1,
-        'taquari_2':    taquari_2
+        # 'taquari_2':    taquari_2,
+        # 'jacui_1':      jacui_1,
+        # 'cai_1':        cai_1,
+        # 'cai_2':        cai_2,
     }
 
     # Concatenate the dataframes;
@@ -88,6 +94,22 @@ def get_data():
 
     # Convert the date column to datetime;
     df['date'] = pd.to_datetime(df['date'])
+    df = df[df['date'] >= '2018-08-01']
+
+    # Convert the value columns to float;
+    for col in ['level', 'rainfall', 'rainfall_adopted', 'temperature']:
+        df[col] = df[col].apply(convert_to_float)
+
+    # Group each station by 1 hour intervals;
+    df['hour_timestamp'] = df['date'].dt.floor('H')
+    df = df.groupby(['station_id', 'hour_timestamp']).agg({'level': 'mean', 
+                                                           'rainfall': 'mean', 
+                                                           'rainfall_adopted': 'mean', 
+                                                           'temperature': 'mean',
+                                                           'level_status': 'first',
+                                                           'rainfall_status': 'first',
+                                                           'rainfall_adopted_status': 'first'}).reset_index()
+    df.rename(columns={'hour_timestamp': 'date'}, inplace=True)
 
     # Get the value columns (excluding date and station_id)
     value_cols = [col for col in df.columns if col not in ['date', 'station_id']]
@@ -121,6 +143,8 @@ def get_data():
     
     # Reset index and return pivoted dataframe
     df = df_pivoted.reset_index()
+    
+    db_handler.write(df=df, table_name='data_stations', inplace=True)
     return df
 
 def get_external(db):
