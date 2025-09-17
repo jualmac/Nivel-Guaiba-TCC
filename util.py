@@ -13,6 +13,52 @@ import random
 
 ########################################################################################################################
 #                                                                  
+# FUNCTIONS
+#
+########################################################################################################################
+def is_valid(number):
+    if (
+        number is None
+        or np.isnan(number)
+        or number == "None"
+        or number == "NaN"
+        or number == "nan"
+    ):
+        return False
+    else:
+        return True
+
+def flatten(list):
+    flatten_list = []
+    for sublist in list:
+        for item in sublist:
+            flatten_list.append(item)
+    return flatten_list
+
+def convert_to_float(value: str) -> float:
+    """
+    Cleans a string value by removing commas and converts it to float if possible. If the input value is not a string 
+    containing commas, it is returned unchanged;
+
+    Parameters:
+        - value (str): Input value (string or numeric);
+    
+    Returns:
+        - float: Converted float value if applicable, otherwise returns the input value unchanged;
+    """
+    if value is None:
+        return None
+    elif isinstance(value, str) and ',' in value:
+        cleaned_value = value.replace(',', '')
+        try:
+            return float(cleaned_value)
+        except ValueError:
+            return value
+    else:
+        return float(value)
+
+########################################################################################################################
+#                                                                  
 # DICTIONARIES
 #
 ########################################################################################################################
@@ -283,28 +329,3 @@ FULL_MONTHS = {
 
 DAYS_OF_WEEK = {1: "Domingo", 2: "Segunda", 3: "Terça", 4: "Quarta", 5: "Quinta", 6: "Sexta", 7: "Sábado"}
 DAYS_OF_WEEK_ABR = {1: "dom", 2: "seg", 3: "ter", 4: "qua", 5: "qui", 6: "sex", 7: "sab"}
-
-########################################################################################################################
-#                                                                  
-# FUNCTIONS
-#
-########################################################################################################################
-def is_valid(number):
-    if (
-        number is None
-        or np.isnan(number)
-        or number == "None"
-        or number == "NaN"
-        or number == "nan"
-    ):
-        return False
-    else:
-        return True
-
-
-def flatten(list):
-    flatten_list = []
-    for sublist in list:
-        for item in sublist:
-            flatten_list.append(item)
-    return flatten_list
