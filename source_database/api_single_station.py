@@ -191,54 +191,35 @@ def get_station_data(station_code: str,
 
 # Example usage
 if __name__ == "__main__":
-    # Estações Caí;
-    get_station_data(station_code="87120000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_cai_1")
-    get_station_data(station_code="87120100", start_date="2025-01-01", end_date="2025-08-30", table_name="station_cai_2")
-    get_station_data(station_code="87150000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_cai_3")
-    get_station_data(station_code="87160000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_cai_4")
-    get_station_data(station_code="87170000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_cai_5")
-    get_station_data(station_code="87270000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_cai_6")
+    end_date = "2025-09-19"
 
-    # Estações Jacuí;
-    get_station_data(station_code="85029000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_1")
-    get_station_data(station_code="85050001", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_2")
-    get_station_data(station_code="85050100", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_3")
-    get_station_data(station_code="85074000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_4")
-    get_station_data(station_code="85076000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_5")
-    get_station_data(station_code="85080001", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_6")
-    get_station_data(station_code="85140000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_7")
-    get_station_data(station_code="85260001", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_8")
-    get_station_data(station_code="85300000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_9")
-    get_station_data(station_code="85365000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_10")
-    get_station_data(station_code="85395100", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_11")
-    get_station_data(station_code="85395300", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_12")
-    get_station_data(station_code="85400000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_13")
-    get_station_data(station_code="85642000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_14")
-    get_station_data(station_code="85642005", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_15")
-    get_station_data(station_code="85900000", start_date="2025-01-01", end_date="2025-08-30", table_name="station_jacui_16")
-    print('Done')
-
-########################################################################################################################
-#
-# PREVIOUSLY COLLECTED STATIONS
-#
-########################################################################################################################
-    # # Estações Guaíba;
-    # get_station_data(station_code="87450004", start_date="2014-07-01", end_date="2024-05-03", table_name="station_guaiba_1")
-    # get_station_data(station_code="87444000", start_date="2024-05-03", end_date="2025-08-30", table_name="station_guaiba_2")
+    #================== Estações Guaíba ==================
+    get_station_data(station_code="87450004", start_date="2014-07-01", end_date="2024-05-03", table_name="station_guaiba_1")
+    get_station_data(station_code="87444000", start_date="2024-05-03", end_date=end_date, table_name="station_guaiba_2")
     
-    # # Estações Gravataí;
-    # get_station_data(station_code="87398750", start_date="2018-02-01", end_date="2025-08-30", table_name="station_gravatai_1")
+    #================== Estações Gravataí ==================
+    get_station_data(station_code="87398750", start_date="2018-02-01", end_date=end_date, table_name="station_gravatai_1")
 
-    # # Estações Sinos;
-    # get_station_data(station_code="87376000", start_date="2014-11-01", end_date="2025-08-30", table_name="station_sinos_1")
-    # get_station_data(station_code="87382000", start_date="2018-07-01", end_date="2025-08-30", table_name="station_sinos_2")
-    # get_station_data(station_code="87380000", start_date="2013-12-01", end_date="2025-08-30", table_name="station_sinos_3")
+    #================== Estações Sinos ==================
+    get_station_data(station_code="87376000", start_date="2014-11-01", end_date=end_date, table_name="station_sinos_1")
+    get_station_data(station_code="87382000", start_date="2018-07-01", end_date=end_date, table_name="station_sinos_2")
+    get_station_data(station_code="87380000", start_date="2013-12-01", end_date=end_date, table_name="station_sinos_3")
 
-    # # Estações Caí;
-    # get_station_data(station_code="87120000", start_date="2013-04-01", end_date="2025-08-30", table_name="station_cai_1")
-    # get_station_data(station_code="87163000", start_date="2024-10-01", end_date="2025-08-30", table_name="station_cai_2")
+    #================== Estações Taquari ==================
+    get_station_data(station_code="86510000", start_date="2017-10-01", end_date=end_date, table_name="station_taquari_1")
+    get_station_data(station_code="86720000", start_date="2008-12-01", end_date=end_date, table_name="station_taquari_2")
+    get_station_data(station_code="86895000", start_date="2014-08-01", end_date=end_date, table_name="station_taquari_3")
 
-    # # Estações Taquari;
-    # get_station_data(station_code="86895000", start_date="2014-08-01", end_date="2025-08-30", table_name="station_taquari_1")
-    # get_station_data(station_code="86950000", start_date="2017-10-01", end_date="2025-08-30", table_name="station_taquari_2")
+    #================== Estações Caí ==================
+    get_station_data(station_code="87150000", start_date="2010-01-01", end_date=end_date, table_name="station_cai_1")
+    get_station_data(station_code="87270000", start_date="2014-08-01", end_date=end_date, table_name="station_cai_2")
+
+    # Ambas muito boas, com bastante informação (ambas são gerenciadas pelo ANA), e com um bom histórico de dados -> Mas
+    # talvez sejam muitas estações para o meu caso só no rio Caí;
+    get_station_data(station_code="87160000", start_date="2017-02-01", end_date=end_date, table_name="station_cai_3")
+    get_station_data(station_code="87170000", start_date="2018-01-01", end_date=end_date, table_name="station_cai_4")
+
+    #================== Estações Jacuí ==================
+    get_station_data(station_code="85400000", start_date="2002-07-01", end_date=end_date, table_name="station_jacui_1")
+    get_station_data(station_code="85900000", start_date="2017-10-01", end_date=end_date, table_name="station_jacui_2")
+    print('Done')
