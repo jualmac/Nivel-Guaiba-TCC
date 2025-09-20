@@ -46,6 +46,7 @@ def convert_to_float(value: str) -> float:
     Returns:
         - float: Converted float value if applicable, otherwise returns the input value unchanged;
     """
+    
     if value is None:
         return None
     elif isinstance(value, str) and ',' in value:
@@ -59,9 +60,28 @@ def convert_to_float(value: str) -> float:
 
 ########################################################################################################################
 #                                                                  
+# CONSTANTS
+#
+########################################################################################################################
+START_DATE = '2018-08-01'
+END_DATE = '2025-09-19'
+
+########################################################################################################################
+#                                                                  
 # DICTIONARIES
 #
 ########################################################################################################################
+STATIONS_COLS = {
+    'Data_Hora_Medicao': 'date', 
+    'codigoestacao': 'station_id', 
+    'Cota_Adotada': 'level',
+    'Cota_Adotada_Status': 'level_status',
+    'Chuva_Adotada': 'rainfall',
+    'Chuva_Adotada_Status': 'rainfall_status',
+    'Chuva_Acumulada': 'rainfall_accumulated',
+    'Chuva_Acumulada_Status': 'rainfall_accumulated_status',
+    'Temperatura_Interna': 'temperature'
+    }
 
 BRAZILIAN_STATES = {
     'AC': 'Acre',
@@ -91,7 +111,7 @@ BRAZILIAN_STATES = {
     'SP': 'São Paulo',
     'SE': 'Sergipe',
     'TO': 'Tocantins',
-}
+    }
 
 COUNTRY_NAMES_PT = {
     "AF": "Afeganistão",
@@ -294,38 +314,4 @@ COUNTRY_NAMES_PT = {
     "YE": "Iémen",
     "ZM": "Zâmbia",
     "ZW": "Zimbábue"
-}
-
-
-MONTHS = {
-    1: "jan",
-    2: "fev",
-    3: "mar",
-    4: "abr",
-    5: "mai",
-    6: "jun",
-    7: "jul",
-    8: "ago",
-    9: "set",
-    10: "out",
-    11: "nov",
-    12: "dez",
-}
-
-FULL_MONTHS = {
-    1: "janeiro",
-    2: "fevereiro",
-    3: "março",
-    4: "abril",
-    5: "maio",
-    6: "junho",
-    7: "julho",
-    8: "agosto",
-    9: "setembro",
-    10: "outubro",
-    11: "novembro",
-    12: "dezembro",
-}
-
-DAYS_OF_WEEK = {1: "Domingo", 2: "Segunda", 3: "Terça", 4: "Quarta", 5: "Quinta", 6: "Sexta", 7: "Sábado"}
-DAYS_OF_WEEK_ABR = {1: "dom", 2: "seg", 3: "ter", 4: "qua", 5: "qui", 6: "sex", 7: "sab"}
+    }
