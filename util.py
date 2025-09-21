@@ -80,6 +80,8 @@ STATIONS_COLS = {
     'Chuva_Adotada_Status': 'rainfall_status',
     'Chuva_Acumulada': 'rainfall_accumulated',
     'Chuva_Acumulada_Status': 'rainfall_accumulated_status',
+    'Vazao_Adotada': 'flow',
+    'Vazao_Adotada_Status': 'flow_status',
     'Temperatura_Interna': 'temperature'
     }
 
