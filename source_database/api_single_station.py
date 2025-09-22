@@ -217,8 +217,4 @@ if __name__ == "__main__":
     #================== Estações Jacuí ==================
     get_station_data(station_code="85400000", start_date="2002-07-01", end_date=END_DATE, table_name="station_jacui_1")
     get_station_data(station_code="85900000", start_date="2017-10-01", end_date=END_DATE, table_name="station_jacui_2")
-    print('Done')
-
-
-
-# 88260000
+    print('All Done!')
