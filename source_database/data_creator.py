@@ -1,3 +1,4 @@
+#TODO: Solve Cut and Fill VS Fill and Cut;
 #TODO: Fix the data gaps -> interpolate() -> SPECIFC FUNCTION;
 #TODO: Fix outlier values;
 #TODO: Fix the missing level data -> Usar Cota Manual/Cota Sensor;
@@ -23,7 +24,7 @@ from util import convert_to_float, STATIONS_COLS, START_DATE, END_DATE
 # FUNCTION
 #
 ########################################################################################################################
-def collect_all_stations(save_to_db: bool = False, frequency: str = 'H'):
+def collect_all_stations(save_to_db: bool = False, frequency: str = 'H', max_ffill_steps: int = 8):
     """
     Retrieve the data from the stations and return a single dataframe concatenated;
 
@@ -33,12 +34,12 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H'):
             Examples: 'min' (minutes), 'H' (hours), 'D' (days), 'W' (weeks), ...
             Available options: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
             Combinations are also possible, e.g. '15min', '30min', '1H20m', ...
+        max_ffill_steps (int): The maximum number of steps to forward-fill the data;
 
     Returns:
         df (pd.DataFrame): The concatenated dataframe;
         df_cleaned (pd.DataFrame): The cleaned and aggregated dataframe;
     """
-
     # Initialize the Connection;
     db = DBConnection()
 
@@ -102,21 +103,8 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H'):
     # Concatenate the dataframes;
     df = pd.concat(list(stations_dataframes.values()))
 
-    # Select only the columns that are needed;
-    df = df[STATIONS_COLS.keys()]
-    df.rename(columns=STATIONS_COLS, inplace=True)
-
-    # Cut the dataframe to a time range where most data is available;
-    df['date'] = pd.to_datetime(df['date'])
-    df = df[df['date'] >= START_DATE]
-    df = df[df['date'] <= END_DATE]
-
-    # Convert the value columns to float;
-    for col in (set(df.columns) - {'date', 'station_id'}):
-        df[col] = df[col].apply(convert_to_float)
-
     # Fill the data gaps;
-    df_cleaned = fill_gaps(df=df, frequency=frequency)
+    df_cleaned = fill_gaps(df=df, frequency=frequency, max_ffill_steps=max_ffill_steps)
 
     # Clean the data using specified frequency;
     df_agg = aggregate_data(df=df_cleaned, frequency=frequency)
@@ -132,24 +120,21 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H'):
 
         db.write(df=frequency_results, table_name='data_stations_frequency', inplace=True)
         db.write(df=gaps_df, table_name='data_stations_gaps', inplace=True)
-    return df, df_agg, df_melted
+    return df_cleaned, df_agg, df_melted
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'H'):
     """
-    Clean the concatenated data from the different stations. Cuts the dataframe to a time range where most data is
-    available. Groups the data by specified frequency intervals and melts the dataframe to long format -> Better for the Machine
-    Learning Models;
+    Aggregate the data to the desired frequency;
 
     Parameters:
-        df (pd.DataFrame): The dataframe to clean;
+        df (pd.DataFrame): The dataframe to aggregate;
         frequency (str): Pandas frequency offset string for data aggregation (default: 'H' for hourly).
             Examples: 'min' (minutes), 'H' (hours), 'D' (days), 'W' (weeks), ...
             Available options: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
             Combinations are also possible, e.g. '15min', '30min', '1H20m', ...
-        max_ffill_steps (int): The maximum number of steps to forward-fill the data;
 
     Returns:
-        df_cleaned (pd.DataFrame): The cleaned dataframe;
+        df_agg (pd.DataFrame): The aggregated dataframe;
     """
     # Data Aggregation using specified frequency;
     agg_dict = {'level': 'mean',
@@ -185,9 +170,38 @@ def fill_gaps(df: pd.DataFrame, frequency: str = 'H', max_ffill_steps: int = 8):
         frequency (str): The frequency to fill the gaps;
         max_ffill_steps (int): The maximum number of steps to forward-fill the data;
     """
-    # Fill short gaps;
+    # Convert the value columns to float;
+    for col in (set(df.columns) - {'Data_Atualizacao', 'Data_Hora_Medicao', 'codigoestacao'}):
+        df[col] = df[col].apply(convert_to_float)
+
+    # Convert the date column to datetime;
+    df['Data_Hora_Medicao'] = pd.to_datetime(df['Data_Hora_Medicao'])
+    df['Data_Atualizacao'] = pd.to_datetime(df['Data_Atualizacao'])
+
+    # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
+    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    for status_col in status_cols:
+        info_col = status_col.replace('_Status', '')
+        if info_col in df.columns:
+            df.loc[df[info_col].isna(), status_col] = 5
+
+    # Use sensor data to fill the gaps in the level column;
+    df.loc[df['Cota_Adotada'] == None, 'Cota_Adotada'] = df.loc[df['Cota_Adotada'] == None, 'Cota_Sensor']
+    df.loc[df['Cota_Adotada'] == None, 'Cota_Adotada'] = df.loc[df['Cota_Adotada'] == None, 'Cota_Manual']
+    df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0)
+
+    # Fill short gaps -> Maybe use np.pad() or interpolate()?
     for col in df.columns:
-        df[col] = df.groupby('station_id')[col].ffill(limit=max_ffill_steps)  
+        df[col] = df.groupby('codigoestacao')[col].ffill(limit=max_ffill_steps)
+
+    # Select only the columns that are needed;
+    df = df[STATIONS_COLS.keys()]
+    df.rename(columns=STATIONS_COLS, inplace=True)
+
+    # Cut the dataframe to a time range where most data is available;
+    df['date'] = pd.to_datetime(df['date'])
+    df = df[df['date'] >= START_DATE]
+    df = df[df['date'] <= END_DATE]
     return df
 
 def melt_dataframe(df: pd.DataFrame):
@@ -231,6 +245,7 @@ def melt_dataframe(df: pd.DataFrame):
     df_cleaned = df_pivoted.reset_index()
     return df_cleaned
 
+#TODO: Add argparse to the function -> Will be need for Dockerfile execution;
 if __name__ == "__main__":
-    df, df_agg, df_melted = collect_all_stations(save_to_db=False, frequency='H')
+    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=False, frequency='H', max_ffill_steps=12)
     print("All Done!")
