@@ -1,7 +1,7 @@
 #TODO: Solve Cut and Fill VS Fill and Cut;
 #TODO: Fix the data gaps -> interpolate() -> SPECIFC FUNCTION;
 #TODO: Fix outlier values;
-#TODO: Fix the missing level data -> Usar Cota Manual/Cota Sensor;
+#TODO: FIx the gap analysis function;
 
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
@@ -59,55 +59,28 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H', max_ffi
         'taquari_1':    'SELECT * FROM station_taquari_1', 
         'taquari_2':    'SELECT * FROM station_taquari_2',
         'taquari_3':    'SELECT * FROM station_taquari_3',
-
         }
     dataframe = db.run(query=query)
 
-    # Open query into single dfs;
-    cai_1       =   dataframe.get('cai_1')
-    cai_2       =   dataframe.get('cai_2')
-    cai_3       =   dataframe.get('cai_3')
-    gravatai_1  =   dataframe.get('gravatai_1')
-    guaiba_1    =   dataframe.get('guaiba_1')
-    guaiba_2    =   dataframe.get('guaiba_2')
-    jacui_1     =   dataframe.get('jacui_1')
-    jacui_2     =   dataframe.get('jacui_2')
-    sinos_1     =   dataframe.get('sinos_1')
-    sinos_2     =   dataframe.get('sinos_2')
-    sinos_3     =   dataframe.get('sinos_3')
-    taquari_1   =   dataframe.get('taquari_1')
-    taquari_2   =   dataframe.get('taquari_2')
-    taquari_3   =   dataframe.get('taquari_3')
-
-    # Merge guaiba_1 and guaiba_2 into a single dataframe;
-    guaiba_1 = pd.concat([guaiba_1, guaiba_2])
-    guaiba_1['codigoestacao'] = '87450004'
-
-    # Create a dictionary mapping station names to dataframes for easier identification;
-    stations_dataframes = {
-        'cai_1':        cai_1,
-        'cai_2':        cai_2,
-        'cai_3':        cai_3,
-        'gravatai_1':   gravatai_1, 
-        'guaiba_1':     guaiba_1,
-        'jacui_1':      jacui_1,
-        'jacui_2':      jacui_2,
-        'sinos_1':      sinos_1,
-        'sinos_2':      sinos_2,
-        'sinos_3':      sinos_3,
-        'taquari_1':    taquari_1,
-        'taquari_2':    taquari_2,
-        'taquari_3':    taquari_3,
-    }
+    # Merge guaiba_1 and guaiba_2 into a single dataframe -> This is because the guaiba_2 station was setted as a backup to guaiba_1 during the 2024 floods. Therefore, their data should be considered as a continuous time series;
+    guaiba_merged = pd.concat([dataframe['guaiba_1'], dataframe['guaiba_2']])
+    guaiba_merged['codigoestacao'] = '87450004'
     
-    # Concatenate the dataframes;
-    df = pd.concat(list(stations_dataframes.values()))
+    # Update the dictionary with the merged guaiba and remove guaiba_2;
+    dataframe['guaiba_1'] = guaiba_merged
+    dataframe.pop('guaiba_2')
+    
+    # Concatenate all station dataframes;
+    df = pd.concat(list(dataframe.values()))
+
+    # Convert values and cut the dataframe to a time range where most data is available;
+    df_cleaned = clean_dataframe(df=df)
 
     # Fill the data gaps;
-    df_cleaned = fill_gaps(df=df, frequency=frequency, max_ffill_steps=max_ffill_steps)
+    df_filled = fill_gaps(df=df_cleaned, max_ffill_steps=max_ffill_steps)
 
-    # Clean the data using specified frequency;
-    df_agg = aggregate_data(df=df_cleaned, frequency=frequency)
+    # Aggregate the data to the desired frequency;
+    df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_agg)
@@ -115,12 +88,62 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H', max_ffi
     # Save the dataframes to the database;
     if save_to_db:
         db.write(df=df_cleaned, table_name='data_stations_cleaned', inplace=True)
+        db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
 
-        db.write(df=frequency_results, table_name='data_stations_frequency', inplace=True)
-        db.write(df=gaps_df, table_name='data_stations_gaps', inplace=True)
+        # db.write(df=frequency_results, table_name='data_stations_frequency', inplace=True)
+        # db.write(df=gaps_df, table_name='data_stations_gaps', inplace=True)
     return df_cleaned, df_agg, df_melted
+
+def clean_dataframe(df: pd.DataFrame):
+    """
+    Convert values and cut the dataframe to a time range where most data is available;
+
+    Parameters:
+        df (pd.DataFrame): The dataframe to cut;
+    """
+    # Convert the value columns to float;
+    for col in (set(df.columns) - {'Data_Atualizacao', 'Data_Hora_Medicao', 'codigoestacao'}):
+        df[col] = df[col].apply(convert_to_float)
+
+    # Convert the date column to datetime;
+    df['Data_Hora_Medicao'] = pd.to_datetime(df['Data_Hora_Medicao'])
+    df['Data_Atualizacao'] = pd.to_datetime(df['Data_Atualizacao'])
+
+    # Cut the dataframe to a time range where most data is available;
+    df = df[df['Data_Hora_Medicao'] >= START_DATE]
+    df = df[df['Data_Hora_Medicao'] <= END_DATE]
+    return df
+
+def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
+    """
+    Fill the gaps in the dataframe using sensor data and forward-fill;
+
+    Parameters:
+        df (pd.DataFrame): The dataframe to fill the gaps;
+        max_ffill_steps (int): The maximum number of steps to forward-fill the data;
+    """
+    # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
+    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    for status_col in status_cols:
+        info_col = status_col.replace('_Status', '')
+        if info_col in df.columns:
+            df.loc[df[info_col].isna(), status_col] = 5
+
+    # Use sensor data to fill the gaps in the level column;
+    df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
+    df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
+    df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0)
+
+    # Fill short gaps -> Maybe use np.pad() or interpolate()?
+    for col in df.columns:
+        df[col] = df.groupby('codigoestacao')[col].ffill(limit=max_ffill_steps)
+
+    # Select only the columns that are needed;
+    df = df[STATIONS_COLS.keys()]
+    df.rename(columns=STATIONS_COLS, inplace=True)
+    return df
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'H'):
     """
@@ -160,49 +183,6 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'H'):
         df_agg[col] = df_agg[col].apply(convert_to_float)
         df_agg[col] = df_agg[col].round(3)
     return df_agg
-
-def fill_gaps(df: pd.DataFrame, frequency: str = 'H', max_ffill_steps: int = 8):
-    """
-    Fill the gaps in the dataframe;
-
-    Parameters:
-        df (pd.DataFrame): The dataframe to fill the gaps;
-        frequency (str): The frequency to fill the gaps;
-        max_ffill_steps (int): The maximum number of steps to forward-fill the data;
-    """
-    # Convert the value columns to float;
-    for col in (set(df.columns) - {'Data_Atualizacao', 'Data_Hora_Medicao', 'codigoestacao'}):
-        df[col] = df[col].apply(convert_to_float)
-
-    # Convert the date column to datetime;
-    df['Data_Hora_Medicao'] = pd.to_datetime(df['Data_Hora_Medicao'])
-    df['Data_Atualizacao'] = pd.to_datetime(df['Data_Atualizacao'])
-
-    # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
-    status_cols = [col for col in df.columns if col.endswith('_Status')]
-    for status_col in status_cols:
-        info_col = status_col.replace('_Status', '')
-        if info_col in df.columns:
-            df.loc[df[info_col].isna(), status_col] = 5
-
-    # Use sensor data to fill the gaps in the level column;
-    df.loc[df['Cota_Adotada'] == None, 'Cota_Adotada'] = df.loc[df['Cota_Adotada'] == None, 'Cota_Sensor']
-    df.loc[df['Cota_Adotada'] == None, 'Cota_Adotada'] = df.loc[df['Cota_Adotada'] == None, 'Cota_Manual']
-    df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0)
-
-    # Fill short gaps -> Maybe use np.pad() or interpolate()?
-    for col in df.columns:
-        df[col] = df.groupby('codigoestacao')[col].ffill(limit=max_ffill_steps)
-
-    # Select only the columns that are needed;
-    df = df[STATIONS_COLS.keys()]
-    df.rename(columns=STATIONS_COLS, inplace=True)
-
-    # Cut the dataframe to a time range where most data is available;
-    df['date'] = pd.to_datetime(df['date'])
-    df = df[df['date'] >= START_DATE]
-    df = df[df['date'] <= END_DATE]
-    return df
 
 def melt_dataframe(df: pd.DataFrame):
     """
@@ -247,5 +227,5 @@ def melt_dataframe(df: pd.DataFrame):
 
 #TODO: Add argparse to the function -> Will be need for Dockerfile execution;
 if __name__ == "__main__":
-    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=False, frequency='H', max_ffill_steps=12)
+    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=False, frequency='H', max_ffill_steps=8)
     print("All Done!")
