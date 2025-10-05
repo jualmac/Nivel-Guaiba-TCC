@@ -120,25 +120,29 @@ def clean_dataframe(df: pd.DataFrame):
 
 def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
     """
-    Fill the gaps in the dataframe using sensor data and forward-fill;
-    Creates a continuous 15-minute timeline for each station before filling.
-
+    Fill data gaps using sensor fallback hierarchy and forward-fill interpolation.
+    Creates continuous 15-minute timeline from START_DATE to END_DATE for each station,
+    then applies forward-fill with quality control status tracking.
+    
+    Status Codes Quality Control Convention: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled, 5=Missing;
+    
     Parameters:
-        df (pd.DataFrame): The dataframe to fill the gaps;
-        max_ffill_steps (int): The maximum number of steps to forward-fill the data;
-            For 15-minute frequency data, max_ffill_steps=8 fills gaps up to 2 hours;
+        df (pd.DataFrame): Raw station data with temporal gaps;
+        max_ffill_steps (int): Maximum consecutive forward-fill steps at 15-min intervals;
+            Default 8 = fills gaps up to 2 hours;
+    
+    Returns:
+        pd.DataFrame: Gap-filled data with continuous timeline and quality status codes;
     """
-    # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
-    status_cols = [col for col in df.columns if col.endswith('_Status')]
-    for status_col in status_cols:
-        info_col = status_col.replace('_Status', '')
-        if info_col in df.columns:
-            df.loc[df[info_col].isna(), status_col] = 5
-
-    # Use sensor data to fill the gaps in the level column;
+    # Use sensor data to fill the gaps in the level column and respective status;
+    was_nan = df['Cota_Adotada'].isna()
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
     df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0)
+
+    # Set status to 4 for filled values;
+    is_now_filled = was_nan & df['Cota_Adotada'].notna()
+    df.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
 
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
@@ -164,8 +168,18 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
         
         # Forward fill all columns with the specified limit to fill short gaps;
         for col in df_station.columns:
-            if col not in ['Data_Hora_Medicao', 'codigoestacao']:
+            if col not in ['Data_Hora_Medicao', 'codigoestacao'] and not col.endswith('_Status'):
+                # Track which rows were NaN before filling;
+                was_nan = df_station[col].isna()
+                
+                # Forward fill the column;
                 df_station[col] = df_station[col].ffill(limit=max_ffill_steps)
+                
+                # Set status to 4 for filled values if status column exists;
+                status_col = col + '_Status'
+                if status_col in df_station.columns:
+                    is_now_filled = was_nan & df_station[col].notna()
+                    df_station.loc[is_now_filled, status_col] = 4
         
         nan_percentage = df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100
         print(f"Percentage of NaNs in {station_id}: {nan_percentage:.2f}%")
@@ -173,6 +187,13 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
     
     # Concatenate all stations back together;
     df = pd.concat(df_filled_list, ignore_index=True)
+
+    # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
+    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    for status_col in status_cols:
+        info_col = status_col.replace('_Status', '')
+        if info_col in df.columns:
+            df.loc[df[info_col].isna(), status_col] = 5
 
     # Select only the columns that are needed;
     df = df[STATIONS_COLS.keys()]
