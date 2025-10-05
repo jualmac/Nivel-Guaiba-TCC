@@ -2,6 +2,8 @@
 #TODO: Fix the data gaps -> interpolate() -> SPECIFC FUNCTION;
 #TODO: Fix outlier values;
 #TODO: FIx the gap analysis function;
+#TODO: Fill final NaN with -999.0;
+#TODO: Estação Gravataí (87398750) está horrível -> 40% de NaNs depois do tratamento de gaps. São em períodos bem específicos. Talvez procurar outra estação com lat/long parecida para suprimir;
 
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
@@ -76,6 +78,9 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H', max_ffi
     # Convert values and cut the dataframe to a time range where most data is available;
     df_cleaned = clean_dataframe(df=df)
 
+    # Analyse the gaps in the original dataframe;
+    # frequency_results, gaps_df = analyze_station_frequencies(df=df_cleaned)
+
     # Fill the data gaps;
     df_filled = fill_gaps(df=df_cleaned, max_ffill_steps=max_ffill_steps)
 
@@ -91,7 +96,6 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'H', max_ffi
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
-
         # db.write(df=frequency_results, table_name='data_stations_frequency', inplace=True)
         # db.write(df=gaps_df, table_name='data_stations_gaps', inplace=True)
     return df_cleaned, df_agg, df_melted
@@ -119,10 +123,12 @@ def clean_dataframe(df: pd.DataFrame):
 def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
     """
     Fill the gaps in the dataframe using sensor data and forward-fill;
+    Creates a continuous 15-minute timeline for each station before filling.
 
     Parameters:
         df (pd.DataFrame): The dataframe to fill the gaps;
         max_ffill_steps (int): The maximum number of steps to forward-fill the data;
+            For 15-minute frequency data, max_ffill_steps=8 fills gaps up to 2 hours;
     """
     # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
     status_cols = [col for col in df.columns if col.endswith('_Status')]
@@ -136,9 +142,39 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
     df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0)
 
-    # Fill short gaps -> Maybe use np.pad() or interpolate()?
-    for col in df.columns:
-        df[col] = df.groupby('codigoestacao')[col].ffill(limit=max_ffill_steps)
+    # Create continuous timeline at 15-minute intervals for each station before filling;
+    df_filled_list = []
+    for station_id in df['codigoestacao'].unique():
+        df_station = df[df['codigoestacao'] == station_id].copy()
+        df_station = df_station.sort_values('Data_Hora_Medicao').reset_index(drop=True)
+
+        # Create complete date range at 15-minute intervals;
+        date_range = pd.date_range(
+            start=pd.to_datetime(START_DATE),
+            end=pd.to_datetime(END_DATE),
+            freq='15min' # Needs to use the natural frequency of the source data;
+        )
+        
+        # Create a DataFrame with the complete date range;
+        df_complete = pd.DataFrame({'Data_Hora_Medicao': date_range})
+        
+        # Merge with existing data to create NaN rows for missing timestamps;
+        df_station = df_complete.merge(df_station, on='Data_Hora_Medicao', how='left')
+        
+        # Fill station_id for the newly created rows;
+        df_station['codigoestacao'] = df_station['codigoestacao'].fillna(station_id)
+        
+        # Forward fill all columns with the specified limit to fill short gaps;
+        for col in df_station.columns:
+            if col not in ['Data_Hora_Medicao', 'codigoestacao']:
+                df_station[col] = df_station[col].ffill(limit=max_ffill_steps)
+        
+        nan_percentage = df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100
+        print(f"Percentage of NaNs in {station_id}: {nan_percentage:.2f}%")
+        df_filled_list.append(df_station)
+    
+    # Concatenate all stations back together;
+    df = pd.concat(df_filled_list, ignore_index=True)
 
     # Select only the columns that are needed;
     df = df[STATIONS_COLS.keys()]
@@ -153,7 +189,7 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'H'):
         df (pd.DataFrame): The dataframe to aggregate;
         frequency (str): Pandas frequency offset string for data aggregation (default: 'H' for hourly).
             Examples: 'min' (minutes), 'H' (hours), 'D' (days), 'W' (weeks), ...
-            Available options: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
+            Available options: 'https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects'
             Combinations are also possible, e.g. '15min', '30min', '1H20m', ...
 
     Returns:
@@ -225,7 +261,184 @@ def melt_dataframe(df: pd.DataFrame):
     df_cleaned = df_pivoted.reset_index()
     return df_cleaned
 
-#TODO: Add argparse to the function -> Will be need for Dockerfile execution;
+def analyze_station_frequencies(df: pd.DataFrame, frequency: str = '15min'):
+    """
+    Analyze the time frequency patterns for each station to verify if they maintain
+    consistent 15-minute intervals throughout their historical datasets.
+    Analysis is limited to the date range defined by START_DATE and END_DATE.
+    
+    Returns:
+        frequency_df (pd.DataFrame): Analysis results for each station including:
+            - station: station name
+            - total_records: number of records
+            - start_date: start date (filtered by START_DATE/END_DATE)
+            - end_date: end date (filtered by START_DATE/END_DATE)
+            - total_duration_days: total duration in days
+            - expected_intervals_15min: expected number of 15-min intervals
+            - missing_intervals: number of missing intervals
+            - missing_percentage: percentage of missing data
+            - exactly_15min_intervals: count of exactly 15-min intervals
+            - percent_exactly_15min: percentage of exactly 15-min intervals
+            - large_gaps_count: number of gaps larger than 20 minutes
+            - largest_gap_hours: largest gap duration in hours
+            - avg_interval_minutes: average interval in minutes
+            - median_interval_minutes: median interval in minutes
+        gaps_df (pd.DataFrame): Detailed information about all large gaps (>20 min) including:
+            - station: station name
+            - timestamp_before_gap: timestamp right before the gap
+            - timestamp_after_gap: timestamp right after the gap
+            - gap_duration_minutes: duration of gap in minutes
+            - gap_duration_hours: duration of gap in hours
+            - expected_records_in_gap: number of 15-min records that should exist in gap
+    """
+    # Initialize the dataframe and stations;
+    df_copy = df.copy()
+    df_copy.rename(columns=STATIONS_COLS, inplace=True)
+    df_copy['date'] = pd.to_datetime(df_copy['date'])
+    df_copy = df_copy.sort_values('date').reset_index(drop=True)
+
+    stations = df_copy['station_id'].unique()
+    total_records = len(df_copy) 
+
+    # Analyze the frequency of each station;
+    frequency_analysis = {}
+    for station in stations:
+        print(f"\n{'-'*60}")
+        print(f"ANALYZING STATION: {station.upper()}")
+        print(f"{'-'*60}")
+        
+        df_station = df_copy[df_copy['station_id'] == station].reset_index(drop=True)
+
+        # Calculate time differences between consecutive records;
+        df_station['time_diff'] = df_station['date'].diff()
+        time_diffs = df_station['time_diff'].dropna()
+        time_diffs_minutes = time_diffs.dt.total_seconds() / 60
+        interval_counts = time_diffs_minutes.round().value_counts().head(10)
+
+        # Basic statistics;
+        total_duration = df_station['date'].max() - df_station['date'].min()
+        expected_intervals = int(total_duration.total_seconds() / (15 * 60)) + 1
+        
+        # Calculate percentage of exactly 15-minute intervals;
+        exactly_15min = (time_diffs_minutes.round() == 15).sum()
+        percent_15min = (exactly_15min / len(time_diffs_minutes)) * 100
+        
+        # Find gaps larger than 15 minutes
+        large_gaps = time_diffs_minutes[time_diffs_minutes > 20]  # More than 20 min indicates missing data
+        
+        # Create detailed gap analysis - identify timestamps before and after each gap
+        gap_details = []
+        large_gap_mask = time_diffs_minutes > 20
+        
+        if large_gap_mask.any():
+            large_gap_indices = time_diffs_minutes[large_gap_mask].index
+            
+            for gap_idx in large_gap_indices:
+                gap_duration_minutes = time_diffs_minutes.loc[gap_idx]  # Use .loc instead of .iloc
+                gap_duration_hours = gap_duration_minutes / 60
+                
+                # Get timestamps before and after the gap
+                # gap_idx corresponds to the row after the gap in the original dataframe
+                timestamp_before = df_station.loc[gap_idx - 1, 'date']
+                timestamp_after = df_station.loc[gap_idx, 'date']
+                
+                gap_info = {
+                    'station': station,
+                    'timestamp_before_gap': timestamp_before.strftime('%Y-%m-%d %H:%M:%S'),
+                    'timestamp_after_gap': timestamp_after.strftime('%Y-%m-%d %H:%M:%S'),
+                    'gap_duration_minutes': round(gap_duration_minutes, 2),
+                    'gap_duration_hours': round(gap_duration_hours, 2),
+                    'expected_records_in_gap': int(gap_duration_minutes / 15) - 1  # Subtract 1 for the actual record
+                }
+                gap_details.append(gap_info)
+        
+        # Statistics
+        missing_percentage = ((expected_intervals - total_records) / expected_intervals) * 100
+        
+        # Store analysis results
+        analysis_result = {
+            'total_records': total_records,
+            'start_date': df_station['date'].min().strftime('%Y-%m-%d %H:%M:%S'),
+            'end_date': df_station['date'].max().strftime('%Y-%m-%d %H:%M:%S'),
+            'total_duration_days': total_duration.days,
+            'expected_intervals_15min': expected_intervals,
+            'missing_intervals': expected_intervals - total_records,
+            'missing_percentage': round(missing_percentage, 2),
+            'exactly_15min_intervals': exactly_15min,
+            'percent_exactly_15min': round(percent_15min, 2),
+            'large_gaps_count': len(large_gaps),
+            'largest_gap_hours': round(large_gaps.max() / 60, 2) if len(large_gaps) > 0 else 0,
+            'common_intervals_minutes': interval_counts.to_dict(),
+            'avg_interval_minutes': round(time_diffs_minutes.mean(), 2),
+            'median_interval_minutes': round(time_diffs_minutes.median(), 2),
+            'gap_details': gap_details,
+        }
+        
+        frequency_analysis[station] = analysis_result
+        
+        # Print detailed results
+        print(f"Total records (filtered): {total_records:,}")
+        print(f"Date range: {df_station['date'].min().strftime('%Y-%m-%d')} to {df_station['date'].max().strftime('%Y-%m-%d')} ({total_duration.days} days)")
+        print(f"Expected 15-min intervals: {expected_intervals:,}")
+        print(f"Missing intervals: {expected_intervals - total_records:,} ({missing_percentage:.1f}%)")
+        print(f"Exactly 15-min intervals: {exactly_15min:,} ({percent_15min:.1f}%)")
+        print(f"Large gaps (>20min): {len(large_gaps):,}")
+        if len(large_gaps) > 0:
+            print(f"Largest gap: {large_gaps.max() / 60:.1f} hours")
+        print(f"Average interval: {time_diffs_minutes.mean():.1f} minutes")
+        print(f"Most common intervals (minutes):")
+        for interval, count in interval_counts.head(5).items():
+            percentage = (count / len(time_diffs_minutes)) * 100
+            print(f"{interval:.0f} min: {count:,} times ({percentage:.1f}%)")
+    
+    # Summary statistics
+    print(f"\n{'='*80}")
+    print("SUMMARY ANALYSIS")
+    print(f"{'='*80}")
+    
+    valid_stations = {k: v for k, v in frequency_analysis.items() if 'error' not in v}
+    
+    if valid_stations:
+        avg_missing = np.mean([v['missing_percentage'] for v in valid_stations.values()])
+        avg_15min_compliance = np.mean([v['percent_exactly_15min'] for v in valid_stations.values()])
+        
+        print(f"Average missing data across stations: {avg_missing:.1f}%")
+        print(f"Average 15-minute compliance: {avg_15min_compliance:.1f}%")
+        
+        # Stations with best/worst compliance
+        compliance_sorted = sorted(valid_stations.items(), key=lambda x: x[1]['percent_exactly_15min'], reverse=True)
+        print(f"Best compliance: {compliance_sorted[0][0]} ({compliance_sorted[0][1]['percent_exactly_15min']:.1f}%)")
+        print(f"Worst compliance: {compliance_sorted[-1][0]} ({compliance_sorted[-1][1]['percent_exactly_15min']:.1f}%)")
+    
+    # Compile all gap details into a single dataframe for easier analysis
+    all_gaps = []
+    for station, analysis in valid_stations.items():
+        if 'gap_details' in analysis and analysis['gap_details']:
+            all_gaps.extend(analysis['gap_details'])
+    
+    # Create gap details dataframe
+    if all_gaps:
+        gaps_df = pd.DataFrame(all_gaps)
+        gaps_df = gaps_df.sort_values(['station', 'timestamp_before_gap'])
+        print(f"\nTotal large gaps found across all stations: {len(gaps_df)}")
+        print(f"Stations with gaps: {gaps_df['station'].nunique()}")
+        print(f"Average gap duration: {gaps_df['gap_duration_hours'].mean():.1f} hours")
+        print(f"Largest gap found: {gaps_df['gap_duration_hours'].max():.1f} hours")
+    else:
+        gaps_df = pd.DataFrame()  # Empty dataframe if no gaps found
+        print("\nNo large gaps found across any stations")
+    
+    # Convert frequency analysis dict to DataFrame for database storage;
+    frequency_df = pd.DataFrame.from_dict(frequency_analysis, orient='index').reset_index()
+    frequency_df.rename(columns={'index': 'station'}, inplace=True)
+    
+    # Remove nested columns that can't be stored in a relational database;
+    if 'gap_details' in frequency_df.columns:
+        frequency_df = frequency_df.drop(columns=['gap_details'])
+    if 'common_intervals_minutes' in frequency_df.columns:
+        frequency_df = frequency_df.drop(columns=['common_intervals_minutes'])
+    return frequency_df, gaps_df
+
 if __name__ == "__main__":
-    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=False, frequency='H', max_ffill_steps=8)
+    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=True, frequency='H', max_ffill_steps=8)
     print("All Done!")
