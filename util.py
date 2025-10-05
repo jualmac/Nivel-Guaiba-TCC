@@ -82,7 +82,8 @@ STATIONS_COLS = {
     'Chuva_Acumulada_Status': 'rainfall_accumulated_status',
     'Vazao_Adotada': 'flow',
     'Vazao_Adotada_Status': 'flow_status',
-    'Temperatura_Interna': 'temperature'
+    'Temperatura_Interna': 'temperature',
+    'Temperatura_Interna_Status': 'temperature_status',
     }
 
 BRAZILIAN_STATES = {

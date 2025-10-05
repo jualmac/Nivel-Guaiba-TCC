@@ -1,6 +1,5 @@
-#TODO: Fix the data gaps -> interpolate() -> SPECIFC FUNCTION;
 #TODO: Fix outlier values;
-#TODO: Fill final NaN with -999.0;
+#TODO: Fill final NaN (-999.0?);
 #TODO: Estação Gravataí (87398750) está horrível -> 40% de NaNs depois do tratamento de gaps. São em períodos bem específicos. Talvez procurar outra estação com lat/long parecida para suprimir;
 
 """
@@ -24,7 +23,7 @@ from util import convert_to_float, STATIONS_COLS, START_DATE, END_DATE
 # FUNCTION
 #
 ########################################################################################################################
-def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_ffill_steps: int = 8):
+def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fill_steps: int = 8):
     """
     Retrieve the data from the stations and return a single dataframe concatenated;
 
@@ -34,7 +33,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_ffi
             Examples: 'min' (minutes), 'h' (hours), 'D' (days), 'W' (weeks), ...
             Available options: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
             Combinations are also possible, e.g. '15min', '30min', '1H20m', ...
-        max_ffill_steps (int): The maximum number of steps to forward-fill the data;
+        max_fill_steps (int): The maximum number of steps to forward-fill the data;
 
     Returns:
         df (pd.DataFrame): The concatenated dataframe;
@@ -80,7 +79,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_ffi
     frequency_results, gaps_df = analyze_station_frequencies(df=df_cleaned)
 
     # Fill the data gaps;
-    df_filled = fill_gaps(df=df_cleaned, max_ffill_steps=max_ffill_steps)
+    df_filled = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
@@ -116,9 +115,13 @@ def clean_dataframe(df: pd.DataFrame):
     # Cut the dataframe to a time range where most data is available;
     df = df[df['Data_Hora_Medicao'] >= START_DATE]
     df = df[df['Data_Hora_Medicao'] <= END_DATE]
+
+    # Create missing temperature status column;
+    df.loc[df['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = float(0.0)
+    df.loc[df['Temperatura_Interna'].isna(), 'Temperatura_Interna_Status'] = float(5.0)
     return df
 
-def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
+def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     """
     Fill data gaps using sensor fallback hierarchy and forward-fill interpolation.
     Creates continuous 15-minute timeline from START_DATE to END_DATE for each station,
@@ -128,7 +131,7 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
     
     Parameters:
         df (pd.DataFrame): Raw station data with temporal gaps;
-        max_ffill_steps (int): Maximum consecutive forward-fill steps at 15-min intervals;
+        max_fill_steps (int): Maximum consecutive forward-fill steps at 15-min intervals;
             Default 8 = fills gaps up to 2 hours;
     
     Returns:
@@ -142,7 +145,7 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
 
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df['Cota_Adotada'].notna()
-    df.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
+    df.loc[is_now_filled, 'Cota_Adotada_Status'] = float(4.0)
 
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
@@ -172,14 +175,15 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
                 # Track which rows were NaN before filling;
                 was_nan = df_station[col].isna()
                 
-                # Forward fill the column;
-                df_station[col] = df_station[col].ffill(limit=max_ffill_steps)
+                # Fill the column -> #TODO: Find a more elegant method to do this. interpolate()?
+                df_station[col] = df_station[col].ffill(limit=max_fill_steps)
+                df_station[col] = df_station[col].bfill(limit=max_fill_steps)
                 
                 # Set status to 4 for filled values if status column exists;
                 status_col = col + '_Status'
                 if status_col in df_station.columns:
                     is_now_filled = was_nan & df_station[col].notna()
-                    df_station.loc[is_now_filled, status_col] = 4
+                    df_station.loc[is_now_filled, status_col] = float(4.0)
         
         nan_percentage = df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100
         print(f"Percentage of NaNs in {station_id}: {nan_percentage:.2f}%")
@@ -188,12 +192,18 @@ def fill_gaps(df: pd.DataFrame, max_ffill_steps: int = 8):
     # Concatenate all stations back together;
     df = pd.concat(df_filled_list, ignore_index=True)
 
-    # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
+    # Fill the missing _Status columns;
     status_cols = [col for col in df.columns if col.endswith('_Status')]
     for status_col in status_cols:
         info_col = status_col.replace('_Status', '')
+
+        # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
         if info_col in df.columns:
-            df.loc[df[info_col].isna(), status_col] = 5
+            df.loc[df[info_col].isna(), status_col] = float(5.0)
+        
+        # Fill missing _Status where the _info is not NaN with Normal status;
+        if info_col in df.columns:
+            df.loc[df[info_col].notna() & df[status_col].isna(), status_col] = float(0.0)
 
     # Select only the columns that are needed;
     df = df[STATIONS_COLS.keys()]
@@ -357,5 +367,5 @@ def analyze_station_frequencies(df: pd.DataFrame):
     return frequency_df, gaps_df
 
 if __name__ == "__main__":
-    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=True, frequency='h', max_ffill_steps=8)
+    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=True, frequency='h', max_fill_steps=8)
     print("All Done!")
