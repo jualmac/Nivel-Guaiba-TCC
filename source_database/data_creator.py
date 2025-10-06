@@ -51,13 +51,10 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         'guaiba_1':     'SELECT * FROM station_guaiba_1', 
         'guaiba_2':     'SELECT * FROM station_guaiba_2',
         'jacui_1':      'SELECT * FROM station_jacui_1',
-        'jacui_2':      'SELECT * FROM station_jacui_2',
-        'sinos_1':      'SELECT * FROM station_sinos_1', 
+        'sinos_1':      'SELECT * FROM station_sinos_1',
         'sinos_2':      'SELECT * FROM station_sinos_2',
-        'sinos_3':      'SELECT * FROM station_sinos_3',
         'taquari_1':    'SELECT * FROM station_taquari_1', 
         'taquari_2':    'SELECT * FROM station_taquari_2',
-        'taquari_3':    'SELECT * FROM station_taquari_3',
         }
     dataframe = db.run(query=query)
 
@@ -141,7 +138,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     was_nan = df['Cota_Adotada'].isna()
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
-    df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0)
+    df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0) #TODO: Fix this -> Interpolate these values;
 
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df['Cota_Adotada'].notna()

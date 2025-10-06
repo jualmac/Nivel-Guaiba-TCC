@@ -96,9 +96,10 @@ def get_station_data(station_code: str,
     current_date = start_dt
     chunk_number = 1
     estimated_chunks = (total_days + 29) // 30  # Rough estimate
+    auth_retry_count = 0
+    max_auth_retries = 5
     
     print(f"Starting API calls... (Estimated chunks: {estimated_chunks})")
-    print("Using available range values: DIAS_2, DIAS_7, DIAS_14, DIAS_21, DIAS_30")
     print("-" * 40)
     
     while current_date <= end_dt:
@@ -158,17 +159,32 @@ def get_station_data(station_code: str,
             else:
                 print(f'  → Chunk {chunk_number}: No data items found in the response')
 
+            # Reset auth retry counter on success;
+            auth_retry_count = 0
+            
             # Move to next chunk only if status_code == 200;
             current_date = chunk_end_date + timedelta(days=1)
             chunk_number += 1
 
         # Get authentication again if the token has expired;
         elif response.status_code == 401:
+            auth_retry_count += 1
+            
+            if auth_retry_count > max_auth_retries:
+                print(f'✗ Max authentication retries ({max_auth_retries}) reached. API may be down.')
+                print(f'  → Stopping data collection at chunk {chunk_number}')
+                break
+            
+            print(f'⚠ Authentication expired. Retrying... (Attempt {auth_retry_count}/{max_auth_retries})')
             token = get_auth()
+            headers["Authorization"] = f"Bearer {token}"
 
         else:
             print(f'✗ Chunk {chunk_number}: Request failed with status code:', response.status_code)
             print(f'  → Response text:', response.text)
+            # Move to next chunk on other errors to avoid infinite loop;
+            current_date = chunk_end_date + timedelta(days=1)
+            chunk_number += 1
     
     # Combine all dataframes and save to database
     print("\n" + "-" * 40)
@@ -197,24 +213,21 @@ if __name__ == "__main__":
     get_station_data(station_code="87444000", start_date="2024-05-03", end_date=END_DATE, table_name="station_guaiba_2")
     
     #================== Estações Gravataí ==================
-    get_station_data(station_code="87398750", start_date="2018-02-01", end_date=END_DATE, table_name="station_gravatai_1")
-
+    get_station_data(station_code="87399000", start_date="2018-07-01", end_date=END_DATE, table_name="station_gravatai_1")
+    
     #================== Estações Sinos ==================
-    get_station_data(station_code="87376000", start_date="2014-11-01", end_date=END_DATE, table_name="station_sinos_1")
-    get_station_data(station_code="87382000", start_date="2018-07-01", end_date=END_DATE, table_name="station_sinos_2")
-    get_station_data(station_code="87380000", start_date="2013-12-01", end_date=END_DATE, table_name="station_sinos_3")
+    get_station_data(station_code="87382000", start_date="2018-07-01", end_date=END_DATE, table_name="station_sinos_1")
+    get_station_data(station_code="87380000", start_date="2013-12-01", end_date=END_DATE, table_name="station_sinos_2")
 
     #================== Estações Taquari ==================
     get_station_data(station_code="86510000", start_date="2017-10-01", end_date=END_DATE, table_name="station_taquari_1")
     get_station_data(station_code="86720000", start_date="2008-12-01", end_date=END_DATE, table_name="station_taquari_2")
-    get_station_data(station_code="86895000", start_date="2014-08-01", end_date=END_DATE, table_name="station_taquari_3")
 
     #================== Estações Caí ==================
     get_station_data(station_code="87150000", start_date="2010-01-01", end_date=END_DATE, table_name="station_cai_1")
-    get_station_data(station_code="87270000", start_date="2014-08-01", end_date=END_DATE, table_name="station_cai_2")
-    get_station_data(station_code="87170000", start_date="2018-01-01", end_date=END_DATE, table_name="station_cai_3")
+    get_station_data(station_code="87170000", start_date="2018-01-01", end_date=END_DATE, table_name="station_cai_2")
+    get_station_data(station_code="87270000", start_date="2014-08-01", end_date=END_DATE, table_name="station_cai_3")
 
     #================== Estações Jacuí ==================
-    get_station_data(station_code="85400000", start_date="2002-07-01", end_date=END_DATE, table_name="station_jacui_1")
-    get_station_data(station_code="85900000", start_date="2017-10-01", end_date=END_DATE, table_name="station_jacui_2")
+    get_station_data(station_code="85900000", start_date="2017-10-01", end_date=END_DATE, table_name="station_jacui_1")
     print('All Done!')
