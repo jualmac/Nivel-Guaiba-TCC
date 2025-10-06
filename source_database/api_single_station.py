@@ -226,7 +226,6 @@ if __name__ == "__main__":
     #================== Estações Caí ==================
     get_station_data(station_code="87150000", start_date="2010-01-01", end_date=END_DATE, table_name="station_cai_1")
     get_station_data(station_code="87170000", start_date="2018-01-01", end_date=END_DATE, table_name="station_cai_2")
-    get_station_data(station_code="87270000", start_date="2014-08-01", end_date=END_DATE, table_name="station_cai_3")
 
     #================== Estações Jacuí ==================
     get_station_data(station_code="85900000", start_date="2017-10-01", end_date=END_DATE, table_name="station_jacui_1")

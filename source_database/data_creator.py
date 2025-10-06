@@ -1,6 +1,5 @@
 #TODO: Fix outlier values;
 #TODO: Fill final NaN (-999.0?);
-#TODO: Estação Gravataí (87398750) está horrível -> 40% de NaNs depois do tratamento de gaps. São em períodos bem específicos. Talvez procurar outra estação com lat/long parecida para suprimir;
 
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
@@ -46,7 +45,6 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     query = {
         'cai_1':        'SELECT * FROM station_cai_1',
         'cai_2':        'SELECT * FROM station_cai_2',
-        'cai_3':        'SELECT * FROM station_cai_3',
         'gravatai_1':   'SELECT * FROM station_gravatai_1',
         'guaiba_1':     'SELECT * FROM station_guaiba_1', 
         'guaiba_2':     'SELECT * FROM station_guaiba_2',
@@ -230,7 +228,8 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
                 'rainfall_accumulated_status': 'median',
                 'flow': 'mean',
                 'flow_status': 'median',
-                'temperature': 'mean'
+                'temperature': 'mean',
+                'temperature_status': 'median',
                 }
 
     # Resample the data to the desired frequency to create continuous timeline and fill gaps;
