@@ -50,12 +50,12 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         'cai_1':        'SELECT * FROM station_cai_1',
         'cai_2':        'SELECT * FROM station_cai_2',
         'gravatai_1':   'SELECT * FROM station_gravatai_1',
-        'guaiba_1':     'SELECT * FROM station_guaiba_1', 
+        'guaiba_1':     'SELECT * FROM station_guaiba_1',
         'guaiba_2':     'SELECT * FROM station_guaiba_2',
         'jacui_1':      'SELECT * FROM station_jacui_1',
         'sinos_1':      'SELECT * FROM station_sinos_1',
         'sinos_2':      'SELECT * FROM station_sinos_2',
-        'taquari_1':    'SELECT * FROM station_taquari_1', 
+        'taquari_1':    'SELECT * FROM station_taquari_1',
         'taquari_2':    'SELECT * FROM station_taquari_2',
         }
     dataframe = db.run(query=query)
@@ -81,13 +81,13 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_imp = feature_imputation(df=df_filled)
 
     # Aggregate the data to the desired frequency;
-    df_agg = aggregate_data(df=df_filled, frequency=frequency)
+    df_agg = aggregate_data(df=df_imp, frequency=frequency)
 
     # Outliers;
     df_out = outlier_removal(df=df_agg)
 
     # Melt the dataframe;
-    df_melted = melt_dataframe(df=df_agg)
+    df_melted = melt_dataframe(df=df_out)
 
     # Save the dataframes to the database;
     if save_to_db:
@@ -130,7 +130,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     then applies forward-fill with quality control status tracking.
     
     Status Codes Quality Control Convention: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled, 5=Missing;
-    
+
     Parameters:
         df (pd.DataFrame): Raw station data with temporal gaps;
         max_fill_steps (int): Maximum consecutive forward-fill steps at 15-min intervals;
@@ -231,7 +231,7 @@ def feature_imputation(df: pd.DataFrame):
         pd.DataFrame: Imputed dataframe with 1 decimal precision;
     """
     # Separate index/categorical columns from numeric features;
-    non_feature_cols = ['Data_Hora_Medicao', 'date', 'station_id', 'codigoestacao']
+    non_feature_cols = ['Data_Hora_Medicao', 'codigoestacao', 'date', 'station_id']
     index_cols = [col for col in non_feature_cols if col in df.columns]
     feature_cols = [col for col in df.columns if col not in non_feature_cols]
     
@@ -239,13 +239,14 @@ def feature_imputation(df: pd.DataFrame):
     df_index = df[index_cols].copy()
     
     # Impute only numeric feature columns;
-    imputer = IterativeImputer(estimator=BayesianRidge(), random_state=0, verbose=1)
+    imputer = IterativeImputer(random_state=42, verbose=1) #It's only imputing the same value, not interactively. Maybe the estimator needs to be changed? -> THIS IS JUST FOR THE LEVEL, THE REST SEEMS FINE;
     imputed = imputer.fit_transform(df[feature_cols])
     df_imputed = pd.DataFrame(imputed, columns=feature_cols, index=df.index)
     
     # Rejoin index columns;
     df_result = pd.concat([df_index, df_imputed], axis=1)
-    return round(df_result, 1)
+    df_result = round(df_result, 1)
+    return df_result
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     """
