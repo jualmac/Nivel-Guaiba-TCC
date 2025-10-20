@@ -74,6 +74,9 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Fill the data gaps;
     df_filled = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
+    # Feature Imputation - IteractiveImputer;
+    df_imp = feature_imputation()
+
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
@@ -89,8 +92,6 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
-        db.write(df=frequency_results, table_name='data_stations_frequency', inplace=True)
-        db.write(df=gaps_df, table_name='data_stations_gaps', inplace=True)
     return df_cleaned, df_agg, df_melted
 
 def clean_dataframe(df: pd.DataFrame):
@@ -111,6 +112,8 @@ def clean_dataframe(df: pd.DataFrame):
     # Cut the dataframe to a time range where most data is available;
     df = df[df['Data_Hora_Medicao'] >= START_DATE]
     df = df[df['Data_Hora_Medicao'] <= END_DATE]
+    df = df.sort_values('Data_Hora_Medicao').reset_index(drop=True)
+    df = df.set_index('Data_Hora_Medicao')
 
     # Create missing temperature status column;
     df.loc[df['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = float(0.0)
@@ -139,21 +142,13 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
     # df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0) #TODO: Fix this -> Interpolate these values;
 
-    # Find the values asround where the value is negative;
-    neg_idx = df.index[df['Cota_Adotada'] < 0]
-    window = 1  # 1 row before and 1 after;
-    around_idx = set()
-    for i in neg_idx:
-        for j in range(i - window, i + window + 1):
-            if 0 <= j < len(df):
-                around_idx.add(j)
-    negatives = df.loc[sorted(around_idx)]
-    negatives.to_csv('neg.csv')
-
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df['Cota_Adotada'].notna()
     df.loc[is_now_filled, 'Cota_Adotada_Status'] = float(4.0)
 
+    # Reset index to work with Data_Hora_Medicao as a column for merging;
+    df = df.reset_index()
+    
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
     for station_id in df['codigoestacao'].unique():
@@ -176,21 +171,25 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
         # Fill station_id for the newly created rows;
         df_station['codigoestacao'] = df_station['codigoestacao'].fillna(station_id)
         
-        # Forward fill all columns with the specified limit to fill short gaps;
+        # Time-based interpolation of small gaps;
+        df_station = df_station.set_index('Data_Hora_Medicao')
+
         for col in df_station.columns:
-            if col not in ['Data_Hora_Medicao', 'codigoestacao'] and not col.endswith('_Status'):
+            if col not in ['codigoestacao'] and not col.endswith('_Status'):
                 # Track which rows were NaN before filling;
                 was_nan = df_station[col].isna()
                 
-                # Fill the column -> #TODO: Find a more elegant method to do this. interpolate()?
-                df_station[col] = df_station[col].ffill(limit=max_fill_steps)
-                df_station[col] = df_station[col].bfill(limit=max_fill_steps)
+                # Time-based interpolation requires datetime index and numeric data;
+                df_station[col] = df_station[col].interpolate(method='linear', limit=max_fill_steps)
                 
                 # Set status to 4 for filled values if status column exists;
                 status_col = col + '_Status'
                 if status_col in df_station.columns:
                     is_now_filled = was_nan & df_station[col].notna()
                     df_station.loc[is_now_filled, status_col] = float(4.0)
+
+        # Reset index to convert back to column for concatenation;
+        df_station = df_station.reset_index()
         
         nan_percentage = df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100
         print(f"Percentage of NaNs in {station_id}: {nan_percentage:.2f}%")
@@ -215,6 +214,12 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     # Select only the columns that are needed;
     df = df[STATIONS_COLS.keys()]
     df.rename(columns=STATIONS_COLS, inplace=True)
+    return df
+
+def feature_imputation(df: pd.DataFrame):
+    from sklearn.experimental import enable_iterative_imputer
+    from sklearn.impute import IterativeImputer
+
     return df
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
@@ -258,9 +263,24 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     return df_agg
 
 def outlier_removal(df: pd.DataFrame):
+    """
+    Remove outliers from the dataframe using PCA;
+
+    Parameters:
+        df (pd.DataFrame): The dataframe to remove outliers from;
+    """
+
+    #TODO: Remove;
+    df = df.copy()
+    df = df.fillna(-999.0)
+
     pca = PCA(n_components=2)
-    pca.fit(df)
+    pca.fit(df[['level', 'rainfall', 'rainfall_accumulated', 'flow', 'temperature']])
+
+    new_data = pd.DataFrame(pca.transform(df[['level', 'rainfall', 'rainfall_accumulated', 'flow', 'temperature']]), columns=['0', '1'])
+    
     print(pca.explained_variance_ratio_)
+    print(new_data)
     return df
 
 def melt_dataframe(df: pd.DataFrame):
