@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 from source_database.db_handler import DBConnection
 from util import convert_to_float, STATIONS_COLS, START_DATE, END_DATE
+from sklearn.decomposition import PCA
 
 ########################################################################################################################
 #                                                                  
@@ -70,14 +71,14 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Convert values and cut the dataframe to a time range where most data is available;
     df_cleaned = clean_dataframe(df=df)
 
-    # Analyse the gaps in the original dataframe;
-    frequency_results, gaps_df = analyze_station_frequencies(df=df_cleaned)
-
     # Fill the data gaps;
     df_filled = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
+
+    # Outliers;
+    df_out = outlier_removal(df=df_agg)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_agg)
@@ -136,7 +137,18 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     was_nan = df['Cota_Adotada'].isna()
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
-    df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0) #TODO: Fix this -> Interpolate these values;
+    # df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0) #TODO: Fix this -> Interpolate these values;
+
+    # Find the values asround where the value is negative;
+    neg_idx = df.index[df['Cota_Adotada'] < 0]
+    window = 1  # 1 row before and 1 after;
+    around_idx = set()
+    for i in neg_idx:
+        for j in range(i - window, i + window + 1):
+            if 0 <= j < len(df):
+                around_idx.add(j)
+    negatives = df.loc[sorted(around_idx)]
+    negatives.to_csv('neg.csv')
 
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df['Cota_Adotada'].notna()
@@ -244,6 +256,12 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
         df_agg[col] = df_agg[col].apply(convert_to_float)
         df_agg[col] = df_agg[col].round(3)
     return df_agg
+
+def outlier_removal(df: pd.DataFrame):
+    pca = PCA(n_components=2)
+    pca.fit(df)
+    print(pca.explained_variance_ratio_)
+    return df
 
 def melt_dataframe(df: pd.DataFrame):
     """
