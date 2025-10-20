@@ -17,6 +17,9 @@ import pandas as pd
 from source_database.db_handler import DBConnection
 from util import convert_to_float, STATIONS_COLS, START_DATE, END_DATE
 from sklearn.decomposition import PCA
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+from sklearn.linear_model import BayesianRidge
 
 ########################################################################################################################
 #                                                                  
@@ -75,7 +78,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_filled = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Feature Imputation - IteractiveImputer;
-    df_imp = feature_imputation()
+    df_imp = feature_imputation(df=df_filled)
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
@@ -179,8 +182,8 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
                 # Track which rows were NaN before filling;
                 was_nan = df_station[col].isna()
                 
-                # Time-based interpolation requires datetime index and numeric data;
-                df_station[col] = df_station[col].interpolate(method='linear', limit=max_fill_steps)
+                # Fill small gaps with Linear Interpolation (Sufficient for 15 minutes data frequency, as changes shouldn't be that fast);
+                df_station[col] = df_station[col].interpolate(method='linear', limit=max_fill_steps).round(1)
                 
                 # Set status to 4 for filled values if status column exists;
                 status_col = col + '_Status'
@@ -192,7 +195,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
         df_station = df_station.reset_index()
         
         nan_percentage = df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100
-        print(f"Percentage of NaNs in {station_id}: {nan_percentage:.2f}%")
+        print(f"Percentage of Missing Level data in station {station_id}: {nan_percentage:.2f}%")
         df_filled_list.append(df_station)
     
     # Concatenate all stations back together;
@@ -217,10 +220,32 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     return df
 
 def feature_imputation(df: pd.DataFrame):
-    from sklearn.experimental import enable_iterative_imputer
-    from sklearn.impute import IterativeImputer
-
-    return df
+    """
+    Apply multivariate feature imputation using IterativeImputer with Bayesian Ridge estimator.
+    Excludes non-numeric columns (date, station_id) from imputation.
+    
+    Parameters:
+        df (pd.DataFrame): Dataframe with gaps to impute;
+    
+    Returns:
+        pd.DataFrame: Imputed dataframe with 1 decimal precision;
+    """
+    # Separate index/categorical columns from numeric features;
+    non_feature_cols = ['Data_Hora_Medicao', 'date', 'station_id', 'codigoestacao']
+    index_cols = [col for col in non_feature_cols if col in df.columns]
+    feature_cols = [col for col in df.columns if col not in non_feature_cols]
+    
+    # Extract index columns for later rejoining;
+    df_index = df[index_cols].copy()
+    
+    # Impute only numeric feature columns;
+    imputer = IterativeImputer(estimator=BayesianRidge(), random_state=0, verbose=1)
+    imputed = imputer.fit_transform(df[feature_cols])
+    df_imputed = pd.DataFrame(imputed, columns=feature_cols, index=df.index)
+    
+    # Rejoin index columns;
+    df_result = pd.concat([df_index, df_imputed], axis=1)
+    return round(df_result, 1)
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     """
@@ -269,7 +294,7 @@ def outlier_removal(df: pd.DataFrame):
     Parameters:
         df (pd.DataFrame): The dataframe to remove outliers from;
     """
-
+    #TODO: Implement PyOD;
     #TODO: Remove;
     df = df.copy()
     df = df.fillna(-999.0)
