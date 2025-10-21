@@ -1,5 +1,4 @@
 #TODO: Fix outlier values;
-#TODO: Fill final NaN (-999.0?);
 
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
@@ -14,12 +13,12 @@ different sources;
 ########################################################################################################################
 import numpy as np
 import pandas as pd
-from source_database.db_handler import DBConnection
-from util import convert_to_float, STATIONS_COLS, START_DATE, END_DATE
 from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
-from sklearn.linear_model import BayesianRidge
+from sklearn.ensemble import ExtraTreesRegressor
+from source_database.db_handler import DBConnection
+from util import convert_to_float, STATIONS_COLS, AGG_DICT, START_DATE, END_DATE
 
 ########################################################################################################################
 #                                                                  
@@ -77,14 +76,14 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Fill the data gaps;
     df_filled = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
-    # Feature Imputation - IteractiveImputer;
-    df_imp = feature_imputation(df=df_filled)
-
     # Aggregate the data to the desired frequency;
-    df_agg = aggregate_data(df=df_imp, frequency=frequency)
+    df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
-    # Outliers;
-    df_out = outlier_removal(df=df_agg)
+    # Feature Imputation - IteractiveImputer;
+    df_imp = feature_imputation(df=df_agg)
+
+    # Identify and remove Outliers;
+    df_out = outlier_removal(df=df_imp)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_out)
@@ -94,6 +93,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         db.write(df=df_cleaned, table_name='data_stations_cleaned', inplace=True)
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
+        db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
     return df_cleaned, df_agg, df_melted
 
@@ -219,35 +219,6 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     df.rename(columns=STATIONS_COLS, inplace=True)
     return df
 
-def feature_imputation(df: pd.DataFrame):
-    """
-    Apply multivariate feature imputation using IterativeImputer with Bayesian Ridge estimator.
-    Excludes non-numeric columns (date, station_id) from imputation.
-    
-    Parameters:
-        df (pd.DataFrame): Dataframe with gaps to impute;
-    
-    Returns:
-        pd.DataFrame: Imputed dataframe with 1 decimal precision;
-    """
-    # Separate index/categorical columns from numeric features;
-    non_feature_cols = ['Data_Hora_Medicao', 'codigoestacao', 'date', 'station_id']
-    index_cols = [col for col in non_feature_cols if col in df.columns]
-    feature_cols = [col for col in df.columns if col not in non_feature_cols]
-    
-    # Extract index columns for later rejoining;
-    df_index = df[index_cols].copy()
-    
-    # Impute only numeric feature columns;
-    imputer = IterativeImputer(random_state=42, verbose=1) #It's only imputing the same value, not interactively. Maybe the estimator needs to be changed? -> THIS IS JUST FOR THE LEVEL, THE REST SEEMS FINE;
-    imputed = imputer.fit_transform(df[feature_cols])
-    df_imputed = pd.DataFrame(imputed, columns=feature_cols, index=df.index)
-    
-    # Rejoin index columns;
-    df_result = pd.concat([df_index, df_imputed], axis=1)
-    df_result = round(df_result, 1)
-    return df_result
-
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     """
     Aggregate the data to the desired frequency;
@@ -262,23 +233,10 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     Returns:
         df_agg (pd.DataFrame): The aggregated dataframe;
     """
-    # Data Aggregation using specified frequency;
-    agg_dict = {'level': 'mean',
-                'level_status': 'median',
-                'rainfall': 'mean',
-                'rainfall_status': 'median',
-                'rainfall_accumulated': 'mean',
-                'rainfall_accumulated_status': 'median',
-                'flow': 'mean',
-                'flow_status': 'median',
-                'temperature': 'mean',
-                'temperature_status': 'median',
-                }
-
     # Resample the data to the desired frequency to create continuous timeline and fill gaps;
     df_agg = (
         df.groupby('station_id', group_keys=True)
-          .apply(lambda g: g.resample(frequency, on='date').agg(agg_dict))
+          .apply(lambda g: g.resample(frequency, on='date').agg(AGG_DICT))
           .reset_index()
     )
 
@@ -288,6 +246,52 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
         df_agg[col] = df_agg[col].round(3)
     return df_agg
 
+def feature_imputation(df: pd.DataFrame):
+    """
+    Apply multivariate feature imputation using IterativeImputer with ExtraTreesRegressor estimator on the large gaps in
+    data that where not filled in the function fill_gaps(). Imputes per station to preserve within-station feature
+    correlations. Exclues non-numeric columns from imputation;
+    
+    Parameters:
+        df (pd.DataFrame): Dataframe with longs gaps to impute;
+    
+    Returns:
+        pd.DataFrame: Imputed dataframe;
+    """
+    #TODO: Geographical Imputation for the Guaíba_1 (87450004) and Guaíba_2(87444000) Stations;  
+    # Separate index/categorical columns from numeric features;
+    index_cols = ['date', 'station_id']
+    status_cols = [col for col in df.columns if col.endswith('_status')]
+    non_feature_cols = index_cols + status_cols
+    feature_cols = list(set(df.columns) - set(non_feature_cols))
+    
+    # Impute per station to preserve within-station correlations;
+    imputed_stations = []
+    for station in df['station_id'].unique():
+        print(f"\nImputing station {station}...")
+        df_station = df[df['station_id'] == station].copy()
+        df_station_non_features = df_station[non_feature_cols].copy()
+        df_station_features = df_station[feature_cols].copy()
+        
+        # ExtraTreesRegressor for better non-linear relationships, robustness to outliers and different scales between feats;
+        imputer = IterativeImputer(
+            estimator=ExtraTreesRegressor(n_estimators=10, random_state=42, n_jobs=-1),
+            random_state=42,
+            max_iter=10,
+            imputation_order='ascending',
+            verbose=1
+        )
+        
+        # Impute numeric feature columns for this station;
+        imputed = imputer.fit_transform(df_station_features)
+        df_station_imputed = pd.DataFrame(imputed, columns=feature_cols, index=df_station_features.index)
+        df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
+        imputed_stations.append(df_station_result)
+
+    df_result = pd.concat(imputed_stations, ignore_index=True)
+    df_result = round(df_result, 1)
+    return df_result
+
 def outlier_removal(df: pd.DataFrame):
     """
     Remove outliers from the dataframe using PCA;
@@ -296,10 +300,6 @@ def outlier_removal(df: pd.DataFrame):
         df (pd.DataFrame): The dataframe to remove outliers from;
     """
     #TODO: Implement PyOD;
-    #TODO: Remove;
-    df = df.copy()
-    df = df.fillna(-999.0)
-
     pca = PCA(n_components=2)
     pca.fit(df[['level', 'rainfall', 'rainfall_accumulated', 'flow', 'temperature']])
 

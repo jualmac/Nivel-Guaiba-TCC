@@ -80,11 +80,23 @@ STATIONS_COLS = {
     'Chuva_Adotada_Status': 'rainfall_status',
     'Chuva_Acumulada': 'rainfall_accumulated',
     'Chuva_Acumulada_Status': 'rainfall_accumulated_status',
-    'Vazao_Adotada': 'flow',
-    'Vazao_Adotada_Status': 'flow_status',
+    # 'Vazao_Adotada': 'flow',
+    # 'Vazao_Adotada_Status': 'flow_status',
     'Temperatura_Interna': 'temperature',
     'Temperatura_Interna_Status': 'temperature_status',
     }
+
+AGG_DICT = {'level': 'mean',
+            'level_status': 'median',
+            'rainfall': 'mean',
+            'rainfall_status': 'median',
+            'rainfall_accumulated': 'mean',
+            'rainfall_accumulated_status': 'median',
+            # 'flow': 'mean',
+            # 'flow_status': 'median',
+            'temperature': 'mean',
+            'temperature_status': 'median',
+            }
 
 BRAZILIAN_STATES = {
     'AC': 'Acre',
