@@ -97,6 +97,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
     return df_cleaned, df_agg, df_melted
 
+
 def clean_dataframe(df: pd.DataFrame):
     """
     Convert values and cut the dataframe to a time range where most data is available;
@@ -122,6 +123,7 @@ def clean_dataframe(df: pd.DataFrame):
     df.loc[df['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = float(0.0)
     df.loc[df['Temperatura_Interna'].isna(), 'Temperatura_Interna_Status'] = float(5.0)
     return df
+
 
 def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     """
@@ -219,6 +221,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     df.rename(columns=STATIONS_COLS, inplace=True)
     return df
 
+
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     """
     Aggregate the data to the desired frequency;
@@ -245,6 +248,7 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
         df_agg[col] = df_agg[col].apply(convert_to_float)
         df_agg[col] = df_agg[col].round(3)
     return df_agg
+
 
 def feature_imputation(df: pd.DataFrame):
     """
@@ -291,6 +295,7 @@ def feature_imputation(df: pd.DataFrame):
     df_result = pd.concat(imputed_stations, ignore_index=True)
     df_result = round(df_result, 1)
     return df_result
+
 
 def outlier_removal(df: pd.DataFrame):
     """
@@ -349,6 +354,7 @@ def melt_dataframe(df: pd.DataFrame):
     # Reset index and return pivoted dataframe;
     df_cleaned = df_pivoted.reset_index()
     return df_cleaned
+
 
 def analyze_station_frequencies(df: pd.DataFrame):
     """
@@ -426,6 +432,11 @@ def analyze_station_frequencies(df: pd.DataFrame):
     print(f"Total large gaps: {len(gaps_df)}")
     return frequency_df, gaps_df
 
+########################################################################################################################
+#
+# SCRIPT EXECUTION
+#
+########################################################################################################################
 if __name__ == "__main__":
     df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=True, frequency='h', max_fill_steps=8)
     print("All Done!")
