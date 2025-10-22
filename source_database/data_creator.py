@@ -85,24 +85,24 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
-    # Feature Imputation - IteractiveImputer;
-    df_imp = feature_imputation(df=df_agg)
-
     # Identify and remove Outliers;
-    df_out = outlier_removal(df=df_imp)
+    df_out = outlier_removal(df=df_agg)
+
+    # Feature Imputation - IteractiveImputer;
+    df_imp = feature_imputation(df=df_out)
 
     # Melt the dataframe;
-    df_melted = melt_dataframe(df=df_out)
+    df_melted = melt_dataframe(df=df_imp)
 
     # Save the dataframes to the database;
     if save_to_db:
         db.write(df=df_cleaned, table_name='data_stations_cleaned', inplace=True)
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
-        db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
         db.write(df=df_out, table_name='data_stations_outlier', inplace=True)
+        db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
-    return df_cleaned, df_agg, df_melted
+    return df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted
 
 
 def clean_dataframe(df: pd.DataFrame):
@@ -257,6 +257,70 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     return df_agg
 
 
+def outlier_removal(df: pd.DataFrame, contamination: float = 0.03):
+    """
+    Detect outliers using ECOD and PCA methods and visualize results;
+
+    Parameters:
+        df (pd.DataFrame): The dataframe to detect outliers from;
+    
+    Returns:
+        df (pd.DataFrame): Original dataframe (outlier removal can be implemented later);
+    """
+    # Prepare data;
+    index_cols = ['date', 'station_id']
+    status_cols = [col for col in df.columns if col.endswith('_status')]
+    non_feature_cols = index_cols + status_cols
+    feature_cols = list(set(df.columns) - set(non_feature_cols))
+    
+    processed_stations = []
+    for station in df['station_id'].unique():
+        print(f"\nProcessing station {station}...")
+        df_station = df[df['station_id'] == station].copy()
+        df_station_non_features = df_station[non_feature_cols].copy()
+        df_station_features = df_station[feature_cols].copy()
+
+        # Only use complete rows for outlier detection;
+        complete_mask = df_station_features.notna().all(axis=1)
+        df_complete = df_station_features[complete_mask]
+        
+        # ECOD Detection;
+        print("[ECOD DETECTOR]")
+        ecod_detector = ECOD(contamination=contamination)
+        ecod_detector.fit(df_complete)
+        ecod_predictions = ecod_detector.predict(df_complete)
+        ecod_scores = ecod_detector.decision_scores_
+        
+        # PCA Detection;
+        print("[PCA DETECTOR]")
+        pca_detector = PCA(contamination=contamination)
+        pca_detector.fit(df_complete)
+        pca_predictions = pca_detector.predict(df_complete)
+        pca_scores = pca_detector.decision_scores_
+
+        # Combined outliers;
+        combined_outliers = (ecod_predictions | pca_predictions).astype(bool)
+        
+        # Map outliers back to original dataframe;
+        complete_indices = df_station_features[complete_mask].index
+        outlier_indices = complete_indices[combined_outliers]
+
+        # Replace outliers with NaN;
+        for feature in feature_cols:
+            original_count = df_station[feature].isna().sum()
+            df_station.loc[outlier_indices, feature] = np.nan
+            new_count = df_station[feature].isna().sum()
+            print(f"  {feature}: {original_count} → {new_count} missing values")
+            
+            # Update status to track outlier replacement;
+            status_col = feature + '_status'
+            if status_col in df_station.columns:
+                df_station.loc[outlier_indices, status_col] = 6.0  # 6 = Outlier flagged;
+        processed_stations.append(df_station)
+    df_result = pd.concat(processed_stations, ignore_index=True)
+    return df_result
+
+
 def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missing values before and after per station;
     """
     Apply multivariate feature imputation using IterativeImputer with ExtraTreesRegressor estimator on the large gaps in
@@ -306,50 +370,6 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
     df_result = pd.concat(imputed_stations, ignore_index=True)
     df_result = round(df_result, 3)
     return df_result
-
-
-def outlier_removal(df: pd.DataFrame):
-    """
-    Detect outliers using ECOD and PCA methods and visualize results;
-
-    Parameters:
-        df (pd.DataFrame): The dataframe to detect outliers from;
-    
-    Returns:
-        df (pd.DataFrame): Original dataframe (outlier removal can be implemented later);
-    """
-    # Prepare data;
-    index_cols = ['date', 'station_id']
-    status_cols = [col for col in df.columns if col.endswith('_status')]
-    non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns) - set(non_feature_cols))
-    
-    outliers_stations = []
-    for station in df['station_id'].unique():
-        print(f"\nImputing station {station}...")
-        df_station = df[df['station_id'] == station].copy()
-        df_station_non_features = df_station[non_feature_cols].copy()
-        df_station_features = df_station[feature_cols].copy()
-    
-        print(f"\nDataset shape: {df_station_features.shape}")
-        print(f"Features: {feature_cols}")
-        
-        # ECOD Detection;
-        print("[ECOD DETECTOR]")
-        ecod_detector = ECOD(contamination=0.01)
-        ecod_detector.fit(df_station_features)
-        ecod_predictions = ecod_detector.predict(df_station_features)
-        ecod_scores = ecod_detector.decision_scores_
-        print(f"Detected {sum(ecod_predictions)} outliers ({sum(ecod_predictions)/len(df_station_features)*100:.2f}%)")
-        
-        # PCA Detection;
-        print("[PCA DETECTOR]")
-        pca_detector = PCA(contamination=0.01)
-        pca_detector.fit(df_station_features)
-        pca_predictions = pca_detector.predict(df_station_features)
-        pca_scores = pca_detector.decision_scores_
-        print(f"Detected {sum(pca_predictions)} outliers ({sum(pca_predictions)/len(df_station_features)*100:.2f}%)")
-    return df
 
 
 def melt_dataframe(df: pd.DataFrame):
