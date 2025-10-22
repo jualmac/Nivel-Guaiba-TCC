@@ -265,7 +265,8 @@ def feature_imputation(df: pd.DataFrame):
     #TODO: Geographical Imputation for the Guaíba_1 (87450004) and Guaíba_2(87444000) Stations; Searched for Stations on
     # Rio_Codigo IN ('87200000') and did not found any station that is both Tipo_Estacao_Telemetrica IN ('1') and
     # Tipo_Rede_Classe_Vazao IN ('1') at the same time. There is a station very close that has Vazao, '87450005', but it
-    # is not Tipo_Estacao_Telemetrica, and therefore the data can't be collected via the API -> Flow data can't be used;
+    # is not Tipo_Estacao_Telemetrica, and therefore the data can't be collected via the API; Also tried stations
+    # '87500020' and '87460120'-> Flow data can't be used;
      
     # Separate index/categorical columns from numeric features;
     index_cols = ['date', 'station_id']
@@ -318,6 +319,7 @@ def outlier_removal(df: pd.DataFrame):
     print(new_data)
     return df
 
+
 def melt_dataframe(df: pd.DataFrame):
     """
     Melt the dataframe to long format;
@@ -358,83 +360,6 @@ def melt_dataframe(df: pd.DataFrame):
     # Reset index and return pivoted dataframe;
     df_cleaned = df_pivoted.reset_index()
     return df_cleaned
-
-
-def analyze_station_frequencies(df: pd.DataFrame):
-    """
-    Analyze time frequency patterns and gaps for each station (15-minute intervals).
-    
-    Returns:
-        frequency_df (pd.DataFrame): Station analysis metrics;
-        gaps_df (pd.DataFrame): Detailed gap information (>20 min);
-    """
-    # Prepare dataframe;
-    df_prep = df.copy()
-    df_prep.rename(columns=STATIONS_COLS, inplace=True)
-    df_prep['date'] = pd.to_datetime(df_prep['date'])
-    df_prep = df_prep.sort_values('date').reset_index(drop=True)
-
-    frequency_analysis = {}
-    all_gaps = []
-    
-    # Analyze each station;
-    for station in df_prep['station_id'].unique():
-        df_station = df_prep[df_prep['station_id'] == station].reset_index(drop=True)
-        
-        # Calculate time differences in minutes;
-        time_diffs_minutes = df_station['date'].diff().dt.total_seconds() / 60
-        time_diffs_minutes = time_diffs_minutes.dropna()
-        
-        # Calculate metrics;
-        total_duration = df_station['date'].max() - df_station['date'].min()
-        expected_intervals = int(total_duration.total_seconds() / 900) + 1  # 900 seconds = 15 min;
-        total_records = len(df_station)
-        exactly_15min = (time_diffs_minutes.round() == 15).sum()
-        
-        # Extract gaps > 20 minutes;
-        large_gap_mask = time_diffs_minutes > 20
-        for gap_idx in time_diffs_minutes[large_gap_mask].index:
-            gap_minutes = time_diffs_minutes.loc[gap_idx]
-            all_gaps.append({
-                'station': station,
-                'timestamp_before_gap': df_station.loc[gap_idx - 1, 'date'].strftime('%Y-%m-%d %H:%M:%S'),
-                'timestamp_after_gap': df_station.loc[gap_idx, 'date'].strftime('%Y-%m-%d %H:%M:%S'),
-                'gap_duration_minutes': round(gap_minutes, 2),
-                'gap_duration_hours': round(gap_minutes / 60, 2),
-                'expected_records_in_gap': int(gap_minutes / 15) - 1
-            })
-        
-        # Store analysis;
-        frequency_analysis[station] = {
-            'total_records': total_records,
-            'start_date': df_station['date'].min().strftime('%Y-%m-%d %H:%M:%S'),
-            'end_date': df_station['date'].max().strftime('%Y-%m-%d %H:%M:%S'),
-            'total_duration_days': total_duration.days,
-            'expected_intervals_15min': expected_intervals,
-            'missing_intervals': expected_intervals - total_records,
-            'missing_percentage': round((expected_intervals - total_records) / expected_intervals * 100, 2),
-            'exactly_15min_intervals': exactly_15min,
-            'percent_exactly_15min': round(exactly_15min / len(time_diffs_minutes) * 100, 2),
-            'large_gaps_count': large_gap_mask.sum(),
-            'largest_gap_hours': round(time_diffs_minutes[large_gap_mask].max() / 60, 2) if large_gap_mask.any() else 0,
-            'common_intervals_minutes': time_diffs_minutes.round().value_counts().head(10).to_dict(),
-            'avg_interval_minutes': round(time_diffs_minutes.mean(), 2),
-            'median_interval_minutes': round(time_diffs_minutes.median(), 2),
-        }
-    
-    # Convert to DataFrames for database storage;
-    frequency_df = pd.DataFrame.from_dict(frequency_analysis, orient='index').reset_index()
-    frequency_df.rename(columns={'index': 'station'}, inplace=True)
-    frequency_df['common_intervals_minutes'] = frequency_df['common_intervals_minutes'].apply(str)
-    
-    gaps_df = pd.DataFrame(all_gaps).sort_values(['station', 'timestamp_before_gap']) if all_gaps else pd.DataFrame()
-    
-    # Print summary;
-    print(f"\nAnalyzed {len(frequency_analysis)} stations")
-    print(f"Avg missing data: {frequency_df['missing_percentage'].mean():.1f}%")
-    print(f"Avg 15-min compliance: {frequency_df['percent_exactly_15min'].mean():.1f}%")
-    print(f"Total large gaps: {len(gaps_df)}")
-    return frequency_df, gaps_df
 
 ########################################################################################################################
 #
