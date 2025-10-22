@@ -262,7 +262,11 @@ def feature_imputation(df: pd.DataFrame):
     Returns:
         pd.DataFrame: Imputed dataframe;
     """
-    #TODO: Geographical Imputation for the Guaíba_1 (87450004) and Guaíba_2(87444000) Stations;  
+    #TODO: Geographical Imputation for the Guaíba_1 (87450004) and Guaíba_2(87444000) Stations; Searched for Stations on
+    # Rio_Codigo IN ('87200000') and did not found any station that is both Tipo_Estacao_Telemetrica IN ('1') and
+    # Tipo_Rede_Classe_Vazao IN ('1') at the same time. There is a station very close that has Vazao, '87450005', but it
+    # is not Tipo_Estacao_Telemetrica, and therefore the data can't be collected via the API -> Flow data can't be used;
+     
     # Separate index/categorical columns from numeric features;
     index_cols = ['date', 'station_id']
     status_cols = [col for col in df.columns if col.endswith('_status')]
