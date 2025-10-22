@@ -5,6 +5,7 @@ ipython
 ipywidgets
 jupyter
 jupyterlab
+matplotlib
 neuralforecast
 numpy
 pandas
@@ -16,3 +17,4 @@ seaborn
 statsmodels
 streamlit
 duckdb
+pyod

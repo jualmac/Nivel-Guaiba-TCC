@@ -17,6 +17,12 @@ from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import ExtraTreesRegressor
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pyod.models.pca import PCA
+from pyod.models.ecod import ECOD
+from sklearn.decomposition import PCA as sklearn_PCA
+
 from source_database.db_handler import DBConnection
 from util import convert_to_float, STATIONS_COLS, AGG_DICT, START_DATE, END_DATE
 
@@ -94,6 +100,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
+        db.write(df=df_out, table_name='data_stations_outlier', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
     return df_cleaned, df_agg, df_melted
 
@@ -250,7 +257,7 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     return df_agg
 
 
-def feature_imputation(df: pd.DataFrame):
+def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missing values before and after per station;
     """
     Apply multivariate feature imputation using IterativeImputer with ExtraTreesRegressor estimator on the large gaps in
     data that where not filled in the function fill_gaps(). Imputes per station to preserve within-station feature
@@ -296,27 +303,52 @@ def feature_imputation(df: pd.DataFrame):
         df_station_imputed = pd.DataFrame(imputed, columns=feature_cols, index=df_station_features.index)
         df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
         imputed_stations.append(df_station_result)
-
     df_result = pd.concat(imputed_stations, ignore_index=True)
-    df_result = round(df_result, 1)
+    df_result = round(df_result, 3)
     return df_result
 
 
 def outlier_removal(df: pd.DataFrame):
     """
-    Remove outliers from the dataframe using PCA;
+    Detect outliers using ECOD and PCA methods and visualize results;
 
     Parameters:
-        df (pd.DataFrame): The dataframe to remove outliers from;
-    """
-    #TODO: Implement PyOD;
-    pca = PCA(n_components=2)
-    pca.fit(df[['level', 'rainfall', 'rainfall_accumulated', 'flow', 'temperature']])
-
-    new_data = pd.DataFrame(pca.transform(df[['level', 'rainfall', 'rainfall_accumulated', 'flow', 'temperature']]), columns=['0', '1'])
+        df (pd.DataFrame): The dataframe to detect outliers from;
     
-    print(pca.explained_variance_ratio_)
-    print(new_data)
+    Returns:
+        df (pd.DataFrame): Original dataframe (outlier removal can be implemented later);
+    """
+    # Prepare data;
+    index_cols = ['date', 'station_id']
+    status_cols = [col for col in df.columns if col.endswith('_status')]
+    non_feature_cols = index_cols + status_cols
+    feature_cols = list(set(df.columns) - set(non_feature_cols))
+    
+    outliers_stations = []
+    for station in df['station_id'].unique():
+        print(f"\nImputing station {station}...")
+        df_station = df[df['station_id'] == station].copy()
+        df_station_non_features = df_station[non_feature_cols].copy()
+        df_station_features = df_station[feature_cols].copy()
+    
+        print(f"\nDataset shape: {df_station_features.shape}")
+        print(f"Features: {feature_cols}")
+        
+        # ECOD Detection;
+        print("[ECOD DETECTOR]")
+        ecod_detector = ECOD(contamination=0.01)
+        ecod_detector.fit(df_station_features)
+        ecod_predictions = ecod_detector.predict(df_station_features)
+        ecod_scores = ecod_detector.decision_scores_
+        print(f"Detected {sum(ecod_predictions)} outliers ({sum(ecod_predictions)/len(df_station_features)*100:.2f}%)")
+        
+        # PCA Detection;
+        print("[PCA DETECTOR]")
+        pca_detector = PCA(contamination=0.01)
+        pca_detector.fit(df_station_features)
+        pca_predictions = pca_detector.predict(df_station_features)
+        pca_scores = pca_detector.decision_scores_
+        print(f"Detected {sum(pca_predictions)} outliers ({sum(pca_predictions)/len(df_station_features)*100:.2f}%)")
     return df
 
 
