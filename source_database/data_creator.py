@@ -1,5 +1,3 @@
-#TODO: Fix outlier values;
-
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
 for each river a grouping function and lastly a function to concatenate the main dataset with external data from
@@ -148,12 +146,16 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     Returns:
         pd.DataFrame: Gap-filled data with continuous timeline and quality status codes;
     """
+    # Remove negative values as they don't make sense in this dataset, except for Temperature -> These values will be Imputed after;
+    neg_cols = list(set(df.columns.unique()) - set(['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao', 'Temperatura_Interna']))
+    for col in neg_cols:
+        df.loc[df[col] < 0, col] = np.nan
+
     # Use sensor data to fill the gaps in the level column and respective status;
     was_nan = df['Cota_Adotada'].isna()
-    df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
     df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
-    # df.loc[df['Cota_Adotada'] < 0, 'Cota_Adotada'] = float(-999.0) #TODO: Fix this -> Interpolate these values;
-
+    df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
+    
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df['Cota_Adotada'].notna()
     df.loc[is_now_filled, 'Cota_Adotada_Status'] = float(4.0)
@@ -271,7 +273,7 @@ def outlier_removal(df: pd.DataFrame, contamination: float = 0.03):
     index_cols = ['date', 'station_id']
     status_cols = [col for col in df.columns if col.endswith('_status')]
     non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns) - set(non_feature_cols))
+    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols)) #FIXME .unique()?
     
     processed_stations = []
     for station in df['station_id'].unique():
@@ -343,7 +345,7 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
     index_cols = ['date', 'station_id']
     status_cols = [col for col in df.columns if col.endswith('_status')]
     non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns) - set(non_feature_cols))
+    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols)) #FIXME .unique()?
     
     # Impute per station to preserve within-station correlations;
     imputed_stations = []
