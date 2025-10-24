@@ -87,15 +87,15 @@ STATIONS_COLS = {
     }
 
 AGG_DICT = {'level': 'mean',
-            'level_status': 'median',
+            'level_status': 'first',
             'rainfall': 'mean',
-            'rainfall_status': 'median',
+            'rainfall_status': 'first',
             'rainfall_accumulated': 'mean',
-            'rainfall_accumulated_status': 'median',
+            'rainfall_accumulated_status': 'first',
             # 'flow': 'mean',
-            # 'flow_status': 'median',
+            # 'flow_status': 'first',
             'temperature': 'mean',
-            'temperature_status': 'median',
+            'temperature_status': 'first',
             }
 
 BRAZILIAN_STATES = {
