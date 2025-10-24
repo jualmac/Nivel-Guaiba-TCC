@@ -1,3 +1,5 @@
+# Status columns are now properly handled as integers and excluded from imputation;
+
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
 for each river a grouping function and lastly a function to concatenate the main dataset with external data from
@@ -110,8 +112,20 @@ def clean_dataframe(df: pd.DataFrame):
     Parameters:
         df (pd.DataFrame): The dataframe to cut;
     """
-    # Convert the value columns to float;
-    for col in (set(df.columns) - {'Data_Atualizacao', 'Data_Hora_Medicao', 'codigoestacao'}):
+    # Cast'_Status' columns as 'int64';
+    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    for col in status_cols:
+        df[col] = df[col].astype('Int64')
+
+    # Create missing temperature status column as integer type;
+    df['Temperatura_Interna_Status'] = pd.Series(dtype='Int64')  # Nullable integer type;
+    df.loc[df['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = 0
+    df.loc[df['Temperatura_Interna'].isna(), 'Temperatura_Interna_Status'] = 4
+
+    # Convert the value columns to float (excluding status columns);
+    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    exclude_cols = {'Data_Atualizacao', 'Data_Hora_Medicao', 'codigoestacao'} | set(status_cols)
+    for col in (set(df.columns) - exclude_cols):
         df[col] = df[col].apply(convert_to_float)
 
     # Convert the date column to datetime;
@@ -123,10 +137,6 @@ def clean_dataframe(df: pd.DataFrame):
     df = df[df['Data_Hora_Medicao'] <= END_DATE]
     df = df.sort_values('Data_Hora_Medicao').reset_index(drop=True)
     df = df.set_index('Data_Hora_Medicao')
-
-    # Create missing temperature status column;
-    df.loc[df['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = float(0.0)
-    df.loc[df['Temperatura_Interna'].isna(), 'Temperatura_Interna_Status'] = float(5.0)
     return df
 
 
@@ -136,7 +146,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     Creates continuous 15-minute timeline from START_DATE to END_DATE for each station,
     then applies forward-fill with quality control status tracking.
     
-    Status Codes Quality Control Convention: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled, 5=Missing;
+    Status Codes Quality Control Convention: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled/Missing, 5=Outlier flagged;
 
     Parameters:
         df (pd.DataFrame): Raw station data with temporal gaps;
@@ -146,8 +156,12 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     Returns:
         pd.DataFrame: Gap-filled data with continuous timeline and quality status codes;
     """
-    # Remove negative values as they don't make sense in this dataset, except for Temperature -> These values will be Imputed after;
-    neg_cols = list(set(df.columns.unique()) - set(['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao', 'Temperatura_Interna']))
+    # Remove negative values as they don't make sense in this dataset, except for Temperature -> These values will be Imputed after;    
+    index_cols = ['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao', 'Temperatura_Interna']
+    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    non_feature_cols = index_cols + status_cols
+    neg_cols = list(set(df.columns.unique()) - set(non_feature_cols))
+
     for col in neg_cols:
         df.loc[df[col] < 0, col] = np.nan
 
@@ -158,7 +172,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df['Cota_Adotada'].notna()
-    df.loc[is_now_filled, 'Cota_Adotada_Status'] = float(4.0)
+    df.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
 
     # Reset index to work with Data_Hora_Medicao as a column for merging;
     df = df.reset_index()
@@ -200,7 +214,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
                 status_col = col + '_Status'
                 if status_col in df_station.columns:
                     is_now_filled = was_nan & df_station[col].notna()
-                    df_station.loc[is_now_filled, status_col] = float(4.0)
+                    df_station.loc[is_now_filled, status_col] = 4
 
         # Reset index to convert back to column for concatenation;
         df_station = df_station.reset_index()
@@ -217,13 +231,13 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     for status_col in status_cols:
         info_col = status_col.replace('_Status', '')
 
-        # Fill the missing values on the '_Status' columns with '5' where corresponding 'info' column is None;
+        # Fill the missing values on the '_Status' columns with '4' where corresponding 'info' column is None;
         if info_col in df.columns:
-            df.loc[df[info_col].isna(), status_col] = float(5.0)
+            df.loc[df[info_col].isna(), status_col] = 4
         
         # Fill missing _Status where the _info is not NaN with Normal status;
         if info_col in df.columns:
-            df.loc[df[info_col].notna() & df[status_col].isna(), status_col] = float(0.0)
+            df.loc[df[info_col].notna() & df[status_col].isna(), status_col] = 0
 
     # Select only the columns that are needed;
     df = df[STATIONS_COLS.keys()]
@@ -252,10 +266,17 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
           .reset_index()
     )
 
-    # Convert the value columns to float and round to 3 decimal places;
-    for col in (set(df_agg.columns) - {'date', 'station_id'}):
+    # Convert the value columns to float and round to 3 decimal places (excluding status columns);
+    status_cols = [col for col in df_agg.columns if col.endswith('_status')]
+    exclude_cols = {'date', 'station_id'} | set(status_cols)
+    for col in (set(df_agg.columns) - exclude_cols):
         df_agg[col] = df_agg[col].apply(convert_to_float)
         df_agg[col] = df_agg[col].round(3)
+    
+    #TODO: Remove;
+    # # Ensure status columns remain as integers;
+    # for status_col in status_cols:
+    #     df_agg[status_col] = df_agg[status_col].astype('Int64')  # Nullable integer type;
     return df_agg
 
 
@@ -273,7 +294,7 @@ def outlier_removal(df: pd.DataFrame, contamination: float = 0.01):
     index_cols = ['date', 'station_id']
     status_cols = [col for col in df.columns if col.endswith('_status')]
     non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols)) #FIXME .unique()?
+    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols))
     
     processed_stations = []
     for station in df['station_id'].unique():
@@ -317,7 +338,7 @@ def outlier_removal(df: pd.DataFrame, contamination: float = 0.01):
             # Update status to track outlier replacement;
             status_col = feature + '_status'
             if status_col in df_station.columns:
-                df_station.loc[outlier_indices, status_col] = 6.0  # 6 = Outlier flagged;
+                df_station.loc[outlier_indices, status_col] = 5  # 5 = Outlier flagged;
         processed_stations.append(df_station)
     df_result = pd.concat(processed_stations, ignore_index=True)
     return df_result
@@ -342,10 +363,11 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
     # '87500020' and '87460120'-> Flow data can't be used;
      
     # Separate index/categorical columns from numeric features;
+    # Status columns should NOT be imputed as they are categorical quality indicators;
     index_cols = ['date', 'station_id']
     status_cols = [col for col in df.columns if col.endswith('_status')]
     non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols)) #FIXME .unique()?
+    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols))
     
     # Impute per station to preserve within-station correlations;
     imputed_stations = []
@@ -370,7 +392,16 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
         df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
         imputed_stations.append(df_station_result)
     df_result = pd.concat(imputed_stations, ignore_index=True)
-    df_result = round(df_result, 3)
+    
+    # Convert status columns to integers to ensure they remain categorical;
+    status_cols = [col for col in df_result.columns if col.endswith('_status')]
+    for status_col in status_cols:
+        df_result[status_col] = df_result[status_col].astype('Int64')  # Nullable integer type;
+    
+    # Round only numeric feature columns;
+    feature_cols = [col for col in df_result.columns if not col.endswith('_status') and col not in ['date', 'station_id']]
+    for col in feature_cols:
+        df_result[col] = df_result[col].round(3)
     return df_result
 
 
