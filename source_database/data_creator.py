@@ -84,7 +84,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
     # Identify and remove Outliers;
-    df_out = outlier_removal(df=df_agg)
+    df_out = outlier_removal(df=df_agg, contamination=0.02)
 
     # Feature Imputation - IteractiveImputer;
     df_imp = feature_imputation(df=df_out)
@@ -259,7 +259,7 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     return df_agg
 
 
-def outlier_removal(df: pd.DataFrame, contamination: float = 0.03):
+def outlier_removal(df: pd.DataFrame, contamination: float = 0.01):
     """
     Detect outliers using ECOD and PCA methods and visualize results;
 
@@ -421,5 +421,10 @@ def melt_dataframe(df: pd.DataFrame):
 #
 ########################################################################################################################
 if __name__ == "__main__":
-    df_cleaned, df_agg, df_melted = collect_all_stations(save_to_db=True, frequency='h', max_fill_steps=8)
+    df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted = collect_all_stations(
+        save_to_db=True, 
+        frequency='h', 
+        max_fill_steps=8
+        )
+    
     print("All Done!")
