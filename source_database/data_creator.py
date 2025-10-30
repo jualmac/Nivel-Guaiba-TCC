@@ -86,7 +86,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
     # Identify and remove Outliers;
-    df_out = outlier_removal(df=df_agg, contamination=0.02)
+    df_out = outlier_removal(df=df_agg, contamination=0.03)
 
     # Feature Imputation - IteractiveImputer;
     df_imp = feature_imputation(df=df_out)
@@ -272,11 +272,6 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     for col in (set(df_agg.columns) - exclude_cols):
         df_agg[col] = df_agg[col].apply(convert_to_float)
         df_agg[col] = df_agg[col].round(3)
-    
-    #TODO: Remove;
-    # # Ensure status columns remain as integers;
-    # for status_col in status_cols:
-    #     df_agg[status_col] = df_agg[status_col].astype('Int64')  # Nullable integer type;
     return df_agg
 
 
