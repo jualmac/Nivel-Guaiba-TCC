@@ -105,7 +105,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     return df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted
 
 
-def clean_dataframe(df: pd.DataFrame):
+def clean_dataframe(df: pd.DataFrame, cut: bool = True):
     """
     Convert values and cut the dataframe to a time range where most data is available;
 
@@ -133,8 +133,9 @@ def clean_dataframe(df: pd.DataFrame):
     df['Data_Atualizacao'] = pd.to_datetime(df['Data_Atualizacao'])
 
     # Cut the dataframe to a time range where most data is available;
-    df = df[df['Data_Hora_Medicao'] >= START_DATE]
-    df = df[df['Data_Hora_Medicao'] <= END_DATE]
+    if cut:
+        df = df[df['Data_Hora_Medicao'] >= START_DATE]
+        df = df[df['Data_Hora_Medicao'] <= END_DATE]
     df = df.sort_values('Data_Hora_Medicao').reset_index(drop=True)
     df = df.set_index('Data_Hora_Medicao')
     return df
