@@ -78,12 +78,12 @@ STATIONS_COLS = {
     'Cota_Adotada_Status': 'level_status',
     'Chuva_Adotada': 'rainfall',
     'Chuva_Adotada_Status': 'rainfall_status',
-    'Chuva_Acumulada': 'rainfall_accumulated',
-    'Chuva_Acumulada_Status': 'rainfall_accumulated_status',
-    # 'Vazao_Adotada': 'flow',
-    # 'Vazao_Adotada_Status': 'flow_status',
+    'Chuva_Acumulada': 'rainfall_acc',
+    'Chuva_Acumulada_Status': 'rainfall_acc_status',
     'Temperatura_Interna': 'temperature',
     'Temperatura_Interna_Status': 'temperature_status',
+    'Vazao_Adotada': 'flow',
+    'Vazao_Adotada_Status': 'flow_status',
     }
 
 AGG_DICT = {'level': 'mean',

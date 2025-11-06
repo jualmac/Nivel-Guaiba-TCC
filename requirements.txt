@@ -18,3 +18,4 @@ statsmodels
 streamlit
 duckdb
 pyod
+ydata-profiling
