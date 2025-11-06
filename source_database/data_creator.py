@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pyod.models.pca import PCA
 from pyod.models.ecod import ECOD
-from sklearn.decomposition import PCA as sklearn_PCA
 
 from source_database.db_handler import DBConnection
 from util import convert_to_float, STATIONS_COLS, AGG_DICT, START_DATE, END_DATE
@@ -86,7 +85,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
     # Identify and remove Outliers;
-    df_out = outlier_removal(df=df_agg, contamination=0.03)
+    df_out = outlier_removal(df=df_agg, contamination=0.01)
 
     # Feature Imputation - IteractiveImputer;
     df_imp = feature_imputation(df=df_out)
@@ -180,6 +179,8 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
+    missing_values = []
+
     for station_id in df['codigoestacao'].unique():
         df_station = df[df['codigoestacao'] == station_id].copy()
         df_station = df_station.sort_values('Data_Hora_Medicao').reset_index(drop=True)
@@ -203,6 +204,11 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
         # Time-based interpolation of small gaps;
         df_station = df_station.set_index('Data_Hora_Medicao')
 
+        missing_values.append({
+            'station_id': station_id, 
+            'period': 'before', 
+            'missing_percentage': df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100})
+
         for col in df_station.columns:
             if col not in ['codigoestacao'] and not col.endswith('_Status'):
                 # Track which rows were NaN before filling;
@@ -219,10 +225,15 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
 
         # Reset index to convert back to column for concatenation;
         df_station = df_station.reset_index()
-        
-        nan_percentage = df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100
-        print(f"Percentage of Missing Level data in station {station_id}: {nan_percentage:.2f}%")
         df_filled_list.append(df_station)
+
+        missing_values.append({
+            'station_id': station_id, 
+            'period': 'after', 
+            'missing_percentage': df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100})
+    
+    # Convert list of records to DataFrame;
+    missing_values = pd.DataFrame(missing_values)
     
     # Concatenate all stations back together;
     df = pd.concat(df_filled_list, ignore_index=True)
@@ -243,7 +254,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     # Select only the columns that are needed;
     df = df[STATIONS_COLS.keys()]
     df.rename(columns=STATIONS_COLS, inplace=True)
-    return df
+    return df, missing_values
 
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
