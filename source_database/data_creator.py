@@ -79,7 +79,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_cleaned = clean_dataframe(df=df)
 
     # Fill the data gaps;
-    df_filled = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
+    df_filled, _ = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
@@ -111,33 +111,36 @@ def clean_dataframe(df: pd.DataFrame, cut: bool = True):
     Parameters:
         df (pd.DataFrame): The dataframe to cut;
     """
+    # Copy dataframe to not propagate changes;
+    df_cpy = df.copy()
+
     # Cast'_Status' columns as 'int64';
-    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     for col in status_cols:
-        df[col] = df[col].astype('Int64')
+        df_cpy[col] = df_cpy[col].astype('Int64')
 
     # Create missing temperature status column as integer type;
-    df['Temperatura_Interna_Status'] = pd.Series(dtype='Int64')  # Nullable integer type;
-    df.loc[df['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = 0
-    df.loc[df['Temperatura_Interna'].isna(), 'Temperatura_Interna_Status'] = 4
+    df_cpy['Temperatura_Interna_Status'] = pd.Series(dtype='Int64')  # Nullable integer type;
+    df_cpy.loc[df_cpy['Temperatura_Interna'].notna(), 'Temperatura_Interna_Status'] = 0
+    df_cpy.loc[df_cpy['Temperatura_Interna'].isna(), 'Temperatura_Interna_Status'] = 4
 
     # Convert the value columns to float (excluding status columns);
-    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     exclude_cols = {'Data_Atualizacao', 'Data_Hora_Medicao', 'codigoestacao'} | set(status_cols)
-    for col in (set(df.columns) - exclude_cols):
-        df[col] = df[col].apply(convert_to_float)
+    for col in (set(df_cpy.columns) - exclude_cols):
+        df_cpy[col] = df_cpy[col].apply(convert_to_float)
 
     # Convert the date column to datetime;
-    df['Data_Hora_Medicao'] = pd.to_datetime(df['Data_Hora_Medicao'])
-    df['Data_Atualizacao'] = pd.to_datetime(df['Data_Atualizacao'])
+    df_cpy['Data_Hora_Medicao'] = pd.to_datetime(df_cpy['Data_Hora_Medicao'])
+    df_cpy['Data_Atualizacao'] = pd.to_datetime(df_cpy['Data_Atualizacao'])
 
     # Cut the dataframe to a time range where most data is available;
     if cut:
-        df = df[df['Data_Hora_Medicao'] >= START_DATE]
-        df = df[df['Data_Hora_Medicao'] <= END_DATE]
-    df = df.sort_values('Data_Hora_Medicao').reset_index(drop=True)
-    df = df.set_index('Data_Hora_Medicao')
-    return df
+        df_cpy = df_cpy[df_cpy['Data_Hora_Medicao'] >= START_DATE]
+        df_cpy = df_cpy[df_cpy['Data_Hora_Medicao'] <= END_DATE]
+    df_cpy = df_cpy.sort_values('Data_Hora_Medicao').reset_index(drop=True)
+    df_cpy = df_cpy.set_index('Data_Hora_Medicao')
+    return df_cpy
 
 
 def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
@@ -156,33 +159,36 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     Returns:
         pd.DataFrame: Gap-filled data with continuous timeline and quality status codes;
     """
+    # Copy dataframe to not propagate changes;
+    df_cpy = df.copy() 
+
     # Remove negative values as they don't make sense in this dataset, except for Temperature -> These values will be Imputed after;    
     index_cols = ['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao', 'Temperatura_Interna']
-    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     non_feature_cols = index_cols + status_cols
-    neg_cols = list(set(df.columns.unique()) - set(non_feature_cols))
+    neg_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
 
     for col in neg_cols:
-        df.loc[df[col] < 0, col] = np.nan
+        df_cpy.loc[df_cpy[col] < 0, col] = np.nan
 
     # Use sensor data to fill the gaps in the level column and respective status;
-    was_nan = df['Cota_Adotada'].isna()
-    df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Manual'])
-    df['Cota_Adotada'] = df['Cota_Adotada'].fillna(df['Cota_Sensor'])
+    was_nan = df_cpy['Cota_Adotada'].isna()
+    df_cpy['Cota_Adotada'] = df_cpy['Cota_Adotada'].fillna(df_cpy['Cota_Manual'])
+    # df_cpy['Cota_Adotada'] = df_cpy['Cota_Adotada'].fillna(df_cpy['Cota_Sensor']) # This is creating many outliers. Better to remove it;
     
     # Set status to 4 for filled values;
-    is_now_filled = was_nan & df['Cota_Adotada'].notna()
-    df.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
+    is_now_filled = was_nan & df_cpy['Cota_Adotada'].notna()
+    df_cpy.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
 
     # Reset index to work with Data_Hora_Medicao as a column for merging;
-    df = df.reset_index()
+    df_cpy = df_cpy.reset_index()
     
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
     missing_values = []
 
-    for station_id in df['codigoestacao'].unique():
-        df_station = df[df['codigoestacao'] == station_id].copy()
+    for station_id in df_cpy['codigoestacao'].unique():
+        df_station = df_cpy[df_cpy['codigoestacao'] == station_id].copy()
         df_station = df_station.sort_values('Data_Hora_Medicao').reset_index(drop=True)
 
         # Create complete date range at 15-minute intervals;
@@ -236,25 +242,25 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     missing_values = pd.DataFrame(missing_values)
     
     # Concatenate all stations back together;
-    df = pd.concat(df_filled_list, ignore_index=True)
+    df_cpy = pd.concat(df_filled_list, ignore_index=True)
 
     # Fill the missing _Status columns;
-    status_cols = [col for col in df.columns if col.endswith('_Status')]
+    status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     for status_col in status_cols:
         info_col = status_col.replace('_Status', '')
 
         # Fill the missing values on the '_Status' columns with '4' where corresponding 'info' column is None;
-        if info_col in df.columns:
-            df.loc[df[info_col].isna(), status_col] = 4
+        if info_col in df_cpy.columns:
+            df_cpy.loc[df_cpy[info_col].isna(), status_col] = 4
         
         # Fill missing _Status where the _info is not NaN with Normal status;
-        if info_col in df.columns:
-            df.loc[df[info_col].notna() & df[status_col].isna(), status_col] = 0
+        if info_col in df_cpy.columns:
+            df_cpy.loc[df_cpy[info_col].notna() & df_cpy[status_col].isna(), status_col] = 0
 
     # Select only the columns that are needed;
-    df = df[STATIONS_COLS.keys()]
-    df.rename(columns=STATIONS_COLS, inplace=True)
-    return df, missing_values
+    df_cpy = df_cpy[STATIONS_COLS.keys()]
+    df_cpy.rename(columns=STATIONS_COLS, inplace=True)
+    return df_cpy, missing_values
 
 
 def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
@@ -271,9 +277,12 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
     Returns:
         df_agg (pd.DataFrame): The aggregated dataframe;
     """
+    # Copy dataframe to not propagate changes;
+    df_cpy = df.copy() 
+
     # Resample the data to the desired frequency to create continuous timeline and fill gaps;
     df_agg = (
-        df.groupby('station_id', group_keys=True)
+        df_cpy.groupby('station_id', group_keys=True)
           .apply(lambda g: g.resample(frequency, on='date').agg(AGG_DICT))
           .reset_index()
     )
@@ -297,16 +306,19 @@ def outlier_removal(df: pd.DataFrame, contamination: float = 0.01):
     Returns:
         df (pd.DataFrame): Original dataframe (outlier removal can be implemented later);
     """
+    # Copy dataframe to not propagate changes;
+    df_cpy = df.copy() 
+
     # Prepare data;
     index_cols = ['date', 'station_id']
-    status_cols = [col for col in df.columns if col.endswith('_status')]
+    status_cols = [col for col in df_cpy.columns if col.endswith('_status')]
     non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols))
+    feature_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     
     processed_stations = []
-    for station in df['station_id'].unique():
+    for station in df_cpy['station_id'].unique():
         print(f"\nProcessing station {station}...")
-        df_station = df[df['station_id'] == station].copy()
+        df_station = df_cpy[df_cpy['station_id'] == station].copy()
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
 
@@ -363,6 +375,9 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
     Returns:
         pd.DataFrame: Imputed dataframe;
     """
+    # Copy dataframe to not propagate changes;
+    df_cpy = df.copy() 
+
     #TODO: Geographical Imputation for the Guaíba_1 (87450004) and Guaíba_2(87444000) Stations; Searched for Stations on
     # Rio_Codigo IN ('87200000') and did not found any station that is both Tipo_Estacao_Telemetrica IN ('1') and
     # Tipo_Rede_Classe_Vazao IN ('1') at the same time. There is a station very close that has Vazao, '87450005', but it
@@ -372,15 +387,15 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
     # Separate index/categorical columns from numeric features;
     # Status columns should NOT be imputed as they are categorical quality indicators;
     index_cols = ['date', 'station_id']
-    status_cols = [col for col in df.columns if col.endswith('_status')]
+    status_cols = [col for col in df_cpy.columns if col.endswith('_status')]
     non_feature_cols = index_cols + status_cols
-    feature_cols = list(set(df.columns.unique()) - set(non_feature_cols))
+    feature_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     
     # Impute per station to preserve within-station correlations;
     imputed_stations = []
-    for station in df['station_id'].unique():
+    for station in df_cpy['station_id'].unique():
         print(f"\nImputing station {station}...")
-        df_station = df[df['station_id'] == station].copy()
+        df_station = df_cpy[df_cpy['station_id'] == station].copy()
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
         
@@ -419,11 +434,14 @@ def melt_dataframe(df: pd.DataFrame):
     Parameters:
         df (pd.DataFrame): The dataframe to melt;
     """
+    # Copy dataframe to not propagate changes;
+    df_cpy = df.copy()
+    
     # Get the value columns (excluding date and station_id);
-    value_cols = [col for col in df.columns if col not in ['date', 'station_id']]
+    value_cols = [col for col in df_cpy.columns if col not in ['date', 'station_id']]
     
     # Melt the dataframe to long format;
-    melted = df.melt(id_vars=['date', 'station_id'], 
+    melted = df_cpy.melt(id_vars=['date', 'station_id'], 
                      value_vars=value_cols,
                      var_name='metric', 
                      value_name='value')
@@ -450,8 +468,8 @@ def melt_dataframe(df: pd.DataFrame):
     df_pivoted = melted.pivot_table(index='date', columns='new_col', values='value', aggfunc='first')
     
     # Reset index and return pivoted dataframe;
-    df_cleaned = df_pivoted.reset_index()
-    return df_cleaned
+    df_pivoted = df_pivoted.reset_index()
+    return df_pivoted
 
 ########################################################################################################################
 #
