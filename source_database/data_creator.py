@@ -139,7 +139,6 @@ def clean_dataframe(df: pd.DataFrame, cut: bool = True):
         df_cpy = df_cpy[df_cpy['Data_Hora_Medicao'] >= START_DATE]
         df_cpy = df_cpy[df_cpy['Data_Hora_Medicao'] <= END_DATE]
     df_cpy = df_cpy.sort_values('Data_Hora_Medicao').reset_index(drop=True)
-    df_cpy = df_cpy.set_index('Data_Hora_Medicao')
     return df_cpy
 
 
@@ -179,9 +178,6 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
     # Set status to 4 for filled values;
     is_now_filled = was_nan & df_cpy['Cota_Adotada'].notna()
     df_cpy.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
-
-    # Reset index to work with Data_Hora_Medicao as a column for merging;
-    df_cpy = df_cpy.reset_index()
     
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []

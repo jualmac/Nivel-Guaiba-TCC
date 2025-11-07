@@ -40,7 +40,10 @@ station_codes = {
 def make_station_comparison(df: pd.DataFrame == None):
     # Rename;
     df_cpy = df.copy()
-    df_cpy.rename(columns={"station_id": "codigoestacao", "level": "Cota_Adotada"}, inplace=True)
+    df_cpy.rename(columns={"station_id": "codigoestacao", "level": "Cota_Adotada", "date": "Data"}, inplace=True)
+    
+    if "Data" in df_cpy.columns:
+        df_cpy.set_index("Data", inplace=True)
 
     # Create 3x3 subplot grid;
     fig = make_subplots(
