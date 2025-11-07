@@ -38,6 +38,10 @@ station_codes = {
 
 
 def make_station_comparison(df: pd.DataFrame == None):
+    # Rename;
+    df_cpy = df.copy()
+    df_cpy.rename(columns={"station_id": "codigoestacao", "level": "Cota_Adotada"}, inplace=True)
+
     # Create 3x3 subplot grid;
     fig = make_subplots(
         rows=3, cols=3,
@@ -49,7 +53,7 @@ def make_station_comparison(df: pd.DataFrame == None):
     # Add trace for each station from main dataframe;
     row, col = 1, 1
     for station_name, station_code in station_codes.items():
-        station_df = df[df['codigoestacao'] == station_code]
+        station_df = df_cpy[df_cpy['codigoestacao'] == station_code]
         if 'Cota_Adotada' in station_df.columns and len(station_df) > 0:
             fig.add_trace(
                 go.Scatter(
