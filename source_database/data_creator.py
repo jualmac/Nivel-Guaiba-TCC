@@ -16,7 +16,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
-from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pyod.models.pca import PCA
@@ -43,8 +43,13 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         max_fill_steps (int): The maximum number of steps to forward-fill the data;
 
     Returns:
-        df (pd.DataFrame): The concatenated dataframe;
-        df_cleaned (pd.DataFrame): The cleaned and aggregated dataframe;
+        df_cleaned (pd.DataFrame): The cleaned dataframe;
+        df_filled (pd.DataFrame): The filled dataframe;
+        df_agg (pd.DataFrame): The aggregated dataframe;
+        df_out (pd.DataFrame): The outlier-removed dataframe;
+        df_imp (pd.DataFrame): The imputed dataframe;
+        df_melted (pd.DataFrame): The melted dataframe;
+        imputer_stats (dict): Imputer statistics per station;
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -87,8 +92,8 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Identify and remove Outliers (dynamic threshold per station);
     df_out = outlier_removal(df=df_agg, threshold_method='iqr')
 
-    # Feature Imputation - IteractiveImputer;
-    df_imp = feature_imputation(df=df_out, n_estimators=20)
+    # Feature Imputation - IterativeImputer with RandomForest;
+    df_imp, imputer_stats = feature_imputation(df=df_out, n_estimators=20)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_imp)
@@ -100,8 +105,9 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_out, table_name='data_stations_outlier', inplace=True)
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
+        db.write(df=imputer_stats, table_name='data_stations_imputed_stats', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
-    return df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted
+    return df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats
 
 
 def clean_dataframe(df: pd.DataFrame, cut: bool = True):
@@ -416,17 +422,19 @@ def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
     return df_result
 
 #TODO: Do a bigger check of the missing values before and after per station;
-def feature_imputation(df: pd.DataFrame, n_estimators: 'int' = 10):
+def feature_imputation(df: pd.DataFrame, n_estimators: int = 50):
     """
-    Apply multivariate feature imputation using IterativeImputer with ExtraTreesRegressor estimator on the large gaps in
+    Apply multivariate feature imputation using IterativeImputer with RandomForestRegressor estimator on the large gaps in
     data that where not filled in the function fill_gaps(). Imputes per station to preserve within-station feature
-    correlations. Exclues non-numeric columns from imputation;
+    correlations. Excludes non-numeric columns from imputation;
     
     Parameters:
-        df (pd.DataFrame): Dataframe with longs gaps to impute;
+        df (pd.DataFrame): Dataframe with long gaps to impute;
+        n_estimators (int): Number of trees in RandomForest (default: 50);
     
     Returns:
         pd.DataFrame: Imputed dataframe;
+        dict: Imputer statistics per station (initial means, feature order, imputation rounds);
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -445,6 +453,8 @@ def feature_imputation(df: pd.DataFrame, n_estimators: 'int' = 10):
     
     # Impute per station to preserve within-station correlations;
     imputed_stations = []
+    imputer_stats = {}
+    
     for station in df_cpy['codigoestacao'].unique():
         print(f"\nImputing station {station}...")
         df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
@@ -460,12 +470,19 @@ def feature_imputation(df: pd.DataFrame, n_estimators: 'int' = 10):
             print(f"  Skipping fully missing features (cannot impute): {fully_missing_cols}")
         
         if cols_to_impute:
-            # ExtraTreesRegressor for better non-linear relationships, robustness to outliers and different scales between feats;
+            # RandomForestRegressor with deeper trees for better non-linear relationships (No max_depth restriction allows deep splits; min_samples_leaf=1 for fine-grained predictions);
             imputer = IterativeImputer(
-                estimator=ExtraTreesRegressor(n_estimators=n_estimators, random_state=42, n_jobs=-1),
+                estimator=RandomForestRegressor(
+                    n_estimators=n_estimators,
+                    max_depth=12,
+                    min_samples_leaf=10,
+                    max_features='sqrt',
+                    random_state=42,
+                    n_jobs=-1
+                ),
                 random_state=42,
                 max_iter=10,
-                imputation_order='ascending',
+                imputation_order='roman',
                 verbose=1
             )
             
@@ -473,12 +490,22 @@ def feature_imputation(df: pd.DataFrame, n_estimators: 'int' = 10):
             imputed = imputer.fit_transform(df_station_features[cols_to_impute])
             df_station_imputed = pd.DataFrame(imputed, columns=cols_to_impute, index=df_station_features.index)
             
+            # Store imputer statistics for diagnostics;
+            imputer_stats[station] = {
+                'initial_means': dict(zip(cols_to_impute, imputer.initial_imputer_.statistics_)),
+                'imputation_sequence': imputer.imputation_sequence_,
+                'n_iter': imputer.n_iter_,
+                'cols_imputed': cols_to_impute,
+                'cols_skipped': fully_missing_cols
+            }
+            
             # Keep fully missing columns as NaN (they will be excluded later in melt);
             for col in fully_missing_cols:
                 df_station_imputed[col] = df_station_features[col]
         else:
             print(f"  Warning: No features to impute for station {station}")
             df_station_imputed = df_station_features
+            imputer_stats[station] = {'error': 'No features to impute'}
         
         df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
         imputed_stations.append(df_station_result)
@@ -493,7 +520,7 @@ def feature_imputation(df: pd.DataFrame, n_estimators: 'int' = 10):
     feature_cols = [col for col in df_result.columns if not col.endswith('_Status') and col not in ['Data_Hora_Medicao', 'codigoestacao']]
     for col in feature_cols:
         df_result[col] = df_result[col].round(3)
-    return df_result
+    return df_result, imputer_stats
 
 
 def melt_dataframe(df: pd.DataFrame):
@@ -558,7 +585,7 @@ def melt_dataframe(df: pd.DataFrame):
 #
 ########################################################################################################################
 if __name__ == "__main__":
-    df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted = collect_all_stations(
+    df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats = collect_all_stations(
         save_to_db=True, 
         frequency='h', 
         max_fill_steps=8
