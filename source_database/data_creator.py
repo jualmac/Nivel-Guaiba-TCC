@@ -23,7 +23,7 @@ from pyod.models.pca import PCA
 from pyod.models.ecod import ECOD
 
 from source_database.db_handler import DBConnection
-from util import convert_to_float, STATIONS_COLS, AGG_DICT, START_DATE, END_DATE
+from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE
 
 ########################################################################################################################
 #                                                                  
@@ -84,11 +84,11 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
 
-    # Identify and remove Outliers;
-    df_out = outlier_removal(df=df_agg, contamination=0.01)
+    # Identify and remove Outliers (dynamic threshold per station);
+    df_out = outlier_removal(df=df_agg, threshold_method='iqr')
 
     # Feature Imputation - IteractiveImputer;
-    df_imp = feature_imputation(df=df_out)
+    df_imp = feature_imputation(df=df_out, n_estimators=20)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_imp)
@@ -254,8 +254,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
             df_cpy.loc[df_cpy[info_col].notna() & df_cpy[status_col].isna(), status_col] = 0
 
     # Select only the columns that are needed;
-    df_cpy = df_cpy[STATIONS_COLS.keys()]
-    df_cpy.rename(columns=STATIONS_COLS, inplace=True)
+    df_cpy = df_cpy[STATION_COLS]
     return df_cpy, missing_values
 
 
@@ -278,88 +277,146 @@ def aggregate_data(df: pd.DataFrame, frequency: str = 'h'):
 
     # Resample the data to the desired frequency to create continuous timeline and fill gaps;
     df_agg = (
-        df_cpy.groupby('station_id', group_keys=True)
-          .apply(lambda g: g.resample(frequency, on='date').agg(AGG_DICT))
+        df_cpy.groupby('codigoestacao', group_keys=True)
+          .apply(lambda g: g.resample(frequency, on='Data_Hora_Medicao').agg(AGG_DICT))
           .reset_index()
     )
 
     # Convert the value columns to float and round to 3 decimal places (excluding status columns);
-    status_cols = [col for col in df_agg.columns if col.endswith('_status')]
-    exclude_cols = {'date', 'station_id'} | set(status_cols)
+    status_cols = [col for col in df_agg.columns if col.endswith('_Status')]
+    exclude_cols = {'Data_Hora_Medicao', 'codigoestacao'} | set(status_cols)
     for col in (set(df_agg.columns) - exclude_cols):
         df_agg[col] = df_agg[col].apply(convert_to_float)
         df_agg[col] = df_agg[col].round(3)
     return df_agg
 
 
-def outlier_removal(df: pd.DataFrame, contamination: float = 0.01):
+def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
     """
-    Detect outliers using ECOD and PCA methods and visualize results;
+    Detect outliers using ECOD and PCA methods with automatic threshold detection per station.
+    Uses statistical thresholds (IQR or percentile) to dynamically determine outliers for each
+    station independently, avoiding the need to pre-specify contamination rates.
 
     Parameters:
         df (pd.DataFrame): The dataframe to detect outliers from;
+        threshold_method (str): Method for automatic threshold detection.
+            Options:
+                - 'iqr' (Interquartile Range): Outliers beyond Q3 + 1.5*IQR (default);
+                - 'percentile': Top 5% of decision scores flagged as outliers;
     
     Returns:
-        df (pd.DataFrame): Original dataframe (outlier removal can be implemented later);
+        df (pd.DataFrame): Dataframe with outliers replaced by NaN and status codes updated;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
 
     # Prepare data;
-    index_cols = ['date', 'station_id']
-    status_cols = [col for col in df_cpy.columns if col.endswith('_status')]
+    index_cols = ['Data_Hora_Medicao', 'codigoestacao']
+    status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     non_feature_cols = index_cols + status_cols
     feature_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     
     processed_stations = []
-    for station in df_cpy['station_id'].unique():
+    for station in df_cpy['codigoestacao'].unique():
         print(f"\nProcessing station {station}...")
-        df_station = df_cpy[df_cpy['station_id'] == station].copy()
+        df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
 
-        # Only use complete rows for outlier detection;
-        complete_mask = df_station_features.notna().all(axis=1)
-        df_complete = df_station_features[complete_mask]
+        # Identify fully missing columns for this station and exclude them from outlier detection;
+        fully_missing = df_station_features.isna().all()
+        available_feature_cols = [col for col in feature_cols if not fully_missing[col]]
+        fully_missing_cols = [col for col in feature_cols if fully_missing[col]]
+        
+        if fully_missing_cols:
+            print(f"  Skipping fully missing features for outlier detection: {fully_missing_cols}")
+        
+        # If no features available, skip outlier detection for this station;
+        if not available_feature_cols:
+            print(f"  Warning: No available features for station {station}. Skipping outlier detection.")
+            processed_stations.append(df_station)
+            continue
+        
+        # Only use complete rows for outlier detection (considering only available features);
+        df_station_available = df_station_features[available_feature_cols].copy()
+        complete_mask = df_station_available.notna().all(axis=1)
+        df_complete = df_station_available[complete_mask]
+        
+        # If no complete rows, skip outlier detection;
+        if len(df_complete) == 0:
+            print(f"  Warning: No complete rows for station {station}. Skipping outlier detection.")
+            processed_stations.append(df_station)
+            continue
+        
+        print(f"  Using {len(available_feature_cols)} features and {len(df_complete)} complete rows for outlier detection")
         
         # ECOD Detection;
         print("[ECOD DETECTOR]")
-        ecod_detector = ECOD(contamination=contamination)
+        # Fit model with minimal contamination to extract decision scores;
+        ecod_detector = ECOD(contamination=0.001)
         ecod_detector.fit(df_complete)
-        ecod_predictions = ecod_detector.predict(df_complete)
         ecod_scores = ecod_detector.decision_scores_
         
         # PCA Detection;
         print("[PCA DETECTOR]")
-        pca_detector = PCA(contamination=contamination)
+        # Fit model with minimal contamination to extract decision scores;
+        pca_detector = PCA(contamination=0.001)
         pca_detector.fit(df_complete)
-        pca_predictions = pca_detector.predict(df_complete)
         pca_scores = pca_detector.decision_scores_
+        
+        # Apply dynamic threshold detection based on decision scores;
+        if threshold_method == 'iqr':
+            # IQR method: outliers are beyond Q3 + 1.5*IQR;
+            ecod_q1, ecod_q3 = np.percentile(ecod_scores, [25, 75])
+            ecod_iqr = ecod_q3 - ecod_q1
+            ecod_threshold = ecod_q3 + 1.5 * ecod_iqr
+            ecod_predictions = (ecod_scores > ecod_threshold).astype(int)
+            
+            pca_q1, pca_q3 = np.percentile(pca_scores, [25, 75])
+            pca_iqr = pca_q3 - pca_q1
+            pca_threshold = pca_q3 + 1.5 * pca_iqr
+            pca_predictions = (pca_scores > pca_threshold).astype(int)
+            
+            print(f"  ECOD: threshold={ecod_threshold:.4f}, outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
+            print(f"  PCA: threshold={pca_threshold:.4f}, outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
+        elif threshold_method == 'percentile':
+            # Percentile method: use 95th percentile as threshold (top 5% are outliers);
+            ecod_threshold = np.percentile(ecod_scores, 95)
+            ecod_predictions = (ecod_scores > ecod_threshold).astype(int)
+            
+            pca_threshold = np.percentile(pca_scores, 95)
+            pca_predictions = (pca_scores > pca_threshold).astype(int)
+            
+            print(f"  ECOD: threshold={ecod_threshold:.4f} (95th percentile), outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
+            print(f"  PCA: threshold={pca_threshold:.4f} (95th percentile), outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
+        else:
+            raise ValueError(f"Unknown threshold_method: {threshold_method}. Use 'iqr' or 'percentile'")
 
-        # Combined outliers;
+        # Combined outliers (union of both detectors);
         combined_outliers = (ecod_predictions | pca_predictions).astype(bool)
         
-        # Map outliers back to original dataframe;
-        complete_indices = df_station_features[complete_mask].index
+        # Map outliers back to original dataframe (only for available features);
+        complete_indices = df_station_available[complete_mask].index
         outlier_indices = complete_indices[combined_outliers]
 
-        # Replace outliers with NaN;
-        for feature in feature_cols:
+        # Replace outliers with NaN (only for available features);
+        for feature in available_feature_cols:
             original_count = df_station[feature].isna().sum()
             df_station.loc[outlier_indices, feature] = np.nan
             new_count = df_station[feature].isna().sum()
             print(f"  {feature}: {original_count} → {new_count} missing values")
             
             # Update status to track outlier replacement;
-            status_col = feature + '_status'
+            status_col = feature + '_Status'
             if status_col in df_station.columns:
                 df_station.loc[outlier_indices, status_col] = 5  # 5 = Outlier flagged;
+        
         processed_stations.append(df_station)
     df_result = pd.concat(processed_stations, ignore_index=True)
     return df_result
 
-
-def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missing values before and after per station;
+#TODO: Do a bigger check of the missing values before and after per station;
+def feature_imputation(df: pd.DataFrame, n_estimators: 'int' = 10):
     """
     Apply multivariate feature imputation using IterativeImputer with ExtraTreesRegressor estimator on the large gaps in
     data that where not filled in the function fill_gaps(). Imputes per station to preserve within-station feature
@@ -381,43 +438,59 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
     # '87500020' and '87460120'-> Flow data can't be used;
      
     # Separate index/categorical columns from numeric features;
-    # Status columns should NOT be imputed as they are categorical quality indicators;
-    index_cols = ['date', 'station_id']
-    status_cols = [col for col in df_cpy.columns if col.endswith('_status')]
+    index_cols = ['Data_Hora_Medicao', 'codigoestacao']
+    status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     non_feature_cols = index_cols + status_cols
     feature_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     
     # Impute per station to preserve within-station correlations;
     imputed_stations = []
-    for station in df_cpy['station_id'].unique():
+    for station in df_cpy['codigoestacao'].unique():
         print(f"\nImputing station {station}...")
-        df_station = df_cpy[df_cpy['station_id'] == station].copy()
+        df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
         
-        # ExtraTreesRegressor for better non-linear relationships, robustness to outliers and different scales between feats;
-        imputer = IterativeImputer(
-            estimator=ExtraTreesRegressor(n_estimators=10, random_state=42, n_jobs=-1),
-            random_state=42,
-            max_iter=10,
-            imputation_order='ascending',
-            verbose=1
-        )
+        # Identify fully missing columns for this station and exclude from imputation (Imputing 100% missing data would create synthetic values with no basis in reality);
+        fully_missing = df_station_features.isna().all()
+        cols_to_impute = [col for col in feature_cols if not fully_missing[col]]
+        fully_missing_cols = [col for col in feature_cols if fully_missing[col]]
         
-        # Impute numeric feature columns for this station;
-        imputed = imputer.fit_transform(df_station_features)
-        df_station_imputed = pd.DataFrame(imputed, columns=feature_cols, index=df_station_features.index)
+        if fully_missing_cols:
+            print(f"  Skipping fully missing features (cannot impute): {fully_missing_cols}")
+        
+        if cols_to_impute:
+            # ExtraTreesRegressor for better non-linear relationships, robustness to outliers and different scales between feats;
+            imputer = IterativeImputer(
+                estimator=ExtraTreesRegressor(n_estimators=n_estimators, random_state=42, n_jobs=-1),
+                random_state=42,
+                max_iter=10,
+                imputation_order='ascending',
+                verbose=1
+            )
+            
+            # Impute only columns with partial data;
+            imputed = imputer.fit_transform(df_station_features[cols_to_impute])
+            df_station_imputed = pd.DataFrame(imputed, columns=cols_to_impute, index=df_station_features.index)
+            
+            # Keep fully missing columns as NaN (they will be excluded later in melt);
+            for col in fully_missing_cols:
+                df_station_imputed[col] = df_station_features[col]
+        else:
+            print(f"  Warning: No features to impute for station {station}")
+            df_station_imputed = df_station_features
+        
         df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
         imputed_stations.append(df_station_result)
     df_result = pd.concat(imputed_stations, ignore_index=True)
     
     # Convert status columns to integers to ensure they remain categorical;
-    status_cols = [col for col in df_result.columns if col.endswith('_status')]
+    status_cols = [col for col in df_result.columns if col.endswith('_Status')]
     for status_col in status_cols:
         df_result[status_col] = df_result[status_col].astype('Int64')  # Nullable integer type;
     
     # Round only numeric feature columns;
-    feature_cols = [col for col in df_result.columns if not col.endswith('_status') and col not in ['date', 'station_id']]
+    feature_cols = [col for col in df_result.columns if not col.endswith('_Status') and col not in ['Data_Hora_Medicao', 'codigoestacao']]
     for col in feature_cols:
         df_result[col] = df_result[col].round(3)
     return df_result
@@ -425,43 +498,55 @@ def feature_imputation(df: pd.DataFrame): #TODO: Do a bigger check of the missin
 
 def melt_dataframe(df: pd.DataFrame):
     """
-    Melt the dataframe to long format;
+    Transform dataframe from long format (rows per station) to wide format (columns per station-metric).
+    Automatically excludes station-metric combinations where all values are missing.
 
     Parameters:
-        df (pd.DataFrame): The dataframe to melt;
+        df (pd.DataFrame): The dataframe to transform;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy()
     
-    # Get the value columns (excluding date and station_id);
-    value_cols = [col for col in df_cpy.columns if col not in ['date', 'station_id']]
+    # Get the value columns (excluding date and codigoestacao);
+    value_cols = [col for col in df_cpy.columns if col not in ['Data_Hora_Medicao', 'codigoestacao']]
     
-    # Melt the dataframe to long format;
-    melted = df_cpy.melt(id_vars=['date', 'station_id'], 
+    # Melt the dataframe to long format first;
+    melted = df_cpy.melt(id_vars=['Data_Hora_Medicao', 'codigoestacao'], 
                      value_vars=value_cols,
                      var_name='metric', 
                      value_name='value')
     
-    # Create new column names combining metric and station_id;
-    melted['new_col'] = melted['metric'] + '_' + melted['station_id'].astype(str)
+    # Create new column names combining metric and codigoestacao;
+    melted['new_col'] = melted['metric'] + '_' + melted['codigoestacao'].astype(str)
     
-    # Check for duplicates in date + station_id + metric combinations;
-    duplicate_mask = melted.duplicated(subset=['date', 'station_id', 'metric'], keep=False)
-    duplicates_df = melted[duplicate_mask].sort_values(['date', 'station_id', 'metric'])
+    # Identify and exclude station-metric combinations that are 100% missing;
+    # This automatically removes Vazao_Adotada_87450004 and similar problematic columns;
+    missing_by_combination = melted.groupby('new_col')['value'].apply(lambda x: x.isna().all())
+    fully_missing_combinations = missing_by_combination[missing_by_combination].index.tolist()
+    
+    if fully_missing_combinations:
+        print(f"\nExcluding {len(fully_missing_combinations)} fully missing station-metric combinations:")
+        for combo in fully_missing_combinations:
+            print(f"  - {combo}")
+        melted = melted[~melted['new_col'].isin(fully_missing_combinations)]
+    
+    # Check for duplicates in Data_Hora_Medicao + codigoestacao + metric combinations;
+    duplicate_mask = melted.duplicated(subset=['Data_Hora_Medicao', 'codigoestacao', 'metric'], keep=False)
+    duplicates_df = melted[duplicate_mask].sort_values(['Data_Hora_Medicao', 'codigoestacao', 'metric'])
     
     if len(duplicates_df) > 0:
-        print(f"Found {len(duplicates_df)} duplicate records (date + station_id + metric combinations):")
-        print(f"Number of unique duplicate combinations: {len(duplicates_df.drop_duplicates(subset=['date', 'station_id', 'metric']))}")
+        print(f"Found {len(duplicates_df)} duplicate records (Data_Hora_Medicao + codigoestacao + metric combinations):")
+        print(f"Number of unique duplicate combinations: {len(duplicates_df.drop_duplicates(subset=['Data_Hora_Medicao', 'codigoestacao', 'metric']))}")
         print("\nFirst 20 duplicate records:")
         print(duplicates_df.head(20))
         print("\nDuplicate summary by combination:")
-        duplicate_counts = melted.groupby(['date', 'station_id', 'metric']).size()
+        duplicate_counts = melted.groupby(['Data_Hora_Medicao', 'codigoestacao', 'metric']).size()
         print(duplicate_counts[duplicate_counts > 1].head(10))
     else:
-        print("No duplicates found in date + station_id + metric combinations")
+        print("No duplicates found in Data_Hora_Medicao + codigoestacao + metric combinations")
     
     # Pivot to wide format using pivot_table to handle duplicates;
-    df_pivoted = melted.pivot_table(index='date', columns='new_col', values='value', aggfunc='first')
+    df_pivoted = melted.pivot_table(index='Data_Hora_Medicao', columns='new_col', values='value', aggfunc='first')
     
     # Reset index and return pivoted dataframe;
     df_pivoted = df_pivoted.reset_index()
