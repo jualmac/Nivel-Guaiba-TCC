@@ -14,48 +14,31 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from ydata_profiling import ProfileReport
-from util import convert_to_float, STATIONS_COLS, AGG_DICT, START_DATE, END_DATE
-
+from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE, STATION_CODES
 
 ########################################################################################################################
 #                                                                  
 # FUNCTION
 #
 ########################################################################################################################
-
-# Station codes mapping;
-station_codes = {
-    'Guaíba (CAIS MAUÁ C6 + USINA DO GASÔMETRO)': '87450004',
-    'Jacuí (RIO PARDO)': '85900000',
-    'Gravataí (PASSO DAS CANOAS - AUXILIAR)': '87399000',
-    'Taquari (MUÇUM)': '86510000',
-    'Taquari (ENCANTADO)': '86720000',
-    'Sinos (SÃO LEOPOLDO)': '87382000',
-    'Sinos (CAMPO BOM)': '87380000',
-    'Caí (LINHA GONZAGA)': '87150000',
-    'Caí (BARCA DO CAÍ)': '87170000',
-}
-
-
 def make_station_comparison(df: pd.DataFrame == None):
     # Rename;
     df_cpy = df.copy()
-    df_cpy.rename(columns={"station_id": "codigoestacao", "level": "Cota_Adotada", "date": "Data"}, inplace=True)
     
-    if "Data" in df_cpy.columns:
-        df_cpy.set_index("Data", inplace=True)
+    if "Data_Hora_Medicao" in df_cpy.columns:
+        df_cpy.set_index("Data_Hora_Medicao", inplace=True)
 
     # Create 3x3 subplot grid;
     fig = make_subplots(
         rows=3, cols=3,
-        subplot_titles=list(station_codes.keys()),
+        subplot_titles=list(STATION_CODES.keys()),
         shared_xaxes=True,
         vertical_spacing=0.1
     )
 
     # Add trace for each station from main dataframe;
     row, col = 1, 1
-    for station_name, station_code in station_codes.items():
+    for station_name, station_code in STATION_CODES.items():
         station_df = df_cpy[df_cpy['codigoestacao'] == station_code]
         if 'Cota_Adotada' in station_df.columns and len(station_df) > 0:
             fig.add_trace(
@@ -90,5 +73,5 @@ def make_station_comparison(df: pd.DataFrame == None):
 
     # Update x-axes labels for bottom row;
     for i in range(7, 10):
-        fig.update_xaxes(title_text="Data", row=3, col=i-6)
+        fig.update_xaxes(title_text="Data_Hora_Medicao", row=3, col=i-6)
     fig.show()
