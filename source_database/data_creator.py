@@ -84,7 +84,7 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     df_cleaned = clean_dataframe(df=df)
 
     # Fill the data gaps;
-    df_filled, _ = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
+    df_filled, missing = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_filled, frequency=frequency)
@@ -102,10 +102,10 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     if save_to_db:
         db.write(df=df_cleaned, table_name='data_stations_cleaned', inplace=True)
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
+        db.write(df=missing, table_name='data_stations_missing', inplace=True)
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_out, table_name='data_stations_outlier', inplace=True)
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
-        db.write(df=imputer_stats, table_name='data_stations_imputed_stats', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
     return df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats
 
