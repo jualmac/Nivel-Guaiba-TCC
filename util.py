@@ -71,31 +71,43 @@ END_DATE = '2025-10-05'
 # DICTIONARIES
 #
 ########################################################################################################################
-STATIONS_COLS = {
-    'Data_Hora_Medicao': 'date', 
-    'codigoestacao': 'station_id', 
-    'Cota_Adotada': 'level',
-    'Cota_Adotada_Status': 'level_status',
-    'Chuva_Adotada': 'rainfall',
-    'Chuva_Adotada_Status': 'rainfall_status',
-    'Chuva_Acumulada': 'rainfall_acc',
-    'Chuva_Acumulada_Status': 'rainfall_acc_status',
-    'Temperatura_Interna': 'temperature',
-    'Temperatura_Interna_Status': 'temperature_status',
-    'Vazao_Adotada': 'flow',
-    'Vazao_Adotada_Status': 'flow_status',
-    }
+STATION_COLS = [
+    'Data_Hora_Medicao',
+    'codigoestacao',
+    'Cota_Adotada',
+    'Cota_Adotada_Status',
+    'Chuva_Adotada',
+    'Chuva_Adotada_Status',
+    'Chuva_Acumulada',
+    'Chuva_Acumulada_Status',
+    'Temperatura_Interna',
+    'Temperatura_Interna_Status',
+    'Vazao_Adotada',
+    'Vazao_Adotada_Status',
+    ]
 
-AGG_DICT = {'level': 'mean',
-            'level_status': 'first',
-            'rainfall': 'mean',
-            'rainfall_status': 'first',
-            'rainfall_acc': 'mean',
-            'rainfall_acc_status': 'first',
-            # 'flow': 'mean',
-            # 'flow_status': 'first',
-            'temperature': 'mean',
-            'temperature_status': 'first',
+STATION_CODES = {
+    'Guaíba (CAIS MAUÁ C6 + USINA DO GASÔMETRO)': '87450004',
+    'Jacuí (RIO PARDO)': '85900000',
+    'Gravataí (PASSO DAS CANOAS - AUXILIAR)': '87399000',
+    'Taquari (MUÇUM)': '86510000',
+    'Taquari (ENCANTADO)': '86720000',
+    'Sinos (SÃO LEOPOLDO)': '87382000',
+    'Sinos (CAMPO BOM)': '87380000',
+    'Caí (LINHA GONZAGA)': '87150000',
+    'Caí (BARCA DO CAÍ)': '87170000',
+}
+
+AGG_DICT = {'Cota_Adotada': 'mean',
+            'Cota_Adotada_Status': 'first',
+            'Chuva_Adotada': 'mean',
+            'Chuva_Adotada_Status': 'first',
+            'Chuva_Acumulada': 'mean',
+            'Chuva_Acumulada_Status': 'first',
+            'Vazao_Adotada': 'mean',
+            'Vazao_Adotada_Status': 'first',
+            'Temperatura_Interna': 'mean',
+            'Temperatura_Interna_Status': 'first',
             }
 
 BRAZILIAN_STATES = {
