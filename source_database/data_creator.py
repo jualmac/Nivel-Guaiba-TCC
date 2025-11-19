@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pyod.models.pca import PCA
 from pyod.models.ecod import ECOD
+from scipy.interpolate import CubicSpline
 
 from source_database.db_handler import DBConnection
 from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE
@@ -148,21 +149,28 @@ def clean_dataframe(df: pd.DataFrame, cut: bool = True):
     return df_cpy
 
 
-def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
+def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
     """
-    Fill data gaps using sensor fallback hierarchy and forward-fill interpolation.
+    Fill data gaps using sensor fallback hierarchy and CubicSpline interpolation for short gaps.
     Creates continuous 15-minute timeline from START_DATE to END_DATE for each station,
-    then applies forward-fill with quality control status tracking.
+    then applies CubicSpline interpolation only to gaps within max_fill_steps threshold.
     
     Status Codes Quality Control Convention: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled/Missing, 5=Outlier flagged;
 
     Parameters:
         df (pd.DataFrame): Raw station data with temporal gaps;
-        max_fill_steps (int): Maximum consecutive forward-fill steps at 15-min intervals;
-            Default 8 = fills gaps up to 2 hours;
+        max_fill_steps (int): Maximum consecutive gap length to interpolate (15-min intervals);
+            Default 96 = fills gaps up to 24 hours (1 day);
+            Gaps longer than this are left as NaN;
     
     Returns:
         pd.DataFrame: Gap-filled data with continuous timeline and quality status codes;
+    
+    Notes:
+        CubicSpline interpolation captures smooth temporal patterns in hydrological/meteorological data.
+        Requires at least 4 valid data points per column; falls back to linear interpolation otherwise.
+        Uses bc_type='natural' to prevent unrealistic boundary oscillations.
+        Only interpolates gaps within valid data boundaries (no extrapolation at edges).
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -218,12 +226,60 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 8):
             'missing_percentage': df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100})
 
         for col in df_station.columns:
-            if col not in ['codigoestacao'] and not col.endswith('_Status'):
+            if col not in ['codigoestacao', 'Data_Hora_Medicao', 'Data_Atualizacao'] and not col.endswith('_Status'):
                 # Track which rows were NaN before filling;
-                was_nan = df_station[col].isna()
+                was_nan = df_station[col].isna().copy()
                 
-                # Fill small gaps with Linear Interpolation (Sufficient for 15 minutes data frequency, as changes shouldn't be that fast);
-                df_station[col] = df_station[col].interpolate(method='linear', limit=max_fill_steps).round(1)
+                # Get valid (non-NaN) indices and values;
+                valid_mask = df_station[col].notna()
+                valid_indices = np.where(valid_mask)[0]
+                valid_values = df_station[col].iloc[valid_indices].values
+                
+                # CubicSpline requires at least 4 points;
+                if len(valid_indices) >= 4:
+                    # Identify contiguous NaN gap blocks and their lengths (Very overengenieered);
+                    nan_array = was_nan.values
+                    gap_starts = np.where(~nan_array[:-1] & nan_array[1:])[0] + 1
+                    gap_ends = np.where(nan_array[:-1] & ~nan_array[1:])[0] + 1
+                    
+                    # Handle edge cases: gap at start or end;
+                    if nan_array[0]:
+                        gap_starts = np.concatenate([[0], gap_starts])
+                    if nan_array[-1]:
+                        gap_ends = np.concatenate([gap_ends, [len(nan_array)]])
+                    
+                    # Build CubicSpline interpolation with natural boundary conditions;
+                    cs = CubicSpline(valid_indices, valid_values, bc_type='natural')
+                    
+                    # Constrain interpolation range to avoid extrapolation at boundaries;
+                    first_valid_idx = valid_indices[0]
+                    last_valid_idx = valid_indices[-1]
+                    
+                    # Process each gap individually;
+                    for gap_start, gap_end in zip(gap_starts, gap_ends):
+                        gap_length = gap_end - gap_start
+                        
+                        # Only interpolate if gap is within threshold and within valid data boundaries;
+                        if gap_length <= max_fill_steps and gap_start >= first_valid_idx and gap_end <= last_valid_idx:
+                            # Generate indices for this gap;
+                            gap_indices = np.arange(gap_start, gap_end)
+                            
+                            # Interpolate using CubicSpline;
+                            interpolated_vals = cs(gap_indices)
+                            
+                            # Clip to reasonable bounds to prevent extreme overshoot. Use 50% margin beyond observed min/max for safety;
+                            value_min = valid_values.min()
+                            value_max = valid_values.max()
+                            value_range = value_max - value_min
+                            lower_bound = value_min - 0.5 * value_range
+                            upper_bound = value_max + 0.5 * value_range
+                            interpolated_vals = np.clip(interpolated_vals, lower_bound, upper_bound)
+                            
+                            # Apply interpolated values to this gap;
+                            df_station.iloc[gap_indices, df_station.columns.get_loc(col)] = interpolated_vals
+                    
+                    # Round after all interpolation;
+                    df_station[col] = df_station[col].round(1)
                 
                 # Set status to 4 for filled values if status column exists;
                 status_col = col + '_Status'
@@ -588,7 +644,7 @@ if __name__ == "__main__":
     df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats = collect_all_stations(
         save_to_db=True, 
         frequency='h', 
-        max_fill_steps=8
+        max_fill_steps=672  # 96 steps * 15min = 24 hours (1 day);
         )
     
     print("All Done!")
