@@ -175,14 +175,10 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
 
-    # Remove negative values as they don't make sense in this dataset, except for Temperature -> These values will be Imputed after;    
-    index_cols = ['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao', 'Temperatura_Interna']
+    # Define columns classification;
+    index_cols = ['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao']
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     non_feature_cols = index_cols + status_cols
-    neg_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
-
-    for col in neg_cols:
-        df_cpy.loc[df_cpy[col] < 0, col] = np.nan
 
     # Use sensor data to fill the gaps in the level column and respective status;
     was_nan = df_cpy['Cota_Adotada'].isna()
@@ -226,7 +222,7 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
             'missing_percentage': df_station['Cota_Adotada'].isna().sum() / len(df_station) * 100})
 
         for col in df_station.columns:
-            if col not in ['codigoestacao', 'Data_Hora_Medicao', 'Data_Atualizacao'] and not col.endswith('_Status'):
+            if col not in non_feature_cols:
                 # Track which rows were NaN before filling;
                 was_nan = df_station[col].isna().copy()
                 
@@ -301,6 +297,12 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
     
     # Concatenate all stations back together;
     df_cpy = pd.concat(df_filled_list, ignore_index=True)
+
+    # Remove negative values as they don't make sense in this dataset, except for Temperature -> These values will be Imputed after;   
+    non_feature_cols = non_feature_cols + ['Temperatura_Interna']
+    neg_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
+    for col in neg_cols:
+        df_cpy.loc[df_cpy[col] < 0, col] = np.nan
 
     # Fill the missing _Status columns;
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
@@ -428,7 +430,7 @@ def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
         
         # Apply dynamic threshold detection based on decision scores;
         if threshold_method == 'iqr':
-            # IQR method: outliers are beyond Q3 + 1.5*IQR;
+            # Tukey Fence (IQR method): outliers are beyond Q3 + 1.5*IQR;
             ecod_q1, ecod_q3 = np.percentile(ecod_scores, [25, 75])
             ecod_iqr = ecod_q3 - ecod_q1
             ecod_threshold = ecod_q3 + 1.5 * ecod_iqr
