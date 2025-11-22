@@ -1,6 +1,6 @@
 """
 Compare ECOD and PCA outlier detection algorithms by plotting decision boundaries.
-Based on PyOD documentation example, adapted for the algorithms used in data_creator.py.
+Based on PyOD documentation example, adapted for the algorithms used in data_transformation.py.
 
 This script visualizes how ECOD and PCA detect outliers on real data or synthetic data,
 showing decision boundaries and classification results.
@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager
 from sklearn.decomposition import PCA as sklearn_PCA
 
-# Import the models used in data_creator.py;
+# Import the models used in data_transformation.py;
 from pyod.models.ecod import ECOD
 from pyod.models.pca import PCA
 
@@ -306,7 +306,7 @@ def compare_outlier_detectors_synthetic(n_samples=200, outliers_fraction=0.25,
     print(f'Outliers fraction: {outliers_fraction:.2%}')
     print(f'Ground truth shape: {ground_truth.shape}\n')
     
-    # Define the two detectors used in data_creator.py;
+    # Define the two detectors used in data_transformation.py;
     classifiers = {
         'ECOD (Empirical Cumulative Distribution)': ECOD(
             contamination=outliers_fraction
@@ -545,7 +545,7 @@ if __name__ == "__main__":
     # Example: Load data and run comparison;
     # Uncomment and modify the following to use with real data:
     
-    # from source_database.data_creator import collect_all_stations
+    # from source_database.data_transformation import collect_all_stations
     # df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats = collect_all_stations(
     #     save_to_db=False, 
     #     frequency='h', 
