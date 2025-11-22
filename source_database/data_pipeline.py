@@ -37,20 +37,23 @@ def data_division(
     random_state: int = 42,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     """
-    Divide the dataset into train and test data;
+    Split dataset into train/test sets using stratified random sampling;
+    
+    Separates features from target variable and performs train_test_split. Rows with missing target
+    values are excluded before splitting. Uses random_state for reproducibility;
     
     Parameters:
-        df (pd.DataFrame): The dataframe to split;
-        target_column (str): Name of the target column to predict. Must be present in dataframe columns;
-        test_size (float): Proportion of dataset to include in the test split (default: 0.2);
-        random_state (int): Random seed for reproducibility (default: 42);
+        df (pd.DataFrame): Input dataframe containing features and target column;
+        target_column (Optional[str]): Name of target column to predict. Required (raises ValueError if None);
+        test_size (float): Proportion of dataset allocated to test set, range [0, 1] (default: 0.2);
+        random_state (int): Random seed for reproducible splits (default: 42);
     
     Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]: A tuple containing:
-            - X_train (pd.DataFrame): Training features;
-            - X_test (pd.DataFrame): Test features;
-            - y_train (pd.Series): Training target;
-            - y_test (pd.Series): Test target;
+        Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]: Tuple of (X_train, X_test, y_train, y_test);
+            - X_train (pd.DataFrame): Training feature matrix;
+            - X_test (pd.DataFrame): Test feature matrix;
+            - y_train (pd.Series): Training target vector;
+            - y_test (pd.Series): Test target vector;
     """
     # Validate target column;
     if target_column is None:
@@ -76,15 +79,17 @@ def data_division(
 def encoding_pipeline(
 ) -> Pipeline:
     """
-    Define the preprocessing pipeline the data. This method creates a scikit-learn pipeline with 
-    appropriate transformers for different column types in analysis data. It handles numerical features, categorical 
-    features of different cardinalities, and missing values.
-
-    Parameters:
-        df (pd.DataFrame): The dataframe to preprocess;
-
+    Construct sklearn Pipeline for feature preprocessing and encoding;
+    
+    Creates a ColumnTransformer-based pipeline with separate processing for numerical and categorical
+    features. Numerical features: median imputation + StandardScaler. Categorical features: constant
+    imputation + OneHotEncoder. Includes MissingIndicator for missing value tracking;
+    
     Returns:
-        Pipeline: The preprocessing pipeline;
+        Pipeline: Configured sklearn Pipeline with preprocessor step;
+            - Numerical pipeline: SimpleImputer(strategy='median') -> StandardScaler();
+            - Categorical pipeline: SimpleImputer(strategy='constant') -> OneHotEncoder();
+            - MissingIndicator: Tracks missing values in 'value' column;
     """
     # Define the columns; #TODO: Define the columns;
     numerical_cols = []

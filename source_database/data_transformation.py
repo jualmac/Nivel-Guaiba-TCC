@@ -31,14 +31,14 @@ from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE
 ########################################################################################################################
 def get_data() -> pd.DataFrame:
     """
-    Retrieve raw station data from DuckDB database and merge guaiba stations;
+    Query and concatenate raw station data from DuckDB database;
     
-    Queries all station tables from the database and concatenates them into a single dataframe.
-    Merges guaiba_1 and guaiba_2 stations into a continuous time series, as guaiba_2 was used
-    as a backup during the 2024 floods;
+    Executes SELECT queries for all station tables and merges guaiba_1 and guaiba_2 into a single
+    continuous time series (guaiba_2 served as backup during 2024 floods). All stations are
+    concatenated into a unified dataframe;
     
     Returns:
-        pd.DataFrame: Concatenated dataframe containing all station data with merged guaiba stations;
+        pd.DataFrame: Combined dataframe with all station data, guaiba stations merged;
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -76,10 +76,18 @@ def clean_dataframe(
     cut: bool = True
 ) -> pd.DataFrame:
     """
-    Convert values and cut the dataframe to a time range where most data is available;
-
+    Clean and standardize raw station data types and date ranges;
+    
+    Converts status columns to nullable Int64, creates temperature status column, converts value
+    columns to float, parses datetime columns, and optionally filters to START_DATE/END_DATE range.
+    Fills Cota_Adotada gaps using Cota_Manual fallback and updates status codes accordingly;
+    
     Parameters:
-        df (pd.DataFrame): The dataframe to cut;
+        df (pd.DataFrame): Raw station dataframe to clean;
+        cut (bool): If True, filter data to START_DATE/END_DATE range (default: True);
+    
+    Returns:
+        pd.DataFrame: Cleaned dataframe with standardized types and date filtering applied;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy()
@@ -126,26 +134,25 @@ def fill_gaps(
     max_fill_steps: int = 96
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Fill data gaps using sensor fallback hierarchy and CubicSpline interpolation for short gaps.
-    Creates continuous 15-minute timeline from START_DATE to END_DATE for each station,
-    then applies CubicSpline interpolation only to gaps within max_fill_steps threshold.
+    Fill temporal gaps using CubicSpline interpolation with bounded constraints;
     
-    Status Codes Quality Control Convention: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled/Missing, 5=Outlier flagged;
-
+    Creates continuous 15-minute timeline per station from START_DATE to END_DATE. Interpolates gaps
+    up to max_fill_steps using CubicSpline with natural boundary conditions. Clips interpolated values
+    to ±50% of observed range (non-negative for hydrological features). Updates status codes to 4 for
+    filled values. Returns missing value statistics before/after filling;
+    
+    Status Codes: 0=Normal, 1=Suspicious, 2=Bad, 3=Very Bad, 4=Filled/Missing, 5=Outlier flagged;
+    
     Parameters:
-        df (pd.DataFrame): Raw station data with temporal gaps;
-        max_fill_steps (int): Maximum consecutive gap length to interpolate (15-min intervals);
-            Default 96 = fills gaps up to 24 hours (1 day);
-            Gaps longer than this are left as NaN;
+        df (pd.DataFrame): Input dataframe with temporal gaps and station codes;
+        max_fill_steps (int): Maximum consecutive 15-minute intervals to interpolate (default: 96 = 24h);
+            Gaps exceeding this threshold remain as NaN;
     
     Returns:
-        pd.DataFrame: Gap-filled data with continuous timeline and quality status codes;
+        Tuple[pd.DataFrame, pd.DataFrame]: Tuple containing:
+            - pd.DataFrame: Gap-filled dataframe with continuous 15-minute timeline;
+            - pd.DataFrame: Missing value statistics (station_id, period, missing_percentage);
     
-    Notes:
-        CubicSpline interpolation captures smooth temporal patterns in hydrological/meteorological data.
-        Requires at least 4 valid data points per column; falls back to linear interpolation otherwise.
-        Uses bc_type='natural' to prevent unrealistic boundary oscillations.
-        Only interpolates gaps within valid data boundaries (no extrapolation at edges).
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -303,17 +310,19 @@ def aggregate_data(
     frequency: str = 'h'
 ) -> pd.DataFrame:
     """
-    Aggregate the data to the desired frequency;
-
+    Resample time series data to specified frequency using station-specific aggregation;
+    
+    Groups by station code and resamples Data_Hora_Medicao to target frequency. Applies AGG_DICT
+    aggregation rules (mean for values, max for status codes). Converts values to float and rounds
+    to 3 decimal places;
+    
     Parameters:
-        df (pd.DataFrame): The dataframe to aggregate;
-        frequency (str): Pandas frequency offset string for data aggregation (default: 'h' for hourly).
-            Examples: 'min' (minutes), 'h' (hours), 'D' (days), 'W' (weeks), ...
-            Available options: 'https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects'
-            Combinations are also possible, e.g. '15min', '30min', '1H20m', ...
-
+        df (pd.DataFrame): Input dataframe with Data_Hora_Medicao and codigoestacao columns;
+        frequency (str): Pandas frequency string for resampling (default: 'h').
+            Examples: '15min', 'h', 'D', 'W'. See pandas date offset documentation;
+    
     Returns:
-        df_agg (pd.DataFrame): The aggregated dataframe;
+        pd.DataFrame: Aggregated dataframe resampled to specified frequency;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -339,19 +348,20 @@ def outlier_removal(
     threshold_method: str = 'iqr'
 ) -> pd.DataFrame:
     """
-    Detect outliers using ECOD and PCA methods with automatic threshold detection per station.
-    Uses statistical thresholds (IQR or percentile) to dynamically determine outliers for each
-    station independently, avoiding the need to pre-specify contamination rates.
-
+    Detect and remove outliers using consensus of ECOD and PCA detectors;
+    
+    Applies ECOD and PCA outlier detection per station on complete rows only. Uses consensus
+    approach: flags outliers only when both detectors agree. Threshold determined dynamically via
+    IQR (Tukey fence) or percentile method. Replaces outliers with NaN and sets status code to 5;
+    
     Parameters:
-        df (pd.DataFrame): The dataframe to detect outliers from;
-        threshold_method (str): Method for automatic threshold detection.
-            Options:
-                - 'iqr' (Interquartile Range): Outliers beyond Q3 + 1.5*IQR (default);
-                - 'percentile': Top 5% of decision scores flagged as outliers;
+        df (pd.DataFrame): Input dataframe with station codes and feature columns;
+        threshold_method (str): Threshold calculation method (default: 'iqr').
+            - 'iqr': Q3 + 1.5*IQR (Tukey fence);
+            - 'percentile': 95th percentile of decision scores;
     
     Returns:
-        df (pd.DataFrame): Dataframe with outliers replaced by NaN and status codes updated;
+        pd.DataFrame: Dataframe with outlier values set to NaN and status codes updated to 5;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -470,17 +480,21 @@ def feature_imputation(
     n_estimators: int = 50
 ) -> Tuple[pd.DataFrame, dict]:
     """
-    Apply multivariate feature imputation using IterativeImputer with RandomForestRegressor estimator on the large gaps in
-    data that where not filled in the function fill_gaps(). Imputes per station to preserve within-station feature
-    correlations. Excludes non-numeric columns from imputation;
+    Impute missing values using IterativeImputer with RandomForestRegressor;
+    
+    Applies multivariate imputation per station to preserve within-station feature correlations.
+    Uses IterativeImputer with RandomForestRegressor (max_depth=12, min_samples_leaf=10) for
+    non-linear relationships. Skips fully missing columns. Excludes status columns and non-numeric
+    features from imputation;
     
     Parameters:
-        df (pd.DataFrame): Dataframe with long gaps to impute;
-        n_estimators (int): Number of trees in RandomForest (default: 50);
+        df (pd.DataFrame): Input dataframe with missing values to impute;
+        n_estimators (int): Number of trees in RandomForestRegressor (default: 50);
     
     Returns:
-        pd.DataFrame: Imputed dataframe;
-        dict: Imputer statistics per station (initial means, feature order, imputation rounds);
+        Tuple[pd.DataFrame, dict]: Tuple containing:
+            - pd.DataFrame: Imputed dataframe with missing values filled;
+            - dict: Per-station imputation statistics (initial_means, imputation_sequence, n_iter, cols_imputed, cols_skipped);
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -573,11 +587,17 @@ def melt_dataframe(
     df: pd.DataFrame
 ) -> pd.DataFrame:
     """
-    Transform dataframe from long format (rows per station) to wide format (columns per station-metric).
-    Automatically excludes station-metric combinations where all values are missing.
-
+    Reshape dataframe from long to wide format with station-metric column naming;
+    
+    Melts dataframe to long format, creates station-metric column names (e.g., 'Cota_Adotada_87450004'),
+    then pivots to wide format. Automatically excludes columns where all values are missing.
+    Handles duplicate timestamps using pivot_table with aggfunc='first';
+    
     Parameters:
-        df (pd.DataFrame): The dataframe to transform;
+        df (pd.DataFrame): Long-format dataframe with Data_Hora_Medicao, codigoestacao, and value columns;
+    
+    Returns:
+        pd.DataFrame: Wide-format dataframe with Data_Hora_Medicao as index and station-metric columns;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy()
@@ -643,24 +663,25 @@ def save_to_database(
     df_preprocessed: Optional[pd.DataFrame] = None
 ) -> None:
     """
-    Save all processed dataframes to DuckDB database;
+    Persist processed dataframes to DuckDB database tables;
     
-    Writes each dataframe to its corresponding table in the database. All writes are performed
-    inplace, replacing any existing data in the target tables. Each dataframe is saved only if provided;
+    Writes each provided dataframe to its corresponding table using inplace=True (replaces existing
+    data). Only dataframes that are not None are saved. Series (y_train, y_test) are converted to
+    DataFrames before writing;
     
     Parameters:
-        df_cleaned (Optional[pd.DataFrame]): Cleaned dataframe to save (default: None);
-        df_filled (Optional[pd.DataFrame]): Gap-filled dataframe to save (default: None);
-        missing (Optional[pd.DataFrame]): Missing values tracking dataframe to save (default: None);
-        df_out (Optional[pd.DataFrame]): Outlier-removed dataframe to save (default: None);
-        df_agg (Optional[pd.DataFrame]): Aggregated dataframe to save (default: None);
-        df_imp (Optional[pd.DataFrame]): Imputed dataframe to save (default: None);
-        df_melted (Optional[pd.DataFrame]): Melted/transformed dataframe to save (default: None);
-        X_train (Optional[pd.DataFrame]): Training features to save (default: None);
-        X_test (Optional[pd.DataFrame]): Test features to save (default: None);
-        y_train (Optional[pd.Series]): Training target to save (default: None);
-        y_test (Optional[pd.Series]): Test target to save (default: None);
-        df_preprocessed (Optional[pd.DataFrame]): Preprocessed dataframe to save (default: None);
+        df_cleaned (Optional[pd.DataFrame]): Cleaned data -> 'data_stations_cleaned' (default: None);
+        df_filled (Optional[pd.DataFrame]): Gap-filled data -> 'data_stations_filled' (default: None);
+        missing (Optional[pd.DataFrame]): Missing values tracking -> 'data_stations_missing' (default: None);
+        df_out (Optional[pd.DataFrame]): Outlier-removed data -> 'data_stations_outlier' (default: None);
+        df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
+        df_imp (Optional[pd.DataFrame]): Imputed data -> 'data_stations_imputed' (default: None);
+        df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations_melted' (default: None);
+        X_train (Optional[pd.DataFrame]): Training features -> 'data_train_features' (default: None);
+        X_test (Optional[pd.DataFrame]): Test features -> 'data_test_features' (default: None);
+        y_train (Optional[pd.Series]): Training target -> 'data_train_target' (default: None);
+        y_test (Optional[pd.Series]): Test target -> 'data_test_target' (default: None);
+        df_preprocessed (Optional[pd.DataFrame]): Preprocessed data -> 'data_preprocessed' (default: None);
     """
     # Initialize the Connection;
     db = DBConnection()

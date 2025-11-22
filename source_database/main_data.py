@@ -35,41 +35,27 @@ from source_database.data_pipeline import (
 def main_database(
     save_to_db: bool = False,
     frequency: str = 'h',
-    max_fill_steps: int = 96,
+    max_fill_steps: int = 96, # 96 steps of 15 minutes = 1 day;
     target_column: Optional[str] = None
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Any], Optional[Pipeline], Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.Series], Optional[pd.Series]]:
+) -> None:
     """
-    Execute the complete data transformation pipeline from raw station data to final processed dataset;
+    Execute complete ETL pipeline: data extraction, transformation, and optional model preparation;
     
-    Retrieves data from database, applies cleaning, gap filling, outlier removal, aggregation,
-    imputation, and melting transformations. Optionally saves intermediate results to database;
-
+    Orchestrates the full data processing pipeline: retrieves raw station data, applies cleaning,
+    gap filling (CubicSpline interpolation), outlier removal (ECOD+PCA consensus), time aggregation,
+    feature imputation (IterativeImputer), and reshaping. Optionally performs train/test split and
+    preprocessing if target_column is provided. Can persist all intermediate results to database;
+    
     Parameters:
-        save_to_db (bool): Whether to save all intermediate dataframes to the database (default: False);
-        frequency (str): Pandas frequency offset string for data aggregation (default: 'h' for hourly).
-            Examples: 'min' (minutes), 'h' (hours), 'D' (days), 'W' (weeks), ...
-            Available options: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
-            Combinations are also possible, e.g. '15min', '30min', '1H20m', ...
-        max_fill_steps (int): Maximum number of 15-minute steps to interpolate gaps (default: 96);
-            Default 96 = fills gaps up to 24 hours (96 * 15min = 1440min);
-        target_column (Optional[str]): Target column name for model training. If None, data division is skipped (default: None);
-
+        save_to_db (bool): If True, save all intermediate dataframes to DuckDB (default: False);
+        frequency (str): Pandas frequency string for time aggregation (default: 'h').
+            Examples: '15min', 'h', 'D', 'W'. See pandas date offset docs;
+        max_fill_steps (int): Max 15-minute intervals to interpolate gaps (default: 96 = 24 hours);
+        target_column (Optional[str]): Target column name for train/test split and preprocessing.
+            If None, skips data division and encoding (default: None);
+    
     Returns:
-        tuple: A tuple containing:
-            - df_cleaned (pd.DataFrame): The cleaned dataframe;
-            - df_filled (pd.DataFrame): The gap-filled dataframe;
-            - missing (pd.DataFrame): Missing values tracking dataframe;
-            - df_out (pd.DataFrame): The outlier-removed dataframe;
-            - df_agg (pd.DataFrame): The aggregated dataframe;
-            - df_imp (pd.DataFrame): The imputed dataframe;
-            - df_melted (pd.DataFrame): The melted/transformed dataframe;
-            - imputer_stats (dict): Imputer statistics per station;
-            - pipeline (Optional[Pipeline]): Preprocessing pipeline if encoding was applied;
-            - df_preprocessed (Optional[pd.DataFrame]): Preprocessed dataframe if encoding was applied;
-            - X_train (Optional[pd.DataFrame]): Training features if target_column was provided;
-            - X_test (Optional[pd.DataFrame]): Test features if target_column was provided;
-            - y_train (Optional[pd.Series]): Training target if target_column was provided;
-            - y_test (Optional[pd.Series]): Test target if target_column was provided;
+        None: Function performs side effects (database writes) but returns None;
     """
     # Read stations data;
     df = get_data()
