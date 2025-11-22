@@ -99,15 +99,15 @@ STATION_CODES = {
 }
 
 AGG_DICT = {'Cota_Adotada': 'mean',
-            'Cota_Adotada_Status': 'first',
+            'Cota_Adotada_Status': 'max',  
             'Chuva_Adotada': 'mean',
-            'Chuva_Adotada_Status': 'first',
+            'Chuva_Adotada_Status': 'max',  
             'Chuva_Acumulada': 'mean',
-            'Chuva_Acumulada_Status': 'first',
+            'Chuva_Acumulada_Status': 'max',  
             'Vazao_Adotada': 'mean',
-            'Vazao_Adotada_Status': 'first',
+            'Vazao_Adotada_Status': 'max',  
             'Temperatura_Interna': 'mean',
-            'Temperatura_Interna_Status': 'first',
+            'Temperatura_Interna_Status': 'max',  
             }
 
 BRAZILIAN_STATES = {

@@ -13,7 +13,6 @@ different sources;
 ########################################################################################################################
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
@@ -87,14 +86,14 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
     # Fill the data gaps;
     df_filled, missing = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
-    # Aggregate the data to the desired frequency;
-    df_agg = aggregate_data(df=df_filled, frequency=frequency)
-
     # Identify and remove Outliers (dynamic threshold per station);
-    df_out = outlier_removal(df=df_agg, threshold_method='iqr')
+    df_out = outlier_removal(df=df_filled, threshold_method='iqr')
+
+    # Aggregate the data to the desired frequency;
+    df_agg = aggregate_data(df=df_out, frequency=frequency)
 
     # Feature Imputation - IterativeImputer with RandomForest;
-    df_imp, imputer_stats = feature_imputation(df=df_out, n_estimators=20)
+    df_imp, imputer_stats = feature_imputation(df=df_agg, n_estimators=20)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_imp)
@@ -104,8 +103,8 @@ def collect_all_stations(save_to_db: bool = False, frequency: str = 'h', max_fil
         db.write(df=df_cleaned, table_name='data_stations_cleaned', inplace=True)
         db.write(df=df_filled, table_name='data_stations_filled', inplace=True)
         db.write(df=missing, table_name='data_stations_missing', inplace=True)
-        db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_out, table_name='data_stations_outlier', inplace=True)
+        db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
     return df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats
@@ -146,6 +145,15 @@ def clean_dataframe(df: pd.DataFrame, cut: bool = True):
         df_cpy = df_cpy[df_cpy['Data_Hora_Medicao'] >= START_DATE]
         df_cpy = df_cpy[df_cpy['Data_Hora_Medicao'] <= END_DATE]
     df_cpy = df_cpy.sort_values('Data_Hora_Medicao').reset_index(drop=True)
+    
+    # Use sensor data to fill the gaps in the level column and respective status;
+    was_nan = df_cpy['Cota_Adotada'].isna()
+    df_cpy['Cota_Adotada'] = df_cpy['Cota_Adotada'].fillna(df_cpy['Cota_Manual'])
+    # df_cpy['Cota_Adotada'] = df_cpy['Cota_Adotada'].fillna(df_cpy['Cota_Sensor']) # This is creating many outliers. Better to remove it;
+    
+    # Set status to 4 for filled values;
+    is_now_filled = was_nan & df_cpy['Cota_Adotada'].notna()
+    df_cpy.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
     return df_cpy
 
 
@@ -180,15 +188,6 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
     non_feature_cols = index_cols + status_cols
 
-    # Use sensor data to fill the gaps in the level column and respective status;
-    was_nan = df_cpy['Cota_Adotada'].isna()
-    df_cpy['Cota_Adotada'] = df_cpy['Cota_Adotada'].fillna(df_cpy['Cota_Manual'])
-    # df_cpy['Cota_Adotada'] = df_cpy['Cota_Adotada'].fillna(df_cpy['Cota_Sensor']) # This is creating many outliers. Better to remove it;
-    
-    # Set status to 4 for filled values;
-    is_now_filled = was_nan & df_cpy['Cota_Adotada'].notna()
-    df_cpy.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
-    
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
     missing_values = []
@@ -263,12 +262,16 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
                             # Interpolate using CubicSpline;
                             interpolated_vals = cs(gap_indices)
                             
-                            # Clip to reasonable bounds to prevent extreme overshoot. Use 50% margin beyond observed min/max for safety;
+                            # Clip to reasonable bounds to prevent extreme overshoot. Use 50% margin beyond observed min/max for safety -> Temperature can be negative;
                             value_min = valid_values.min()
                             value_max = valid_values.max()
                             value_range = value_max - value_min
                             lower_bound = value_min - 0.5 * value_range
                             upper_bound = value_max + 0.5 * value_range
+
+                            # Enforce non-negative for non-temperature features to prevent negative interpolated values;
+                            if col != 'Temperatura_Interna':
+                                lower_bound = max(0, lower_bound)  # Ensure non-negative for hydrological features;
                             interpolated_vals = np.clip(interpolated_vals, lower_bound, upper_bound)
                             
                             # Apply interpolated values to this gap;
@@ -302,7 +305,13 @@ def fill_gaps(df: pd.DataFrame, max_fill_steps: int = 96):
     non_feature_cols = non_feature_cols + ['Temperatura_Interna']
     neg_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     for col in neg_cols:
-        df_cpy.loc[df_cpy[col] < 0, col] = np.nan
+        # Track which values were negative before removal;
+        was_negative = df_cpy[col] < 0
+        df_cpy.loc[was_negative, col] = np.nan
+        # Update status to 2 (Bad) for removed negative values;
+        status_col = col + '_Status'
+        if status_col in df_cpy.columns:
+            df_cpy.loc[was_negative, status_col] = 2  # 2 = Bad;
 
     # Fill the missing _Status columns;
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
@@ -416,14 +425,14 @@ def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
         
         # ECOD Detection;
         print("[ECOD DETECTOR]")
-        # Fit model with minimal contamination to extract decision scores;
+        # Fit model with minimal contamination to extract decision scores (Actual threshold is determined dynamically via IQR/percentile method below);
         ecod_detector = ECOD(contamination=0.001)
         ecod_detector.fit(df_complete)
         ecod_scores = ecod_detector.decision_scores_
         
         # PCA Detection;
         print("[PCA DETECTOR]")
-        # Fit model with minimal contamination to extract decision scores;
+        # Fit model with minimal contamination to extract decision scores (Actual threshold is determined dynamically via IQR/percentile method below);
         pca_detector = PCA(contamination=0.001)
         pca_detector.fit(df_complete)
         pca_scores = pca_detector.decision_scores_
@@ -443,6 +452,8 @@ def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
             
             print(f"  ECOD: threshold={ecod_threshold:.4f}, outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
             print(f"  PCA: threshold={pca_threshold:.4f}, outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
+        
+        # Fixed ammount of outliers; 
         elif threshold_method == 'percentile':
             # Percentile method: use 95th percentile as threshold (top 5% are outliers);
             ecod_threshold = np.percentile(ecod_scores, 95)
@@ -456,8 +467,9 @@ def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
         else:
             raise ValueError(f"Unknown threshold_method: {threshold_method}. Use 'iqr' or 'percentile'")
 
-        # Combined outliers (union of both detectors);
-        combined_outliers = (ecod_predictions | pca_predictions).astype(bool)
+        # Combined outliers (intersection of both detectors - only flag if both agree -> Imply consensus);
+        combined_outliers = (ecod_predictions & pca_predictions).astype(bool)
+        print(f"  Consensus: {combined_outliers.sum()}/{len(combined_outliers)} outliers ({100*combined_outliers.sum()/len(combined_outliers):.2f}%)")
         
         # Map outliers back to original dataframe (only for available features);
         complete_indices = df_station_available[complete_mask].index
@@ -479,7 +491,7 @@ def outlier_removal(df: pd.DataFrame, threshold_method: str = 'iqr'):
     df_result = pd.concat(processed_stations, ignore_index=True)
     return df_result
 
-#TODO: Do a bigger check of the missing values before and after per station;
+
 def feature_imputation(df: pd.DataFrame, n_estimators: int = 50):
     """
     Apply multivariate feature imputation using IterativeImputer with RandomForestRegressor estimator on the large gaps in
@@ -646,7 +658,7 @@ if __name__ == "__main__":
     df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats = collect_all_stations(
         save_to_db=True, 
         frequency='h', 
-        max_fill_steps=672  # 96 steps * 15min = 24 hours (1 day);
+        max_fill_steps=96  # 96 steps * 15min = 24 hours (1 day);
         )
     
     print("All Done!")
