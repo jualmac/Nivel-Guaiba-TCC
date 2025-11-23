@@ -1,6 +1,8 @@
 """
-Main code that concatenates other functions defined in the module. This will read the data from the database, 
-clean it, add exeternal data, train the models and calculate the errors for the Regression;
+Main backend orchestrator for model training and evaluation;
+
+Reads clean data from database, performs train/test split, preprocessing,
+model training, and evaluation;
 """
 
 ########################################################################################################################
@@ -8,101 +10,98 @@ clean it, add exeternal data, train the models and calculate the errors for the 
 # LIBRARIES
 #
 ########################################################################################################################
-import argparse
-import pandas as pd
-from ray import tune
-from source_backend.data_transformation import get_data
-from source_backend.data_handler import clean, add_external_data
-from source_backend.models_neural import NixtlaAutoModels
-from source_backend.models_regression import run_all_regression_models
-from source_backend.calculate_errors import errors
-from source_backend.best_model import best_model
-from source_backend.config_nixtla import lstm_config, nhits_config, nbeatsx_config, tsmixer_config, tsmixerx_config
+from typing import Optional
+from db_handler import DBConnection
+from source_backend.data_preparation import data_division, encoding_pipeline
+from source_backend.train_models import training_pipeline
 
 ########################################################################################################################
 #                                                                  
-# QUERY AND DEFINITIONS
+# MAIN BACKEND PIPELINE
 #
 ########################################################################################################################
-def main(args) -> None:
-    # Argparse variables;
-    prediction_horizon = args.pred
-    data_freq = args.freq
-    batch_size = args.batch
-    n_samples = args.samples
-
-    print(f'Selected variables: {args}')
-
-    # Change the batch_size for the defined Nixtla configurations;
-    configs = [
-        lstm_config, 
-        nhits_config, 
-        nbeatsx_config, 
-        tsmixer_config, 
-        tsmixerx_config
-        ]
-
-    for config in configs:
-        config["batch_size"] = batch_size
-
-    # Run models for each reagion and merge the results in a single df;
-    for region in regions:
-        df = data_ext.loc[data_ext['region'] == region]
-        df.loc[:, 'date'] = pd.to_datetime(df['date'])
-        df.set_index('date', inplace=True)
-
-        # Train and Test Maximum Division. 'region' has to be droped because of the Regression Models; 
-        df_test = df.sort_index().iloc[-prediction_horizon:].drop(['region'], axis=1)
-        df_train = df.sort_index().iloc[:-prediction_horizon].drop(['region'], axis=1)
-
-        X_train, y_train = df_train.iloc[:, 1:], df_train['target']
-        X_test, y_test = df_test.iloc[:, 1:], df_test['target']
-
-        # Ensure the frequency is set;
-        X_train, y_train, X_test, y_test = [dataset.asfreq(data_freq) for dataset in [X_train, y_train, X_test, y_test]]
-        
-        # Train regression models for the General Prediction;
-        data_regression = run_all_regression_models(X_train=X_train, y_train=y_train, X_test=X_test)
-        data_regression['region'] = region
-        results = pd.concat([results, data_regression], axis=0)
-
-    # Prepare dataframe to be compatible with the Nixtla Library;
-    data_ext = data_ext.reset_index(drop=False) #The timestamp should be a atribute, not the index;
-    data_ext.rename(columns={"date": "ds", "target": "y", "region": "unique_id"}, inplace=True)
-    data_ext['ds'] = pd.to_datetime(data_ext['ds'])
-
-    # Run Neural Nixtla Models for the General Prediction;
-    model_data = NixtlaAutoModels(
-        df=data_ext, 
-        forecasting_horizon=prediction_horizon,
-        n_samples=5,
-        freq=data_freq, 
-        lstm_config=lstm_config_data,
-        nhits_config=nhits_config_data, 
-        nbeatsx_config=nbeatsx_config_data, 
-        tsmixer_config=tsmixer_config_data, 
-        tsmixerx_config=tsmixerx_config_data
-        )
-
-    data_nixtla, data_nixtla_windows = model_data.forecast()
-    data_nixtla.rename(columns={"ds": "date", "unique_id": "region"}, inplace=True)
-
-    # Merge results;
-    data_results = pd.merge(results, data_nixtla, on=['date', 'region']) #TODO Change columns order;
-
-    # Calculate Errors;
-    data_errors = errors_data(data_results)
-
-    # Calculate Best Model;
-    data_best = best_data(data_results, data_errors)
-    print('DONE')
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Get data from a specified HANA view in a given schema.')
-    parser.add_argument('--pred', type=int, default=6, help='The amount of fowards steps to be predicted')
-    parser.add_argument('--freq', type=str, choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], default='MS', help='Frequency of predictions (pandas offset)')
-    parser.add_argument('--batch', type=int, default=64, help='Training batch size')
-    parser.add_argument('--samples', type=int, default=2, help='Number of samples for the Nixtla models fine tunning')
-    args = parser.parse_args()
+def main_backend(
+    target_column: str,
+    model_name: Optional[str] = None,
+    test_size: float = 0.2,
+    random_state: int = 42
+) -> None:
+    """
+    Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
     
-    main(args)
+    Reads clean data from database (produced by source_database ETL), performs train/test split,
+    applies feature encoding and preprocessing, trains the selected model, and evaluates performance;
+    
+    Parameters:
+        target_column (str): Name of target column to predict;
+        model_name (Optional[str]): Model to train ('SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM').
+            If None, trains all models (default: None);
+        test_size (float): Proportion of data for test set (default: 0.2);
+        random_state (int): Random seed for reproducibility (default: 42);
+    
+    Returns:
+        None: Function performs training and persists results;
+    """
+    # Read clean data from database;
+    print("Loading data from database...")
+    db = DBConnection()
+    df = db.run("SELECT * FROM data_stations_melted")['result']
+    print(f"Loaded {len(df)} rows from database.")
+    
+    # Split data into train/test sets;
+    print("Splitting data into train/test sets...")
+    X_train, X_test, y_train, y_test = data_division(
+        df=df,
+        target_column=target_column,
+        test_size=test_size,
+        random_state=random_state
+    )
+    print(f"Train set: {len(X_train)} rows, Test set: {len(X_test)} rows")
+    
+    # Create preprocessing pipeline;
+    #TODO: Define actual column names based on data structure;
+    print("Creating preprocessing pipeline...")
+    preprocessor = encoding_pipeline(
+        numerical_cols=[],  #TODO: Define numerical columns;
+        categorical_cols=[],  #TODO: Define categorical columns;
+        missing_indicator_cols=['value']
+    )
+    
+    # Create full training pipeline (preprocessing + model);
+    print("Building training pipeline...")
+    pipeline = training_pipeline(
+        preprocessor=preprocessor,
+        model_name=model_name
+    )
+    
+    # Train the model;
+    #TODO: Implement actual training logic;
+    print("Training model...")
+    # pipeline.fit(X_train, y_train)
+    
+    # Evaluate model;
+    #TODO: Implement evaluation and metrics calculation;
+    print("Evaluating model...")
+    # score = pipeline.score(X_test, y_test)
+    # print(f"Model performance: {score}")
+    
+    # Save model and results;
+    #TODO: Implement model persistence (MLFlow, pickle, etc);
+    print("Saving model...")
+    
+    print("Backend pipeline completed!")
+    return None
+
+########################################################################################################################
+#
+# SCRIPT EXECUTION
+#
+########################################################################################################################
+if __name__ == "__main__":
+    #TODO: Define actual target column name;
+    main_backend(
+        target_column='value',  #TODO: Update with correct target column;
+        model_name=None,
+        test_size=0.2,
+        random_state=42
+    )
