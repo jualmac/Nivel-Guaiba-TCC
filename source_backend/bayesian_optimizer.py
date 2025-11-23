@@ -27,7 +27,7 @@ import os
 # FUNCTION
 #
 ########################################################################################################################
-class OptimizeRegressor:
+class BayesianOptimization:
     """
     Performs Bayesian Optimization on specified regression models.
 
@@ -54,7 +54,7 @@ class OptimizeRegressor:
             cpu: bool, 
             ):
         """
-        Initializes the OptimizeRegressor class with the specified model and parameters.
+        Initializes the BayesianOptimization class with the specified model and parameters.
 
         Parameters
         ----------
@@ -143,6 +143,7 @@ class OptimizeRegressor:
             model = LGBMRegressor(**params)
             return self.evaluate(model)
         
+        #TODO: Add LSTM -> SARIMA Should use AutoArima;
         # Random Forest;
         elif self.model_name == "rf":
             params = {
