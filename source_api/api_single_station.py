@@ -14,7 +14,7 @@ import os
 import json
 import requests
 import pandas as pd
-from source_database.api_auth import get_auth
+from source_api.api_auth import get_auth
 from db_handler import DBConnection
 from util import START_DATE, END_DATE
 
