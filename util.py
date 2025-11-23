@@ -58,6 +58,53 @@ def convert_to_float(value: str) -> float:
     else:
         return float(value)
 
+def get_device_config(mode: str, model_type: str) -> dict:
+    """
+    Converts mode parameter to appropriate device settings for XGBoost and LightGBM;
+    
+    Parameters:
+        mode: Training mode - 'CPU', 'GPU', or 'CUDA';
+        model_type: Type of model - 'xgboost' or 'lightgbm';
+    
+    Returns:
+        dict: Device configuration for the model;
+    """
+    mode = mode.upper()
+    model_type = model_type.lower()
+    
+    if mode == 'CPU':
+        if model_type == 'xgboost':
+            return {'device': 'cpu', 'tree_method': 'hist'}
+        elif model_type == 'lightgbm':
+            return {'device': 'cpu'}
+        else:
+            raise ValueError(f"Invalid model_type: {model_type}. Choose from 'xgboost' or 'lightgbm'")
+    
+    elif mode in ['GPU', 'CUDA']:
+        if model_type == 'xgboost':
+            # XGBoost uses GPU via tree_method='gpu_hist' or device='cuda' depending on version;
+            return {'device': 'cuda', 'tree_method': 'gpu_hist'}
+        elif model_type == 'lightgbm':
+            # LightGBM uses OpenCL for GPU acceleration;
+            return {'device': 'gpu', 'device_type': 'gpu'}
+        else:
+            raise ValueError(f"Invalid model_type: {model_type}. Choose from 'xgboost' or 'lightgbm'")
+    
+    else:
+        raise ValueError(f"Invalid mode: {mode}. Choose from 'CPU', 'GPU', or 'CUDA'")
+
+def is_cpu_mode(mode: str) -> bool:
+    """
+    Check if the mode is CPU-only;
+    
+    Parameters:
+        mode: Training mode - 'CPU', 'GPU', or 'CUDA';
+    
+    Returns:
+        bool: True if CPU mode, False otherwise;
+    """
+    return mode.upper() == 'CPU'
+
 ########################################################################################################################
 #                                                                  
 # CONSTANTS

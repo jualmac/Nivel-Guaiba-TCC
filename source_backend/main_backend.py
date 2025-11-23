@@ -25,7 +25,7 @@ from source_backend.train_models import training_pipeline
 ########################################################################################################################
 def main_backend(
     target_column: str,
-    model_name: Optional[str] = None,
+    models_to_use: Optional[list] = None,
     test_size: float = 0.2,
     val_size: float = 0.1,
     random_state: int = 42
@@ -38,9 +38,10 @@ def main_backend(
     
     Parameters:
         target_column (str): Name of target column to predict;
-        model_name (Optional[str]): Model to train ('SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM').
+        models_to_use (Optional[list]): List of models to train ('SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM').
             If None, trains all models (default: None);
         test_size (float): Proportion of data for test set (default: 0.2);
+        val_size (float): Proportion of data for validation set (default: 0.1);
         random_state (int): Random seed for reproducibility (default: 42);
     
     Returns:
@@ -54,17 +55,25 @@ def main_backend(
     
     # Split data into train/test sets;
     print("Splitting data into train/test sets...")
-    X_train, X_test, y_train, y_test = data_division(
-        df=df,
-        target_column=target_column,
-        test_size=test_size,
-        val_size=val_size,
-        random_state=random_state)
-    
-    print(f"Train set: {len(X_train)} rows, Test set: {len(X_test)} rows")
+    if val_size is not None:
+        X_train, X_val, X_test, y_train, y_val, y_test = data_division(
+            df=df,
+            target_column=target_column,
+            test_size=test_size,
+            val_size=val_size,
+            random_state=random_state)
+        print(f"Train set: {(X_train.shape)}\nValidation set: {(X_val.shape)}\nTest set: {(X_test.shape)}")
+
+    else:
+        X_train, X_test, y_train, y_test = data_division(
+            df=df,
+            target_column=target_column,
+            test_size=test_size,
+            val_size=val_size,
+            random_state=random_state)
+        print(f"Train set: {(X_train.shape)}\nTest set: {(X_test.shape)}")
     
     # Create preprocessing pipeline;
-    #TODO: Define actual column names based on data structure;
     print("Creating preprocessing pipeline...")
     preprocessor = encoding_pipeline()
     
@@ -72,7 +81,7 @@ def main_backend(
     print("Building training pipeline...")
     pipeline = training_pipeline(
         preprocessor=preprocessor,
-        model_name=model_name
+        models_to_use=models_to_use
     )
     
     # Train the model;
@@ -103,10 +112,15 @@ if __name__ == "__main__":
     
     # Main backend parameters;
     parser.add_argument('--target_column', type=str, default='value', help='Name of target column to predict')
-    parser.add_argument('--model_name', type=str, choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'], default=None, help='Model to train. If None, trains all models')
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
     parser.add_argument('--val_size', type=float, default=0.1, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument('--models_to_use', type=str, nargs='+',
+                        choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
+                        default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'], 
+                        default=None, 
+                        help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
+                        )
     
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
@@ -130,7 +144,7 @@ if __name__ == "__main__":
     # Execute main backend pipeline with parsed arguments;
     main_backend(
         target_column=args.target_column,
-        model_name=args.model_name,
+        models_to_use=args.models_to_use,
         test_size=args.test_size,
         val_size=args.val_size,
         random_state=args.random_state

@@ -19,3 +19,5 @@ streamlit
 duckdb
 pyod
 ydata-profiling
+xgboost
+lightgbm
