@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+# Set working directory;
+WORKDIR /app
+
+# Copy requirements from parent directory and install dependencies;
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy shared modules from root level;
+COPY db_handler.py .
+COPY util.py .
+
+# Copy backend module;
+COPY source_backend/ ./source_backend/
+
+# Create data directory for database;
+RUN mkdir -p /app/data
+
+# Set Python path;
+ENV PYTHONPATH=/app
+
+# Run the model training pipeline;
+CMD ["python", "-u", "source_backend/main_backend.py"]
+

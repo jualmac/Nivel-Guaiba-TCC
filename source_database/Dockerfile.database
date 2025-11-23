@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+# Set working directory;
+WORKDIR /app
+
+# Copy requirements from parent directory and install dependencies;
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy shared modules from root level;
+COPY db_handler.py .
+COPY util.py .
+
+# Copy database module;
+COPY source_database/ ./source_database/
+
+# Create data directory for database;
+RUN mkdir -p /app/data
+
+# Set Python path;
+ENV PYTHONPATH=/app
+
+# Run the ETL pipeline;
+CMD ["python", "-u", "source_database/main_data.py"]
+

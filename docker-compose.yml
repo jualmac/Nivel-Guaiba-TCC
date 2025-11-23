@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # API Service - Data Collection from HidroWeb API;
+  api:
+    build:
+      context: .
+      dockerfile: source_api/Dockerfile.api
+    container_name: nivel_tcc_api
+    volumes:
+      - ./data:/app/data  # Shared database volume;
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - nivel_network
+    restart: "no"  # Run once and stop;
+
+  # Database Service - ETL Pipeline (Data Transformation);
+  database:
+    build:
+      context: .
+      dockerfile: source_database/Dockerfile.database
+    container_name: nivel_tcc_database
+    volumes:
+      - ./data:/app/data  # Shared database volume;
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - nivel_network
+    depends_on:
+      - api
+    restart: "no"  # Run once and stop;
+
+  # Backend Service - Model Training;
+  backend:
+    build:
+      context: .
+      dockerfile: source_backend/Dockerfile.backend
+    container_name: nivel_tcc_backend
+    volumes:
+      - ./data:/app/data  # Shared database volume;
+      - ./models:/app/models  # Model artifacts storage;
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - nivel_network
+    depends_on:
+      - database
+    restart: "no"  # Run once and stop;
+
+  # Frontend Service - Streamlit Dashboard;
+  frontend:
+    build:
+      context: .
+      dockerfile: source_frontend/Dockerfile.fronted
+    container_name: nivel_tcc_frontend
+    ports:
+      - "8501:8501"  # Expose Streamlit on port 8501;
+    volumes:
+      - ./data:/app/data  # Shared database volume (read-only access);
+      - ./models:/app/models  # Model artifacts (read-only access);
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - nivel_network
+    depends_on:
+      - backend
+    restart: unless-stopped  # Keep frontend running;
+
+networks:
+  nivel_network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  models:
+    driver: local
+
