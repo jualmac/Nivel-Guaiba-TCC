@@ -1,3 +1,5 @@
+#TODO: Add categorical features from the stations column. Could be done right before melting the dataframe. Probably just a column with that data, like River Name, LAT, LON, Area_Drenagem (BEM IMPORTANTE, É quanta área acaba escoando para a bacia) -> Encode based on the cardinality if needed;
+
 """
 Creates the datasets for the Machine Learning Models. For this purpose, in this file, there will be a cleaning function
 for each river a grouping function and lastly a function to concatenate the main dataset with external data from
@@ -21,7 +23,7 @@ from pyod.models.pca import PCA
 from pyod.models.ecod import ECOD
 from scipy.interpolate import CubicSpline
 
-from source_database.db_handler import DBConnection
+from db_handler import DBConnection
 from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE
 
 ########################################################################################################################
@@ -655,19 +657,14 @@ def save_to_database(
     df_out: Optional[pd.DataFrame] = None,
     df_agg: Optional[pd.DataFrame] = None,
     df_imp: Optional[pd.DataFrame] = None,
-    df_melted: Optional[pd.DataFrame] = None,
-    X_train: Optional[pd.DataFrame] = None,
-    X_test: Optional[pd.DataFrame] = None,
-    y_train: Optional[pd.Series] = None,
-    y_test: Optional[pd.Series] = None,
-    df_preprocessed: Optional[pd.DataFrame] = None
+    df_melted: Optional[pd.DataFrame] = None
 ) -> None:
     """
-    Persist processed dataframes to DuckDB database tables;
+    Persist ETL-processed dataframes to DuckDB database tables;
     
     Writes each provided dataframe to its corresponding table using inplace=True (replaces existing
-    data). Only dataframes that are not None are saved. Series (y_train, y_test) are converted to
-    DataFrames before writing;
+    data). Only dataframes that are not None are saved. This function is only for ETL data,
+    not for ML-processed data (train/test splits, encodings, etc);
     
     Parameters:
         df_cleaned (Optional[pd.DataFrame]): Cleaned data -> 'data_stations_cleaned' (default: None);
@@ -677,11 +674,6 @@ def save_to_database(
         df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
         df_imp (Optional[pd.DataFrame]): Imputed data -> 'data_stations_imputed' (default: None);
         df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations_melted' (default: None);
-        X_train (Optional[pd.DataFrame]): Training features -> 'data_train_features' (default: None);
-        X_test (Optional[pd.DataFrame]): Test features -> 'data_test_features' (default: None);
-        y_train (Optional[pd.Series]): Training target -> 'data_train_target' (default: None);
-        y_test (Optional[pd.Series]): Test target -> 'data_test_target' (default: None);
-        df_preprocessed (Optional[pd.DataFrame]): Preprocessed data -> 'data_preprocessed' (default: None);
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -701,17 +693,5 @@ def save_to_database(
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
     if df_melted is not None:
         db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
-    if X_train is not None:
-        db.write(df=X_train, table_name='data_train_features', inplace=True)
-    if X_test is not None:
-        db.write(df=X_test, table_name='data_test_features', inplace=True)
-    if y_train is not None:
-        # Convert Series to DataFrame for database write;
-        y_train_df = pd.DataFrame(y_train)
-        db.write(df=y_train_df, table_name='data_train_target', inplace=True)
-    if y_test is not None:
-        # Convert Series to DataFrame for database write;
-        y_test_df = pd.DataFrame(y_test)
-        db.write(df=y_test_df, table_name='data_test_target', inplace=True)
-    if df_preprocessed is not None:
-        db.write(df=df_preprocessed, table_name='data_preprocessed', inplace=True)
+    
+    print("ETL data successfully saved to database.")

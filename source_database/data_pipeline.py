@@ -110,12 +110,4 @@ def encoding_pipeline(
         ("categorical", categorical_pipeline, categorical_cols),
         ("missing_indicator", MissingIndicator(features="missing-only"), ['value'])
     ], remainder="drop")
-
-    pipeline = Pipeline([
-        ("preprocessor", preprocessor),
-        # ("ARIMA", ARIMA_Model), #TODO: Define models here;
-        # ("LSTM", LSTM_Model), #TODO: Define models here;
-        # ("XGBOOST", XGB_Model), #TODO: Define models here;
-        # ("LIGHTGBM", LGB_Model), #TODO: Define models here;
-    ])
-    return pipeline
+    return preprocessor
