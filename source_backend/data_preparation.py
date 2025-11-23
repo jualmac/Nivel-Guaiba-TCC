@@ -27,9 +27,9 @@ from sklearn.model_selection import train_test_split
 def data_division(
     df: pd.DataFrame, 
     target_column: Optional[str] = None,
-    train_size: float = 0.7, 
+    train_size: float = 0.8, 
     test_size: float = 0.2,
-    val_size: Optional[float] = 0.1,
+    val_size: Optional[float] = None,
     random_state: int = 42,
     shuffle: bool = False,
 ) -> Union[
@@ -122,9 +122,6 @@ def data_division(
 
 
 def encoding_pipeline(
-    numerical_cols: list = None,
-    categorical_cols: list = None,
-    missing_indicator_cols: list = None
 ) -> ColumnTransformer:
     """
     Construct sklearn ColumnTransformer for feature preprocessing and encoding;
@@ -144,13 +141,10 @@ def encoding_pipeline(
             - Categorical pipeline: SimpleImputer(strategy='constant') -> OneHotEncoder();
             - MissingIndicator: Tracks missing values in specified columns;
     """
-    # Set defaults;
-    if numerical_cols is None:
-        numerical_cols = []
-    if categorical_cols is None:
-        categorical_cols = []
-    if missing_indicator_cols is None:
-        missing_indicator_cols = ['value']
+    #TODO: Set defaults;
+    numerical_cols = []
+    categorical_cols = []
+    missing_indicator_cols = ['value']
 
     # Define numerical pipeline;
     numerical_pipeline = Pipeline([
@@ -161,7 +155,7 @@ def encoding_pipeline(
     # Define categorical pipeline;
     categorical_pipeline = Pipeline([
         ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('encoder', OneHotEncoder(handle_unknown='ignore'))
+        ('encoder', OneHotEncoder(handle_unknown='ignore')) #TODO: Divide by cardinality if needed -> Binary Encoder is pretty good for most cases;
     ])
 
     # Create ColumnTransformer;
