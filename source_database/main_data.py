@@ -7,6 +7,8 @@ Main pipeline orchestrator for data processing, transformation, and model traini
 # LIBRARIES
 #
 ########################################################################################################################
+import os
+import argparse
 import pandas as pd
 from typing import Tuple, Dict, Any, Optional
 from sklearn.pipeline import Pipeline
@@ -96,10 +98,28 @@ def main_database(
 #
 ########################################################################################################################
 if __name__ == "__main__":
-    main_database(
-        save_to_db=True, 
-        frequency='h', 
-        max_fill_steps=96  # 96 steps * 15min = 24 hours (1 day);
+    parser = argparse.ArgumentParser(description="Main ETL pipeline for data processing and transformation")
+    
+    # Main database parameters;
+    parser.add_argument('--frequency', type=str, default='h', help='Pandas frequency string for time aggregation (e.g., 15min, h, D, W)')
+    parser.add_argument('--max_fill_steps', type=int, default=96, help='Max 15-minute intervals to interpolate gaps (default: 96 = 24 hours)')
+    
+    # Bool arguments;
+    parser.add_argument('--save_to_db', action='store_true', help='Save all intermediate dataframes to DuckDB')
+    parser.add_argument('--no_save_to_db', dest='save_to_db', action='store_false', help='Do not save results to database')
+    
+    # Set default values for booleans;
+    parser.set_defaults(
+        save_to_db=True,
     )
     
-    print("All Done!")
+    args = parser.parse_args()
+    print(f'Arguments: {args}')
+    
+    # Execute main database pipeline with parsed arguments;
+    main_database(
+        save_to_db=args.save_to_db, 
+        frequency=args.frequency, 
+        max_fill_steps=args.max_fill_steps
+    )
+    print('All Done!')
