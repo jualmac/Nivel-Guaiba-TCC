@@ -182,5 +182,6 @@ def encoding_pipeline(
     preprocessor = ColumnTransformer([
         ("numerical", numerical_pipeline, numerical_cols),
         ("categorical",  OneHotEncoder(), categorical_cols),
-        ], remainder="drop")
+        ], remainder="passthrough", verbose_feature_names_out=False)
+    preprocessor.set_output(transform="pandas")
     return preprocessor

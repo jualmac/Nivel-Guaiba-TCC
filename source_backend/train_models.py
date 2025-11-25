@@ -37,10 +37,6 @@ def create_model_pipeline(model, preprocessor):
     return pipe
 
 def training_pipeline(
-    X_train: pd.DataFrame = None,
-    X_test: pd.DataFrame = None,
-    y_train: pd.Series = None,
-    y_test: pd.Series = None,
     models_to_use: Optional[list] = None,
     preprocessor: ColumnTransformer = None,
 ) -> None:
@@ -58,21 +54,6 @@ def training_pipeline(
     Returns:
         Pipeline: sklearn Pipeline with preprocessing and model steps;
     """
-    # Validate Dataset;
-    if (
-        X_train is None or
-        y_train is None or
-        X_test is None or
-        y_test is None or
-        (hasattr(X_train, 'empty') and X_train.empty) or
-        (hasattr(y_train, 'empty') and y_train.empty) or
-        (hasattr(X_test, 'empty') and X_test.empty) or
-        (hasattr(y_test, 'empty') and y_test.empty) or
-        len(y_train) == 0 or
-        len(y_test) == 0
-        ):
-        raise ValueError("Training and Test data are required and must not be empty")
-
     # Create separate pipeline for each model;
     pipelines = {
         'SARIMA': create_model_pipeline(SARIMAModels(), preprocessor),
