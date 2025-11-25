@@ -26,6 +26,7 @@ from source_backend.train_models import training_pipeline
 def main_backend(
     target_column: str,
     models_to_use: Optional[list] = None,
+    train_size: float = 0.7,
     test_size: float = 0.2,
     val_size: float = 0.1,
     random_state: int = 42
@@ -59,6 +60,7 @@ def main_backend(
         X_train, X_val, X_test, y_train, y_val, y_test = data_division(
             df=df,
             target_column=target_column,
+            train_size=train_size,
             test_size=test_size,
             val_size=val_size,
             random_state=random_state)
@@ -119,14 +121,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Main backend training pipeline")
     
     # Main backend parameters;
-    parser.add_argument('--target_column', type=str, default='value', help='Name of target column to predict')
+    parser.add_argument('--target_column', type=str, default='Cota_Adotada_87450004', help='Name of target column to predict')
+    parser.add_argument('--train_size', type=float, default=0.7, help='Proportion of data for training set (0.0 to 1.0)')
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
     parser.add_argument('--val_size', type=float, default=0.1, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'], 
-                        default=None, 
+                        default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
@@ -153,6 +155,7 @@ if __name__ == "__main__":
     main_backend(
         target_column=args.target_column,
         models_to_use=args.models_to_use,
+        train_size=args.train_size,
         test_size=args.test_size,
         val_size=args.val_size,
         random_state=args.random_state
