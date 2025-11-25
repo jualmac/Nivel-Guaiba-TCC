@@ -131,7 +131,29 @@ STATION_COLS = [
     'Temperatura_Interna_Status',
     'Vazao_Adotada',
     'Vazao_Adotada_Status',
+    'Altitude',
+    'Area_Drenagem',
+    'Latitude',
+    'Longitude',
+    'Rio_Codigo',
     ]
+
+AGG_DICT = {'Cota_Adotada': 'mean',
+            'Cota_Adotada_Status': 'max',  
+            'Chuva_Adotada': 'mean',
+            'Chuva_Adotada_Status': 'max',  
+            'Chuva_Acumulada': 'mean',
+            'Chuva_Acumulada_Status': 'max',  
+            'Vazao_Adotada': 'mean',
+            'Vazao_Adotada_Status': 'max',  
+            'Temperatura_Interna': 'mean',
+            'Temperatura_Interna_Status': 'max',
+            'Altitude': 'first',
+            'Area_Drenagem': 'first',
+            'Latitude': 'first',
+            'Longitude': 'first',
+            'Rio_Codigo': 'first',
+            }
 
 STATION_CODES = {
     'Guaíba (CAIS MAUÁ C6 + USINA DO GASÔMETRO)': '87450004',
@@ -144,18 +166,6 @@ STATION_CODES = {
     'Caí (LINHA GONZAGA)': '87150000',
     'Caí (BARCA DO CAÍ)': '87170000',
 }
-
-AGG_DICT = {'Cota_Adotada': 'mean',
-            'Cota_Adotada_Status': 'max',  
-            'Chuva_Adotada': 'mean',
-            'Chuva_Adotada_Status': 'max',  
-            'Chuva_Acumulada': 'mean',
-            'Chuva_Acumulada_Status': 'max',  
-            'Vazao_Adotada': 'mean',
-            'Vazao_Adotada_Status': 'max',  
-            'Temperatura_Interna': 'mean',
-            'Temperatura_Interna_Status': 'max',  
-            }
 
 BRAZILIAN_STATES = {
     'AC': 'Acre',

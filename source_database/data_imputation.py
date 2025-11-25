@@ -52,8 +52,9 @@ def feature_imputation(
      
     # Separate index/categorical columns from numeric features;
     index_cols = ['Data_Hora_Medicao', 'codigoestacao']
+    meta_cols = ['Altitude', 'Area_Drenagem', 'Latitude', 'Longitude', 'Rio_Codigo']
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
-    non_feature_cols = index_cols + status_cols
+    non_feature_cols = index_cols + status_cols + meta_cols
     feature_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     
     # Impute per station to preserve within-station correlations;
@@ -132,7 +133,8 @@ def feature_imputation(
         df_result[status_col] = df_result[status_col].astype('Int64')  # Nullable integer type;
     
     # Round only numeric feature columns;
-    feature_cols = [col for col in df_result.columns if not col.endswith('_Status') and col not in ['Data_Hora_Medicao', 'codigoestacao']]
+    meta_cols = ['Altitude', 'Area_Drenagem', 'Latitude', 'Longitude', 'Rio_Codigo']
+    feature_cols = [col for col in df_result.columns if not col.endswith('_Status') and col not in ['Data_Hora_Medicao', 'codigoestacao'] + meta_cols]
     for col in feature_cols:
         df_result[col] = df_result[col].round(3)
     return df_result, imputer_stats

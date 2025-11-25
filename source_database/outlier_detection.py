@@ -44,8 +44,9 @@ def outlier_removal(
 
     # Prepare data;
     index_cols = ['Data_Hora_Medicao', 'codigoestacao']
+    meta_cols = ['Altitude', 'Area_Drenagem', 'Latitude', 'Longitude', 'Rio_Codigo']
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
-    non_feature_cols = index_cols + status_cols
+    non_feature_cols = index_cols + status_cols + meta_cols
     feature_cols = list(set(df_cpy.columns.unique()) - set(non_feature_cols))
     
     processed_stations = []

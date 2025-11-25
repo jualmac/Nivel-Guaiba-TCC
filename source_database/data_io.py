@@ -85,7 +85,7 @@ def save_to_database(
         df_out (Optional[pd.DataFrame]): Outlier-removed data -> 'data_stations_outlier' (default: None);
         df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
         df_imp (Optional[pd.DataFrame]): Imputed data -> 'data_stations_imputed' (default: None);
-        df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations_melted' (default: None);
+        df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations' (default: None);
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -104,7 +104,7 @@ def save_to_database(
     if df_imp is not None:
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
     if df_melted is not None:
-        db.write(df=df_melted, table_name='data_stations_melted', inplace=True)
+        db.write(df=df_melted, table_name='data_stations', inplace=True)
     
     print("ETL data successfully saved to database.")
 

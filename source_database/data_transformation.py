@@ -54,8 +54,9 @@ def fill_gaps(
 
     # Define columns classification;
     index_cols = ['Data_Hora_Medicao', 'Data_Atualizacao', 'codigoestacao']
+    meta_cols = ['Altitude', 'Area_Drenagem', 'Latitude', 'Longitude', 'Rio_Codigo']
     status_cols = [col for col in df_cpy.columns if col.endswith('_Status')]
-    non_feature_cols = index_cols + status_cols
+    non_feature_cols = index_cols + status_cols + meta_cols
 
     # Create continuous timeline at 15-minute intervals for each station before filling;
     df_filled_list = []
