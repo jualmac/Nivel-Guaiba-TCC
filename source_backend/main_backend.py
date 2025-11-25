@@ -12,11 +12,13 @@ model training, and evaluation;
 ########################################################################################################################
 import os
 import argparse
+from tkinter import Y
 import pandas as pd
 from typing import Optional
 from db_handler import DBConnection
 from source_backend.data_preparation import data_division, encoding_pipeline
 from source_backend.train_models import training_pipeline
+from source_backend.mlflow_utils import MLFlowHandler
 
 ########################################################################################################################
 #                                                                  
@@ -79,38 +81,62 @@ def main_backend(
     print("Creating preprocessing pipeline...")
     preprocessor = encoding_pipeline()
     
-    # Create full training pipeline (preprocessing + model);
+    # Create full training pipeline (preprocessing + models);
     print("Building training pipeline...")
     pipelines = training_pipeline(
         preprocessor=preprocessor,
         models_to_use=models_to_use
-    )
+    ) 
+    
+    # Initialize MLFlow Handler;
+    mlflow_handler = MLFlowHandler(experiment_name="river_level_forecasting")
     
     # Train each pipeline independently;
     print("Training model...")
     results = {}
     for name, pipeline in pipelines.items():
         print(f"Training {name}...")
+        
+        # Start MLFlow run for this model;
+        mlflow_handler.start_run(run_name=f"train_{name}")
+        
+        # Log general parameters;
+        mlflow_handler.log_params({
+            "target_column": target_column,
+            "train_size": train_size,
+            "test_size": test_size,
+            "val_size": val_size,
+            "random_state": random_state,
+            "model_type": name
+        })
+        
         pipeline.fit(X_train, y_train)
 
         results[name] = {
             'pipeline': pipeline,
             'predictions': pipeline.predict(X_test)
         }
-    
-    # Evaluate model;
-    #TODO: Implement evaluation and metrics calculation -> Hydroeval;
-    print("Evaluating model...")
-    for name, pipeline in pipelines.items():
-        score = pipeline.score(X_test, y_test)
-        print(f"Model performance: {score}")
 
+        #TODO: Implement evaluation and metrics calculation -> Hydroeval;
+        # Evaluate model;
+        try:
+            score = pipeline.score(X_test, y_test)
+            print(f"Model performance: {score}")
+            mlflow_handler.log_metrics({"score": score})
+        except Exception as e:
+            print(f"Error calculating score for {name}: {e}")
+        
+        # Log the model;
+        mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}")
+        
+        # End MLFlow run;
+        mlflow_handler.end_run()
+    
     # Save model and results;
     #TODO: Implement model persistence (MLFlow, pickle, etc);
     print("Saving model...")
     
     print("Backend pipeline completed!")
-    return None
 
 ########################################################################################################################
 #
