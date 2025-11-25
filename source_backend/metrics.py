@@ -34,3 +34,10 @@ def relative_root_mean_squared_error(y_true: np.ndarray, y_pred: np.ndarray) -> 
     squared_error = num/den
     rrmse_loss = np.sqrt(squared_error)
     return rrmse_loss
+
+
+def nse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """
+    Calculate the Nash-Sutcliffe Efficiency (NSE);
+    """
+    return 1 - (np.sum((y_true - y_pred) ** 2) / np.sum((y_true - np.mean(y_true)) ** 2))
