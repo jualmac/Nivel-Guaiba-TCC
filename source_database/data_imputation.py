@@ -75,6 +75,9 @@ def feature_imputation(
             print(f"  Skipping fully missing features (cannot impute): {fully_missing_cols}")
         
         if cols_to_impute:
+            # Track which values were NaN before imputation (to mark status columns later);
+            was_nan_before = df_station_features[cols_to_impute].isna()
+            
             # RandomForestRegressor with deeper trees for better non-linear relationships (No max_depth restriction allows deep splits; min_samples_leaf=1 for fine-grained predictions);
             imputer = IterativeImputer(
                 estimator=RandomForestRegressor(
@@ -94,6 +97,13 @@ def feature_imputation(
             # Impute only columns with partial data;
             imputed = imputer.fit_transform(df_station_features[cols_to_impute])
             df_station_imputed = pd.DataFrame(imputed, columns=cols_to_impute, index=df_station_features.index)
+            
+            # Mark status columns with code 4 (Filled/Missing) for imputed values;
+            for col in cols_to_impute:
+                status_col = col + '_Status'
+                if status_col in df_station_non_features.columns:
+                    is_now_filled = was_nan_before[col] & df_station_imputed[col].notna()
+                    df_station_non_features.loc[is_now_filled, status_col] = 4
             
             # Store imputer statistics for diagnostics;
             imputer_stats[station] = {
