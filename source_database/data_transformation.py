@@ -17,6 +17,7 @@ from typing import Tuple
 from scipy.interpolate import CubicSpline
 
 from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE
+from db_handler import DBConnection
 
 ########################################################################################################################
 #                                                                  
@@ -193,6 +194,27 @@ def fill_gaps(
         # Fill missing _Status where the _info is not NaN with Normal status;
         if info_col in df_cpy.columns:
             df_cpy.loc[df_cpy[info_col].notna() & df_cpy[status_col].isna(), status_col] = 0
+
+    # Add station metadata;
+    stations = df_cpy['codigoestacao'].dropna().unique()
+    if len(stations) > 0:
+        print("Loading station metadata from database...")
+        db = DBConnection()
+        placeholders = ', '.join(['?'] * len(stations))
+        query = f"""
+            SELECT 
+                codigoestacao,
+                Altitude,
+                Area_Drenagem,
+                Latitude,
+                Longitude,
+                Rio_Codigo
+            FROM stations
+            WHERE codigoestacao IN ({placeholders})
+        """
+        station_meta = db.run(query, params=tuple(stations)).get('result', pd.DataFrame())
+        if not station_meta.empty:
+            df_cpy = df_cpy.merge(station_meta, how='left', on='codigoestacao')
 
     # Select only the columns that are needed;
     df_cpy = df_cpy[STATION_COLS]
