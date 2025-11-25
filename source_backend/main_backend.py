@@ -50,7 +50,7 @@ def main_backend(
     # Read clean data from database;
     print("Loading data from database...")
     db = DBConnection()
-    df = db.run("SELECT * FROM data_stations_melted")['result']
+    df = db.run("SELECT * FROM data_stations")['result']
     print(f"Loaded {len(df)} rows from database")
     
     # Split data into train/test sets;
@@ -79,22 +79,30 @@ def main_backend(
     
     # Create full training pipeline (preprocessing + model);
     print("Building training pipeline...")
-    pipeline = training_pipeline(
+    pipelines = training_pipeline(
         preprocessor=preprocessor,
         models_to_use=models_to_use
     )
     
-    # Train the model;
-    #TODO: Implement actual training logic;
+    # Train each pipeline independently;
     print("Training model...")
-    # pipeline.fit(X_train, y_train)
+    results = {}
+    for name, pipeline in pipelines.items():
+        print(f"Training {name}...")
+        pipeline.fit(X_train, y_train)
+
+        results[name] = {
+            'pipeline': pipeline,
+            'predictions': pipeline.predict(X_test)
+        }
     
     # Evaluate model;
-    #TODO: Implement evaluation and metrics calculation;
+    #TODO: Implement evaluation and metrics calculation -> Hydroeval;
     print("Evaluating model...")
-    # score = pipeline.score(X_test, y_test)
-    # print(f"Model performance: {score}")
-    
+    for name, pipeline in pipelines.items():
+        score = pipeline.score(X_test, y_test)
+        print(f"Model performance: {score}")
+
     # Save model and results;
     #TODO: Implement model persistence (MLFlow, pickle, etc);
     print("Saving model...")

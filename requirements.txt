@@ -21,3 +21,5 @@ pyod
 ydata-profiling
 xgboost
 lightgbm
+hydroeval
+category_encoders

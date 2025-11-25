@@ -32,7 +32,7 @@ def create_model_pipeline(model, preprocessor):
     """Create a pipeline for a single model"""
     pipe = Pipeline([
         ("preprocessor", preprocessor),
-        ("model", model)
+        (f"{model}", model)
     ])
     return pipe
 
@@ -86,14 +86,4 @@ def training_pipeline(
         models_to_remove = [model for model in pipelines.keys() if model not in models_to_use]
         for model in models_to_remove:
             pipelines.pop(model)
-
-    # Train each pipeline independently;
-    results = {}
-    for name, pipeline in pipelines.items():
-        print(f"Training {name}...")
-        pipeline.fit(X_train, y_train)
-
-        results[name] = {
-            'pipeline': pipeline,
-            'predictions': pipeline.predict(X_test)
-        }
+    return pipelines

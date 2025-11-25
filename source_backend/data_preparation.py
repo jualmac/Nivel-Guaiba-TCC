@@ -17,7 +17,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import MissingIndicator, SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from category_encoders import BinaryEncoder
 from sklearn.model_selection import train_test_split
+from db_handler import DBConnection
+from util import STATION_COLS
 
 ########################################################################################################################
 #                                                                  
@@ -141,10 +144,33 @@ def encoding_pipeline(
             - Categorical pipeline: SimpleImputer(strategy='constant') -> OneHotEncoder();
             - MissingIndicator: Tracks missing values in specified columns;
     """
-    #TODO: Set defaults;
-    numerical_cols = []
-    categorical_cols = []
-    missing_indicator_cols = ['value']
+    # Get list of column names from database (the table should be selectable);
+    print("Loading data from database...")
+    db = DBConnection()
+    column_names = db.run(
+        """
+        SELECT 
+            column_name 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME='data_stations'
+        """
+        )['result']
+    column_list = list(column_names['column_name'])
+
+    # Define numerical columns;
+    exclude_prefixes = {'Altitude', 'Area_Drenagem', 'Latitude', 'Longitude', 'Rio_Codigo', 'Data_Hora_Medicao'}
+    numerical_cols = [
+        col for col in column_list 
+        if '_Status' not in col 
+        and not any(col.startswith(prefix) for prefix in exclude_prefixes)
+    ]
+
+    # Define categorical columns;
+    categorical_cols = [
+        col for col in column_list 
+        if '_Status' in col 
+        or col.startswith('Rio_Codigo')
+    ]
 
     # Define numerical pipeline;
     numerical_pipeline = Pipeline([
@@ -152,18 +178,9 @@ def encoding_pipeline(
         ('scaler', StandardScaler())
     ])
 
-    # Define categorical pipeline;
-    categorical_pipeline = Pipeline([
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('encoder', OneHotEncoder(handle_unknown='ignore')) #TODO: Divide by cardinality if needed -> Binary Encoder is pretty good for most cases;
-    ])
-
     # Create ColumnTransformer;
     preprocessor = ColumnTransformer([
         ("numerical", numerical_pipeline, numerical_cols),
-        ("categorical", categorical_pipeline, categorical_cols),
-        ("missing_indicator", MissingIndicator(features="missing-only"), missing_indicator_cols)
-    ], remainder="drop")
-    
+        ("categorical",  OneHotEncoder(), categorical_cols),
+        ], remainder="drop")
     return preprocessor
-
