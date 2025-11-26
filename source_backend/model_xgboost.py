@@ -31,8 +31,6 @@ from util import get_device_config, is_cpu_mode
 ########################################################################################################################
 class XGBoostModels:
     def __init__(self,
-                X: Optional[pd.DataFrame] = None,
-                y: Optional[pd.Series] = None,
                 random_state: int = 42,
                 n_trials: int = 10,
                 batch: int = 128,
@@ -40,6 +38,7 @@ class XGBoostModels:
                 **kwargs
                 ):
         """
+        Initialize the model by defining the variables;
         """
         # Define arguments;
         self.model_name = 'xgboost'
@@ -49,88 +48,26 @@ class XGBoostModels:
         self.steps = steps
         self.mode = kwargs.get('mode', 'CPU')
         self.device_config = get_device_config(self.mode, self.model_name)
-        
-        # Create copy to avoid modifying the original datasets;
-        self.X = X.copy() if X is not None else None
-        self.y = y.copy() if y is not None else None
-        
-        # Standardize date column if data is provided;
-        if self.X is not None:
-            self._add_calendar_features()
-
-    def _add_calendar_features(self) -> None:
-        """Transforms the 'Data_Hora_Medicao' into features for GBM type of models"""
-        if 'Data_Hora_Medicao' not in self.X.columns:
-            raise ValueError(f"The dataset doesn't have a 'Data_Hora_Medicao' date column")
-        
-        # Extract datetime components;
-        ts = pd.to_datetime(self.X['Data_Hora_Medicao'])
-        
-        # Year as regular numeric feature (not cyclical - it doesn't repeat);
-        self.X['year'] = ts.dt.year.astype(float)
-        
-        # Cyclical features that benefit from nature_encode;
-        self.X['month'] = ts.dt.month
-        self.X['day'] = ts.dt.day
-        self.X['hour'] = ts.dt.hour
-        self.X['dayofyear'] = ts.dt.dayofyear
-        self.X['dayofweek'] = ts.dt.dayofweek
-        
-        # Special handling for day of month (varies by month length);
-        days_in_month = ts.dt.days_in_month
-        
-        # Apply cyclical encoding to other periodic features;
-        cyclical_features = [
-            ('month', 12),       # Monthly cycle;
-            ('hour', 24),         # Daily cycle;
-            ('dayofyear', 365),  # Annual cycle;
-            ('dayofweek', 7),    # Weekly cycle;
-            ('day', ts.dt.days_in_month) # Monthly cycle;
-        ]
-        
-        for col, period in cyclical_features:
-            nature_encode(df=self.X, col=col, div_period=period)
-            self.X.drop(columns=[col], inplace=True)
-        
-        # Drop the original datetime column;
-        self.X.drop(columns=['Data_Hora_Medicao'], inplace=True)
-
-    def _get_best_params(self) -> dict:
-        """
-        Performs Bayesian optimization to find the best hyperparameters.
-        
-        Returns:
-            - dict: Best hyperparameters
-        """
-        # Get best parameters from optimizer;
-        optimizer = BayesianOptimization(
-            model_name=self.model_name,
-            n_trials=self.n_trials, 
-            X_train=self.X,
-            y_train=self.y,
-            mode=self.mode
-        )
-        return optimizer.optimize()
-
+    
     def fit(self, 
-            X: Optional[pd.DataFrame] = None, 
-            y: Optional[pd.Series] = None, 
+            X: pd.DataFrame = None, 
+            y: pd.Series = None, 
             optimize_hyperparameters: bool = False
         ):
         """
-        Fits the model. If X and y are provided, they update the internal datasets.
+        Fits the model with the provided X and y;
         Parameters:
             X: Features
             y: Target
             optimize_hyperparameters: If True, run Bayesian Optimization. If False, load best from MLflow.
         """
-        if X is not None:
-            self.X = X.copy()
-        if y is not None:
-            self.y = y.copy()
-            
+        # Create copy to avoid modifying the original datasets;
+        self.X = X.copy() if X is not None else None
+        self.y = y.copy() if y is not None else None
+        
+        # Standardize date column;
         if self.X is not None:
-            self._add_calendar_features()
+            self.X = self._add_calendar_features(X=self.X)
             
         # Hyperparameter handling;
         best_params = {}
@@ -157,13 +94,109 @@ class XGBoostModels:
                 pass
 
         # Create model with params;
-        print(f"Training XGBoost with params: {best_params}")
+        print(f"Training LightGBM with params: {best_params}")
         self.model = XGBRegressor(**best_params)
+
+        # Fit model with Training data;
         self.model.fit(self.X, self.y)
         return self
+    
+    def predict(
+        self,
+        X_test: Optional[pd.DataFrame] = None
+    ) -> np.ndarray:
+        """
+        Predicts the model with the provided test dataset.
+        
+        Parameters:
+            X_test: Test features DataFrame. Must contain 'Data_Hora_Medicao' column.
+        
+        Returns:
+            np.ndarray: Model predictions.
+        
+        Raises:
+            ValueError: If model has not been fitted or X_test is None.
+        """
+        # Validate model and dataframe;
+        if not hasattr(self, 'model') or self.model is None:
+            raise ValueError("Model has not been fitted. Call fit() before predict().")
+        
+        if X_test is None:
+            raise ValueError("X_test cannot be None. Please provide test features.")
+        
+        # Create copy to avoid modifying the original dataset;
+        X_test_processed = X_test.copy()
+        
+        # Apply calendar feature engineering (same as training);
+        X_test_processed = self._add_calendar_features(X=X_test_processed)
+        
+        # Make predictions;
+        return self.model.predict(X_test_processed)
 
-    #TODO: Implement;
-    def predict(self) -> pd.DataFrame:
+    def _add_calendar_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """
+        Transforms the 'Data_Hora_Medicao' into features for GBM type of models.
+        Works for both training and test datasets.
+        
+        Parameters:
+            X: DataFrame containing 'Data_Hora_Medicao' column.
+        
+        Returns:
+            pd.DataFrame: DataFrame with calendar features engineered and original date column removed.
         """
-        return None
+        if 'Data_Hora_Medicao' not in X.columns:
+            raise ValueError(f"The dataset doesn't have a 'Data_Hora_Medicao' date column")
+        
+        # Create copy to avoid modifying original DataFrame;
+        X_cpy = X.copy()
+        
+        # Extract datetime components;
+        ts = pd.to_datetime(X_cpy['Data_Hora_Medicao'])
+        
+        # Year as regular numeric feature (not cyclical - it doesn't repeat);
+        X_cpy['year'] = ts.dt.year.astype(float)
+        
+        # Cyclical features that benefit from nature_encode;
+        X_cpy['month'] = ts.dt.month
+        X_cpy['day'] = ts.dt.day
+        X_cpy['hour'] = ts.dt.hour
+        X_cpy['dayofyear'] = ts.dt.dayofyear
+        X_cpy['dayofweek'] = ts.dt.dayofweek
+        
+        # Apply cyclical encoding to periodic features;
+        cyclical_features = [
+            ('month', 12),       # Monthly cycle;
+            ('hour', 24),         # Daily cycle;
+            ('dayofyear', 365),  # Annual cycle;
+            ('dayofweek', 7),    # Weekly cycle;
+            ('day', ts.dt.days_in_month) # Monthly cycle (varies by month length);
+        ]
+        
+        for col, period in cyclical_features:
+            nature_encode(df=X_cpy, col=col, div_period=period)
+            X_cpy.drop(columns=[col], inplace=True)
+        
+        # Drop the original datetime column;
+        X_cpy.drop(columns=['Data_Hora_Medicao'], inplace=True)
+        return X_cpy
+
+    def _get_best_params(self) -> dict:
+        """
+        Performs Bayesian optimization to find the best hyperparameters.
+        
+        Parameters:
+            - X_train: Training features
+            - y_train: Training target
+            
+        Returns:
+            - dict: Best hyperparameters
+        """
+        # Get best parameters from optimizer;
+        optimizer = BayesianOptimization(
+            model_name=self.model_name,
+            n_trials=self.n_trials, 
+            X_train=self.X,
+            y_train=self.y,
+            mode=self.mode
+        )
+        return optimizer.optimize()
