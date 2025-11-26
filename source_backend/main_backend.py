@@ -31,7 +31,12 @@ def main_backend(
     train_size: float = 0.7,
     test_size: float = 0.2,
     val_size: float = 0.1,
-    random_state: int = 42
+    random_state: int = 42,
+    n_trials: int = 10,
+    batch: int = 128,
+    steps: int = 12,
+    freq: str = 'h',
+    mode: str = 'CPU'
 ) -> None:
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
@@ -46,6 +51,7 @@ def main_backend(
         test_size (float): Proportion of data for test set (default: 0.2);
         val_size (float): Proportion of data for validation set (default: 0.1);
         random_state (int): Random seed for reproducibility (default: 42);
+        mode (str): Training device mode ('CPU', 'GPU', 'CUDA');
     
     Returns:
         None: Function performs training and persists results;
@@ -85,7 +91,13 @@ def main_backend(
     print("Building training pipeline...")
     pipelines = training_pipeline(
         preprocessor=preprocessor,
-        models_to_use=models_to_use
+        models_to_use=models_to_use,
+        random_state=random_state,
+        n_trials=n_trials,
+        batch=batch,
+        steps=steps,
+        freq=freq,
+        mode=mode
     ) 
     
     # Initialize MLFlow Handler;
@@ -152,6 +164,7 @@ if __name__ == "__main__":
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
     parser.add_argument('--val_size', type=float, default=0.1, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
                         default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
@@ -187,6 +200,11 @@ if __name__ == "__main__":
         train_size=args.train_size,
         test_size=args.test_size,
         val_size=args.val_size,
-        random_state=args.random_state
+        random_state=args.random_state,
+        n_trials=args.trials,
+        batch=args.batch,
+        steps=args.steps,
+        freq=args.freq,
+        mode=args.mode
         )
     print('All Done!')

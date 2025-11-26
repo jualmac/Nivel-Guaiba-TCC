@@ -46,3 +46,43 @@ class MLFlowHandler:
     def end_run(self):
         """End the current run."""
         mlflow.end_run()
+
+    def load_best_params(self, metric_name: str = "score", mode: str = "max") -> Dict[str, Any]:
+        """
+        Retrieve parameters from the best run based on a metric.
+        
+        Parameters:
+            metric_name (str): Name of the metric to sort by.
+            mode (str): 'max' (higher is better) or 'min' (lower is better).
+            
+        Returns:
+            Dict[str, Any]: Dictionary of parameters from the best run.
+        """
+        try:
+            experiment = mlflow.get_experiment_by_name(self.experiment_name)
+            if experiment is None:
+                return {}
+            
+            order_by = [f"metrics.{metric_name} DESC"] if mode == "max" else [f"metrics.{metric_name} ASC"]
+            runs = mlflow.search_runs(
+                experiment_ids=[experiment.experiment_id],
+                order_by=order_by,
+                max_results=1
+            )
+            
+            if runs.empty:
+                return {}
+                
+            # Return params from the first (best) run -> params are stored with prefix 'params.' in the dataframe
+            best_run = runs.iloc[0]
+
+            # Filter out NaN values and clean keys
+            params = {
+                k.replace("params.", ""): v 
+                for k, v in best_run.items() 
+                if k.startswith("params.") and v is not None and str(v) != "nan"
+            }
+            return params
+        except Exception as e:
+            print(f"Error retrieving best params: {e}")
+            return {}

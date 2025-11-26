@@ -21,6 +21,7 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestRegressor
 import os
+from util import get_device_config
 
 ########################################################################################################################
 #                                                                  
@@ -51,8 +52,8 @@ class BayesianOptimization:
             n_trials: int, 
             X_train: DataFrame, 
             y_train: Series, 
-            cpu: bool, 
-            ):
+            mode: str = 'CPU', 
+        ):
         """
         Initializes the BayesianOptimization class with the specified model and parameters.
 
@@ -64,6 +65,8 @@ class BayesianOptimization:
             Training data features.
         y_train : Series
             Training data target variable.
+        mode : str
+            Training mode - 'CPU', 'GPU', or 'CUDA'.
         """
         # Initialize Logger;
         logging.basicConfig(
@@ -80,7 +83,7 @@ class BayesianOptimization:
         self.logger = logger
         self.random_state = 42
         self.n_jobs = -1
-        self.cpu = cpu
+        self.mode = mode
         self.file_name = f"source_backend/parameters/params_{model_name}.json"
 
     def objective(self, trial: optuna.Trial) -> float:
@@ -98,7 +101,7 @@ class BayesianOptimization:
             The negative RMSE score for the given trial.
         """
         # XGBoost;
-        if self.model_name == "xgb":
+        if self.model_name == "xgboost":
             params = {
                 "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
                 "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.1, log=True),
@@ -109,20 +112,20 @@ class BayesianOptimization:
                 "gamma": trial.suggest_float("gamma", 0, 5),
                 "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 1.0, log=True),
                 "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 1.0, log=True),
-                "tree_method": 'hist',
                 "grow_policy": trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
                 "random_state": self.random_state,
                 "n_jobs": self.n_jobs,
-                "tree_method": 'hist',  # Required for GPU acceleration
-                "device": 'cpu'  # Default to CPU
                 }
-            if not self.cpu:  # Use GPU if not CPU mode
-                params['device'] = 'cuda'
+            
+            # Get device config
+            device_config = get_device_config(self.mode, 'xgboost')
+            params.update(device_config)
+
             model = XGBRegressor(**params)
             return self.evaluate(model)
         
         # LightGBM;
-        elif self.model_name == "lgb":
+        elif self.model_name == "lightgbm":
             params = {
                 "n_estimators": trial.suggest_int("n_estimators", 100, 2000, step=100),
                 "max_depth": trial.suggest_int("max_depth", 3, 12),
@@ -136,16 +139,18 @@ class BayesianOptimization:
                 "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
                 "random_state": self.random_state,
                 "num_threads": self.n_jobs if self.n_jobs != -1 else 0,
-                "device": 'cpu'  # Default to CPU to avoid OpenCL device errors
             }
-            if not self.cpu:  # Only use GPU if explicitly requested (cpu=False)
-                params['device'] = 'gpu'
+            
+            # Get device config
+            device_config = get_device_config(self.mode, 'lightgbm')
+            params.update(device_config)
+
             model = LGBMRegressor(**params)
             return self.evaluate(model)
         
         #TODO: Add LSTM -> SARIMA Should use AutoArima;
         # Random Forest;
-        elif self.model_name == "rf":
+        elif self.model_name == "random_forest":
             params = {
                 "n_estimators": trial.suggest_int("n_estimators", 500, 3000, step=100),
                 "max_depth": trial.suggest_int("max_depth", 3, 12),
@@ -160,7 +165,7 @@ class BayesianOptimization:
             return self.evaluate(model)
 
         else:
-            self.logger.error("Please provide a supported model: RandomForest (rf), XGBoost (xgb) or LightGBM (lgbm)")
+            self.logger.error("Please provide a supported model: RandomForest (random_forest), XGBoost (xgboost) or LightGBM (lightgbm)")
             raise TypeError()
 
     def evaluate(self, model) -> float:
@@ -217,9 +222,9 @@ class BayesianOptimization:
         best_params['random_state'] = self.random_state
         
         # Add n_jobs only for models that support it
-        if self.model_name in ['xgb', 'rf']:
+        if self.model_name in ['xgboost', 'random_forest']:
             best_params['n_jobs'] = self.n_jobs
-        elif self.model_name == 'lgb':
+        elif self.model_name == 'lightgbm':
             # LightGBM uses num_threads instead of n_jobs
             best_params['num_threads'] = self.n_jobs if self.n_jobs != -1 else 0
         

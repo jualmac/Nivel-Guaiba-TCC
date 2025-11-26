@@ -9,7 +9,8 @@ This is util package for storing constants, dictionaries and util functions;
 ########################################################################################################################
 import numpy as np
 import pandas as pd
-import random
+import subprocess
+import shutil
 
 ########################################################################################################################
 #                                                                  
@@ -28,12 +29,14 @@ def is_valid(number):
     else:
         return True
 
+
 def flatten(list):
     flatten_list = []
     for sublist in list:
         for item in sublist:
             flatten_list.append(item)
     return flatten_list
+
 
 def convert_to_float(value: str) -> float:
     """
@@ -58,9 +61,11 @@ def convert_to_float(value: str) -> float:
     else:
         return float(value)
 
+
 def get_device_config(mode: str, model_type: str) -> dict:
     """
-    Converts mode parameter to appropriate device settings for XGBoost and LightGBM;
+    Converts mode parameter to appropriate device settings for XGBoost and LightGBM,
+    validating against actual hardware availability if possible.
     
     Parameters:
         mode: Training mode - 'CPU', 'GPU', or 'CUDA';
@@ -72,38 +77,68 @@ def get_device_config(mode: str, model_type: str) -> dict:
     mode = mode.upper()
     model_type = model_type.lower()
     
+    # Check availability if GPU requested
+    if mode in ['GPU', 'CUDA']:
+        if not is_gpu_available():
+            print(f"Warning: {mode} mode requested but no GPU detected via nvidia-smi. Falling back to CPU.")
+            mode = 'CPU'
+
     if mode == 'CPU':
         if model_type == 'xgboost':
             return {'device': 'cpu', 'tree_method': 'hist'}
         elif model_type == 'lightgbm':
             return {'device': 'cpu'}
         else:
-            raise ValueError(f"Invalid model_type: {model_type}. Choose from 'xgboost' or 'lightgbm'")
+            # Fallback for other models or raise error
+             return {'device': 'cpu'}
     
     elif mode in ['GPU', 'CUDA']:
         if model_type == 'xgboost':
-            # XGBoost uses GPU via tree_method='gpu_hist' or device='cuda' depending on version;
-            return {'device': 'cuda', 'tree_method': 'gpu_hist'}
+            # Modern XGBoost prefers device='cuda'
+            return {'device': 'cuda', 'tree_method': 'hist'}
         elif model_type == 'lightgbm':
-            # LightGBM uses OpenCL for GPU acceleration;
-            return {'device': 'gpu', 'device_type': 'gpu'}
+            # LightGBM usually expects device='gpu'
+            return {'device': 'gpu'}
         else:
-            raise ValueError(f"Invalid model_type: {model_type}. Choose from 'xgboost' or 'lightgbm'")
+             raise ValueError(f"Invalid model_type: {model_type}. Choose from 'xgboost' or 'lightgbm'")
     
     else:
         raise ValueError(f"Invalid mode: {mode}. Choose from 'CPU', 'GPU', or 'CUDA'")
 
+
 def is_cpu_mode(mode: str) -> bool:
     """
-    Check if the mode is CPU-only;
+    Check if the mode is CPU-only. Validates actual hardware if mode is GPU/CUDA.
     
     Parameters:
         mode: Training mode - 'CPU', 'GPU', or 'CUDA';
     
     Returns:
-        bool: True if CPU mode, False otherwise;
+        bool: True if CPU mode or if GPU requested but unavailable; False otherwise.
     """
-    return mode.upper() == 'CPU'
+    mode = mode.upper()
+    if mode == 'CPU':
+        return True
+    
+    if mode in ['GPU', 'CUDA']:
+        return not is_gpu_available()
+    return True
+
+
+def is_gpu_available() -> bool:
+    """
+    Checks if a GPU is available on the system by looking for nvidia-smi.
+    
+    Returns:
+        bool: True if nvidia-smi is found and runs successfully, False otherwise.
+    """
+    if shutil.which('nvidia-smi') is None:
+        return False
+    try:
+        subprocess.check_output(['nvidia-smi'], stderr=subprocess.STDOUT)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 ########################################################################################################################
 #                                                                  

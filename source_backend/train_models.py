@@ -40,6 +40,12 @@ def create_model_pipeline(model, preprocessor):
 def training_pipeline(
     models_to_use: Optional[list] = None,
     preprocessor: ColumnTransformer = None,
+    random_state: int = 42,
+    n_trials: int = 10,
+    batch: int = 128,
+    steps: int = 12,
+    freq: str = 'h',
+    **kwargs
 ) -> None:
     """
     Construct sklearn Pipeline combining preprocessing and model training;
@@ -51,16 +57,34 @@ def training_pipeline(
         preprocessor (ColumnTransformer): Fitted preprocessing pipeline from data_preparation;
         models_to_use (Optional[list]): List of model names to use. Options: 'SARIMA', 'LSTM', 
             'XGBOOST', 'LIGHTGBM'. If None, trains all models (default: None);
+        random_state (int): Random seed for reproducibility (default: 42);
+        n_trials (int): Number of trials for hyperparameter optimization (default: 10);
+        batch (int): Training batch size (default: 128);
+        steps (int): The amount of forward steps to be predicted (default: 12);
+        freq (str): Frequency of predictions (pandas offset) (default: 'h');
+        **kwargs: Additional parameters to pass to models;
     
     Returns:
         Pipeline: sklearn Pipeline with preprocessing and model steps;
     """
-    # Create separate pipeline for each model;
+    # Create separate pipeline for each model with arguments;
     pipelines = {
-        'SARIMA': create_model_pipeline(SARIMAModels(), preprocessor),
-        'LSTM': create_model_pipeline(LSTMModels(), preprocessor),
-        'XGBOOST': create_model_pipeline(XGBoostModels(), preprocessor),
-        'LIGHTGBM': create_model_pipeline(LightGBMModels(), preprocessor)
+        'SARIMA': create_model_pipeline(
+            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
+            preprocessor
+        ),
+        'LSTM': create_model_pipeline(
+            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
+            preprocessor
+        ),
+        'XGBOOST': create_model_pipeline(
+            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
+            preprocessor
+        ),
+        'LIGHTGBM': create_model_pipeline(
+            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
+            preprocessor
+        )
     }
 
     # Remove models that are NOT in the models_to_use list;

@@ -9,6 +9,7 @@ Defines the SARIMAModels class for time series forecasting using SARIMA;
 ########################################################################################################################
 # External libraries;
 import pandas as pd
+from typing import Tuple, List, Optional, Any, Dict
 
 ########################################################################################################################
 #                                                                  
@@ -16,9 +17,23 @@ import pandas as pd
 #
 ########################################################################################################################
 class SARIMAModels:
-    def __init__(self, **kwargs):
+    def __init__(self,
+                X: Optional[pd.DataFrame] = None,
+                y: Optional[pd.Series] = None,
+                random_state: int = 42,
+                n_trials: int = 10,
+                batch: int = 128,
+                steps: int = 12,
+                **kwargs
+                ):
         """
         """
+        # Define arguments;
+        self.random_state = random_state
+        self.n_trials = n_trials
+        self.batch = batch
+        self.steps = steps
+
         self.X = None
         self.y = None
         self.kwargs = kwargs
