@@ -107,4 +107,3 @@ def save_to_database(
         db.write(df=df_melted, table_name='data_stations', inplace=True)
     
     print("ETL data successfully saved to database.")
-

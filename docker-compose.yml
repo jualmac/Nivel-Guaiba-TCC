@@ -40,8 +40,10 @@ services:
     volumes:
       - ./data:/app/data  # Shared database volume;
       - ./models:/app/models  # Model artifacts storage;
+      - ./mlruns:/app/mlruns  # MLflow tracking storage;
     environment:
       - PYTHONUNBUFFERED=1
+      - MLFLOW_TRACKING_URI=file:/app/mlruns
     networks:
       - nivel_network
     depends_on:
@@ -52,7 +54,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: source_frontend/Dockerfile.fronted
+      dockerfile: source_frontend/Dockerfile.frontend
     container_name: nivel_tcc_frontend
     ports:
       - "8501:8501"  # Expose Streamlit on port 8501;
@@ -76,4 +78,3 @@ volumes:
     driver: local
   models:
     driver: local
-

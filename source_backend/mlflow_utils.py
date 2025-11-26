@@ -46,4 +46,3 @@ class MLFlowHandler:
     def end_run(self):
         """End the current run."""
         mlflow.end_run()
-

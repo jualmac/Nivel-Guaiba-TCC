@@ -74,4 +74,3 @@ def clean_dataframe(
     is_now_filled = was_nan & df_cpy['Cota_Adotada'].notna()
     df_cpy.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
     return df_cpy
-

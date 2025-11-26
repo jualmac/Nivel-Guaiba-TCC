@@ -162,8 +162,11 @@ if __name__ == "__main__":
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
     parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization')
-    parser.add_argument('--freq', type=str, choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], default='MS', help='Frequency of predictions (pandas offset)')
-    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
+    parser.add_argument('--freq', type=str, 
+                        choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], 
+                        default='h', 
+                        help='Frequency of predictions (pandas offset)'
+                        )
     
     # Bool arguments;
     parser.add_argument('--save_to_db', action='store_true', help='Save the results to the database')

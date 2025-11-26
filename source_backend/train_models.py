@@ -36,6 +36,7 @@ def create_model_pipeline(model, preprocessor):
     ])
     return pipe
 
+
 def training_pipeline(
     models_to_use: Optional[list] = None,
     preprocessor: ColumnTransformer = None,

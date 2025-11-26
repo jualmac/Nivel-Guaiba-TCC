@@ -3,9 +3,16 @@ FROM python:3.11-slim
 # Set working directory;
 WORKDIR /app
 
-# Copy requirements from parent directory and install dependencies;
+# Install system dependencies if needed;
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching;
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Python dependencies;
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy shared modules from root level;
 COPY db_handler.py .
@@ -14,12 +21,14 @@ COPY util.py .
 # Copy backend module;
 COPY source_backend/ ./source_backend/
 
-# Create data directory for database;
-RUN mkdir -p /app/data
+# Create necessary directories;
+RUN mkdir -p /app/data /app/models /app/mlruns && \
+    chmod 755 /app/data /app/models /app/mlruns
 
-# Set Python path;
+# Set Python path and MLflow tracking URI;
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV MLFLOW_TRACKING_URI=file:/app/mlruns
 
 # Run the model training pipeline;
 CMD ["python", "-u", "source_backend/main_backend.py"]
-
