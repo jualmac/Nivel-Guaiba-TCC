@@ -50,13 +50,23 @@ class XGBoostModels:
         self.mode = mode
         self.device_config = get_device_config(self.mode, self.model_name)
     
-    def fit(self, X: pd.DataFrame = None, y: pd.Series = None, optimize_hyperparameters: bool = True):
+    def fit(self, 
+            X: pd.DataFrame = None, 
+            y: pd.Series = None, 
+            X_val: Optional[pd.DataFrame] = None, 
+            y_val: Optional[pd.Series] = None, 
+            optimize_hyperparameters: bool = True,
+            early_stopping: int = 50
+            ):
         """
-        Fits the model with the provided X and y;
+        Fits the model with the provided X and y, optionally using validation data for early stopping;
         Parameters:
             X: Features
             y: Target
             optimize_hyperparameters: If True, run Bayesian Optimization. If False, load best from MLflow.
+            X_val: Optional validation features for early stopping
+            y_val: Optional validation target for early stopping
+            early_stopping: Number of rounds for early stopping (default: 50)
         """
         # Validate existence;
         if X is None or y is None:
@@ -73,6 +83,18 @@ class XGBoostModels:
         # Standardize date column;
         if self.X is not None:
             self.X = self._add_calendar_features(X=self.X)
+        
+        # Process validation data if provided;
+        eval_set = None
+        if X_val is not None and y_val is not None:
+            # Validate validation data;
+            if (hasattr(X_val, 'empty') and X_val.empty) or (hasattr(y_val, 'empty') and y_val.empty):
+                raise ValueError("Provided evaluation data (X_val and y_val) cannot be empty.")
+            else:
+                # Process validation features (add calendar features);
+                X_val_processed = self._add_calendar_features(X=X_val.copy())
+                eval_set = [(X_val_processed, y_val)]
+                print("Using validation set for early stopping.")
             
         # Hyperparameter handling;
         best_params = {}
@@ -98,12 +120,23 @@ class XGBoostModels:
             except (ValueError, TypeError):
                 pass
 
+        # Add early stopping parameters if validation set is provided;
+        if eval_set is not None:
+            # Set early stopping parameters if not already in best_params;
+            if 'early_stopping_rounds' not in best_params:
+                best_params['early_stopping_rounds'] = early_stopping
+            if 'eval_metric' not in best_params:
+                best_params['eval_metric'] = 'rmse'  # Default evaluation metric;
+
         # Create model with params;
-        print(f"Training LightGBM with params: {best_params}")
+        print(f"Training XGBoost with params: {best_params}")
         self.model = XGBRegressor(**best_params)
 
-        # Fit model with Training data;
-        self.model.fit(self.X, self.y)
+        # Fit model with Training data (and validation set for early stopping if provided);
+        if eval_set is not None:
+            self.model.fit(self.X, self.y, eval_set=eval_set)
+        else:
+            self.model.fit(self.X, self.y)
         return self
     
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
@@ -138,26 +171,34 @@ class XGBoostModels:
 
     def metric(self, y_true: pd.Series, y_pred: Optional[pd.Series] = None):
         """
-        Calculates the Nash-Sutcliffe Efficiency (NSE) score for the model predictions.
+        Calculates evaluation metrics for the model predictions.
         
         Parameters:
             y_true: True target values for test set
             y_pred: Predicted target values for test set
         
         Returns:
-            float: NSE score (higher is better, range: -inf to 1.0)
+            Dict[str, float]: Dictionary containing rmse, mae, nse, and r2 metrics
         """
-        if y_pred == None:
+        if y_pred is None:
             y_pred = self.y_pred
 
         # # Calculate NSE using hydroeval;
         # nse_score = evaluator(nse, simulations=y_pred, evaluation=y_true, axis=0)
         
-        # Calculate scores;
+        # Calculate all metrics;
         rmse = root_mean_squared_error(y_true=y_true, y_pred=y_pred)
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
-        return rmse, mae, nse
+        r2 = r2_score(y_true=y_true, y_pred=y_pred)
+        
+        # Return metrics as dictionary for easier logging;
+        return {
+            "rmse": rmse,
+            "mae": mae,
+            "nse": nse,
+            "r2": r2
+        }
 
     def _add_calendar_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """

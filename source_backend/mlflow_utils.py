@@ -46,15 +46,16 @@ class MLFlowHandler:
         """Log a dictionary of metrics."""
         mlflow.log_metrics(metrics)
 
-    def log_model(self, model, artifact_path: str = "model"):
+    def log_model(self, model, artifact_path: str = "model", input_example: Optional[Any] = None):
         """
         Log a scikit-learn compatible model.
         
         Parameters:
             model: The model object (must be compatible with mlflow.sklearn).
             artifact_path: Path within the run to store the model.
+            input_example: Optional input example for model signature inference.
         """
-        mlflow.sklearn.log_model(model, artifact_path)
+        mlflow.sklearn.log_model(model, artifact_path, input_example=input_example)
 
     def end_run(self):
         """End the current run."""

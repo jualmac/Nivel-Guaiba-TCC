@@ -37,7 +37,8 @@ def main_backend(
     steps: int = 12,
     freq: str = 'h',
     mode: str = 'CPU',
-    optimize: bool = True
+    optimize: bool = True,
+    early_stopping: int = 50
 ) -> None:
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
@@ -74,7 +75,8 @@ def main_backend(
         "steps": steps,
         "freq": freq,
         "mode": mode,
-        "optimize": optimize
+        "optimize": optimize,
+        "early_stopping": early_stopping
     }
     mlflow_handler.log_params(log_params)
     mlflow_handler.end_run()
@@ -110,6 +112,9 @@ def main_backend(
     print("Creating preprocessing pipeline...")
     preprocessor = encoding_pipeline(target_column=target_column)
     
+    # Pre-fit the preprocessor so Validation data can be processed;
+    preprocessor.fit(X_train, y_train)
+
     # Create full training pipeline (preprocessing + models);
     print("Building training pipeline...")
     pipelines = training_pipeline(
@@ -142,12 +147,23 @@ def main_backend(
             "model_type": name
         })
         
-        # Fit and predict;
-        pipeline.fit(
-            X_train, 
-            y_train, 
-            **{f"{name}__optimize_hyperparameters": optimize}
-            )
+        # Fit validation data for early stopping if available (only for XGBOOST and LIGHTGBM);
+        fit_params = {f"{name}__optimize_hyperparameters": optimize}
+        if val_size is not None and name in ['XGBOOST', 'LIGHTGBM']:
+            # Retrieve the preprocessor step from the current pipeline and apply it manually to validation dataset;
+            preprocessor_step = pipeline.named_steps['preprocessor']
+            X_val_processed = preprocessor_step.transform(X_val)
+
+            # Add Validation dataset and early stopping to fit;
+            fit_params = {f"{name}__optimize_hyperparameters": optimize}
+            fit_params[f"{name}__X_val"] = X_val_processed
+            fit_params[f"{name}__y_val"] = y_val
+            fit_params[f"{name}__early_stopping"] = early_stopping
+        
+        # Fit Pipeline;
+        pipeline.fit(X_train, y_train, **fit_params)
+        
+        # Predict with fitted Pipeline;
         y_pred = pipeline.predict(X_test)
 
         results[name] = {
@@ -156,15 +172,13 @@ def main_backend(
         }
 
         # Evaluate model;
-        rmse, mae, nse = pipeline.metric(y_true=y_test, y_pred=y_pred)
+        model_step = pipeline.named_steps[name] 
+        metrics = model_step.metric(y_true=y_test, y_pred=y_pred)
+        mlflow_handler.log_metrics(metrics)
+        print(f"Model performance: {metrics}")
 
-        print(f"Model performance: {rmse, mae, nse}")
-        mlflow_handler.log_metrics({"rmse": rmse})
-        mlflow_handler.log_metrics({"mae": mae})
-        mlflow_handler.log_metrics({"nse": nse})
-        
-        # Log the model;
-        mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}")
+        # Log the model with input example;
+        mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}", input_example=(X_test.iloc[:1] if hasattr(X_test, 'iloc') else X_test[:1]))
         
         # End MLFlow run;
         mlflow_handler.end_run()
@@ -187,14 +201,15 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['LIGHTGBM'],
+                        default=['XGBOOST'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--freq', type=str, 
                         choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], 
                         default='h', 
@@ -229,6 +244,7 @@ if __name__ == "__main__":
         steps=args.steps,
         freq=args.freq,
         mode=args.mode,
-        optimize=args.optimize
+        optimize=args.optimize,
+        early_stopping=args.early_stopping
         )
     print('All Done!')
