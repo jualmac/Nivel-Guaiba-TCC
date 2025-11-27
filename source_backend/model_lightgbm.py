@@ -16,13 +16,13 @@ import numpy as np
 import pandas as pd
 from typing import Tuple, List, Optional, Any, Dict
 from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
-from statsmodels.tsa.arima.model import ARIMA
-from source_backend.bayesian_optimizer import BayesianOptimization
+from source_backend.optimize_params import BayesianOptimization
 from source_database.transformations import nature_encode
 from source_backend.mlflow_utils import MLFlowHandler
 from util import get_device_config, is_cpu_mode
+from source_backend.metrics import nse as nash_sutcliffe_efficiency
 
 ########################################################################################################################
 #
@@ -35,6 +35,7 @@ class LightGBMModels:
                 n_trials: int = 10,
                 batch: int = 128,
                 steps: int = 12,
+                mode: str = 'CPU',
                 **kwargs
                 ):
         """
@@ -46,14 +47,10 @@ class LightGBMModels:
         self.n_trials = n_trials
         self.batch = batch
         self.steps = steps
-        self.mode = kwargs.get('mode', 'CPU')
+        self.mode = mode
         self.device_config = get_device_config(self.mode, self.model_name)
     
-    def fit(self, 
-            X: pd.DataFrame = None, 
-            y: pd.Series = None, 
-            optimize_hyperparameters: bool = False
-        ):
+    def fit(self, X: pd.DataFrame, y: pd.Series, optimize_hyperparameters: bool = True):
         """
         Fits the model with the provided X and y;
         Parameters:
@@ -61,9 +58,15 @@ class LightGBMModels:
             y: Target
             optimize_hyperparameters: If True, run Bayesian Optimization. If False, load best from MLflow.
         """
+        # Validate existence and content;
+        if X is None or y is None:
+            raise ValueError("Input data (X and y) cannot be None.")
+        if (hasattr(X, 'empty') and X.empty) or (hasattr(y, 'empty') and y.empty):
+            raise ValueError("Input data (X and y) cannot be empty.")
+
         # Create copy to avoid modifying the original datasets;
-        self.X = X.copy() if X is not None else None
-        self.y = y.copy() if y is not None else None
+        self.X = X.copy()
+        self.y = y.copy()
         
         # Standardize date column;
         if self.X is not None:
@@ -101,10 +104,7 @@ class LightGBMModels:
         self.model.fit(self.X, self.y)
         return self
     
-    def predict(
-        self,
-        X_test: Optional[pd.DataFrame] = None
-    ) -> np.ndarray:
+    def predict(self, X_test: pd.DataFrame) -> np.ndarray:
         """
         Predicts the model with the provided test dataset.
         
@@ -120,7 +120,6 @@ class LightGBMModels:
         # Validate model and dataframe;
         if not hasattr(self, 'model') or self.model is None:
             raise ValueError("Model has not been fitted. Call fit() before predict().")
-        
         if X_test is None:
             raise ValueError("X_test cannot be None. Please provide test features.")
         
@@ -129,9 +128,34 @@ class LightGBMModels:
         
         # Apply calendar feature engineering (same as training);
         X_test_processed = self._add_calendar_features(X=X_test_processed)
-        
+
         # Make predictions;
-        return self.model.predict(X_test_processed)
+        self.y_pred = self.model.predict(X_test_processed)
+        return self.y_pred
+
+    def score(self, y_true: pd.Series, y_pred: Optional[pd.Series] = None):
+        """
+        Calculates the Nash-Sutcliffe Efficiency (NSE) score for the model predictions.
+        
+        Parameters:
+            y_true: True target values for test set
+            y_pred: Predicted target values for test set
+        
+        Returns:
+            float: NSE score (higher is better, range: -inf to 1.0)
+        """
+        if y_pred == None:
+            y_pred = self.y_pred
+
+        # # Calculate NSE using hydroeval;
+        # from hydroeval import evaluator, nse
+        # nse_score = evaluator(nse, simulations=y_pred, evaluation=y_true, axis=0)
+        
+        # Calculate Scores;
+        rmse = root_mean_squared_error(y_true=y_true, y_pred=y_pred)
+        mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
+        nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
+        return rmse, mae, nse
 
     def _add_calendar_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """

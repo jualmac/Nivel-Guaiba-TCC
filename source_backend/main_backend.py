@@ -36,7 +36,8 @@ def main_backend(
     batch: int = 128,
     steps: int = 12,
     freq: str = 'h',
-    mode: str = 'CPU'
+    mode: str = 'CPU',
+    optimize: bool = True
 ) -> None:
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
@@ -85,7 +86,7 @@ def main_backend(
     
     # Create preprocessing pipeline;
     print("Creating preprocessing pipeline...")
-    preprocessor = encoding_pipeline()
+    preprocessor = encoding_pipeline(target_column=target_column)
     
     # Create full training pipeline (preprocessing + models);
     print("Building training pipeline...")
@@ -122,32 +123,31 @@ def main_backend(
             "model_type": name
         })
         
-        pipeline.fit(X_train, y_train)
+        # Fit and predict;
+        pipeline.fit(
+            X_train, 
+            y_train, 
+            **{f"{name}__optimize_hyperparameters": optimize}
+            )
+        y_pred = pipeline.predict(X_test)
 
         results[name] = {
             'pipeline': pipeline,
-            'predictions': pipeline.predict(X_test)
+            'predictions': y_pred
         }
 
-        #TODO: Implement evaluation and metrics calculation -> Hydroeval;
         # Evaluate model;
-        try:
-            score = pipeline.score(X_test, y_test)
-            print(f"Model performance: {score}")
-            mlflow_handler.log_metrics({"score": score})
-        except Exception as e:
-            print(f"Error calculating score for {name}: {e}")
+        rmse, mae, nse = pipeline.score(y_true=y_test, y_pred=y_pred, )
+        print(f"Model performance: {rmse, mae, nse}")
+        mlflow_handler.log_metrics({"rmse": rmse})
+        mlflow_handler.log_metrics({"mae": mae})
+        mlflow_handler.log_metrics({"nse": nse})
         
         # Log the model;
         mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}")
         
         # End MLFlow run;
         mlflow_handler.end_run()
-    
-    # Save model and results;
-    #TODO: Implement model persistence (MLFlow, pickle, etc);
-    print("Saving model...")
-    
     print("Backend pipeline completed!")
 
 ########################################################################################################################
@@ -167,14 +167,14 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
+                        default=['LIGHTGBM'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization')
+    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--freq', type=str, 
                         choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], 
                         default='h', 
@@ -184,10 +184,13 @@ if __name__ == "__main__":
     # Bool arguments;
     parser.add_argument('--save_to_db', action='store_true', help='Save the results to the database')
     parser.add_argument('--no_save_to_db', dest='save_to_db', action='store_false', help='Do not save the results to the database')
-    
+    parser.add_argument('--optimize', action='store_true', help='Perform hyperparameter Optimization')
+    parser.add_argument('--no_optimize', dest='optimize', action='store_false', help='Do not perform hyperparameter Optimization')
+
     # Set default values for booleans;
     parser.set_defaults(
         save_to_db=True,
+        optimize=True
     )
     
     args = parser.parse_args()
@@ -205,6 +208,7 @@ if __name__ == "__main__":
         batch=args.batch,
         steps=args.steps,
         freq=args.freq,
-        mode=args.mode
+        mode=args.mode,
+        optimize=args.optimize
         )
     print('All Done!')
