@@ -125,6 +125,7 @@ def data_division(
 
 
 def encoding_pipeline(
+    target_column: Optional[str] = None
 ) -> ColumnTransformer:
     """
     Construct sklearn ColumnTransformer for feature preprocessing and encoding;
@@ -163,13 +164,14 @@ def encoding_pipeline(
         col for col in column_list 
         if '_Status' not in col 
         and not any(col.startswith(prefix) for prefix in exclude_prefixes)
+        and col != target_column
     ]
 
     # Define categorical columns;
     categorical_cols = [
         col for col in column_list 
-        if '_Status' in col 
-        or col.startswith('Rio_Codigo')
+        if ('_Status' in col or col.startswith('Rio_Codigo'))
+        and col != target_column
     ]
 
     # Define numerical pipeline;
@@ -181,7 +183,7 @@ def encoding_pipeline(
     # Create ColumnTransformer;
     preprocessor = ColumnTransformer([
         ("numerical", numerical_pipeline, numerical_cols),
-        ("categorical",  OneHotEncoder(), categorical_cols),
+        ("categorical",  OneHotEncoder(sparse_output=False), categorical_cols),
         ], remainder="passthrough", verbose_feature_names_out=False)
     preprocessor.set_output(transform="pandas")
     return preprocessor

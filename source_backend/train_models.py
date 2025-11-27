@@ -28,11 +28,11 @@ from source_backend.model_lightgbm import LightGBMModels
 ########################################################################################################################
 #TODO: Add rolling lags -> LagFeaturesTransformer or RollingStatsTransformer;
 #TODO: Add Feature Selection -> SelectKBest (if needed);
-def create_model_pipeline(model, preprocessor):
+def create_model_pipeline(model, preprocessor, model_name):
     """Create a pipeline for a single model"""
     pipe = Pipeline([
         ("preprocessor", preprocessor),
-        (f"{model}", model)
+        (model_name, model)
     ])
     return pipe
 
@@ -45,6 +45,7 @@ def training_pipeline(
     batch: int = 128,
     steps: int = 12,
     freq: str = 'h',
+    mode: str = 'CPU',
     **kwargs
 ) -> None:
     """
@@ -70,20 +71,24 @@ def training_pipeline(
     # Create separate pipeline for each model with arguments;
     pipelines = {
         'SARIMA': create_model_pipeline(
-            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
-            preprocessor
+            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            preprocessor,
+            model_name='SARIMA'
         ),
         'LSTM': create_model_pipeline(
-            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
-            preprocessor
+            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            preprocessor,
+            model_name='LSTM'
         ),
         'XGBOOST': create_model_pipeline(
-            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
-            preprocessor
+            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            preprocessor,
+            model_name='XGBOOST'
         ),
         'LIGHTGBM': create_model_pipeline(
-            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, **kwargs), 
-            preprocessor
+            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            preprocessor,
+            model_name='LIGHTGBM'
         )
     }
 
