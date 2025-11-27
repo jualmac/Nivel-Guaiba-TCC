@@ -1,9 +1,22 @@
+"""
+Utility functions for logging experiments with MLflow;
+"""
+########################################################################################################################
+#                                                                  
+# LIBRARIES
+#
+########################################################################################################################
 import mlflow
 import mlflow.sklearn
 from typing import Dict, Any, Optional
 import os
 from datetime import datetime
 
+########################################################################################################################
+#                                                                  
+# FUNCTION
+#
+########################################################################################################################
 class MLFlowHandler:
     def __init__(self, experiment_name: str = "river_level_forecasting", tracking_uri: Optional[str] = None):
         """
