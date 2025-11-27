@@ -133,7 +133,7 @@ class LightGBMModels:
         self.y_pred = self.model.predict(X_test_processed)
         return self.y_pred
 
-    def score(self, y_true: pd.Series, y_pred: Optional[pd.Series] = None):
+    def metric(self, y_true: pd.Series, y_pred: Optional[pd.Series] = None):
         """
         Calculates the Nash-Sutcliffe Efficiency (NSE) score for the model predictions.
         

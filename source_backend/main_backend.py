@@ -57,12 +57,34 @@ def main_backend(
     Returns:
         None: Function performs training and persists results;
     """
+    # Initialize MLFlow Handler and log initial parameters;
+    mlflow_handler = MLFlowHandler(experiment_name="river_level_forecasting")
+    mlflow_handler.start_run(run_name="initial_config")
+    
+    # Prepare parameters for logging (convert list to string if needed);
+    log_params = {
+        "target_column": target_column,
+        "models_to_use": str(models_to_use) if models_to_use is not None else "all",
+        "train_size": train_size,
+        "test_size": test_size,
+        "val_size": val_size,
+        "random_state": random_state,
+        "n_trials": n_trials,
+        "batch": batch,
+        "steps": steps,
+        "freq": freq,
+        "mode": mode,
+        "optimize": optimize
+    }
+    mlflow_handler.log_params(log_params)
+    mlflow_handler.end_run()
+    
     # Read clean data from database;
     print("Loading data from database...")
     db = DBConnection()
     df = db.run("SELECT * FROM data_stations")['result']
     print(f"Loaded {len(df)} rows from database")
-    
+
     # Split data into train/test sets;
     print("Splitting data into train/test sets...")
     if val_size is not None:
@@ -101,9 +123,6 @@ def main_backend(
         mode=mode
     ) 
     
-    # Initialize MLFlow Handler;
-    mlflow_handler = MLFlowHandler(experiment_name="river_level_forecasting")
-    
     # Train each pipeline independently;
     print("Training model...")
     results = {}
@@ -137,7 +156,8 @@ def main_backend(
         }
 
         # Evaluate model;
-        rmse, mae, nse = pipeline.score(y_true=y_test, y_pred=y_pred, )
+        rmse, mae, nse = pipeline.metric(y_true=y_test, y_pred=y_pred)
+
         print(f"Model performance: {rmse, mae, nse}")
         mlflow_handler.log_metrics({"rmse": rmse})
         mlflow_handler.log_metrics({"mae": mae})
@@ -174,7 +194,7 @@ if __name__ == "__main__":
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--freq', type=str, 
                         choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], 
                         default='h', 
