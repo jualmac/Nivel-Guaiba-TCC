@@ -1,3 +1,4 @@
+#TODO: Review used libraries and rebuild this;
 geopandas
 hyperopt
 ipykernel
@@ -6,7 +7,6 @@ ipywidgets
 jupyter
 jupyterlab
 matplotlib
-neuralforecast
 numpy
 pandas
 python-dotenv
@@ -21,6 +21,9 @@ pyod
 ydata-profiling
 xgboost
 lightgbm
-hydroeval
+#hydroeval
 category_encoders
 mlflow
+
+#statsforecast
+#neuralforecast
