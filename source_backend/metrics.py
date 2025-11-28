@@ -38,6 +38,7 @@ def relative_root_mean_squared_error(y_true: np.ndarray, y_pred: np.ndarray) -> 
 
 def nse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """
-    Calculate the Nash-Sutcliffe Efficiency (NSE);
+    Calculate the Normalized Nash-Sutcliffe Efficiency (NSE);
     """
-    return 1 - (np.sum((y_true - y_pred) ** 2) / np.sum((y_true - np.mean(y_true)) ** 2))
+    nse = 1-(np.sum((y_true - y_pred) ** 2) / np.sum((y_true - np.mean(y_true)) ** 2))
+    return 1/(2-nse)
