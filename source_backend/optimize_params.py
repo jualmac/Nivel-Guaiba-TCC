@@ -37,6 +37,9 @@ import logging
 import json
 import mlflow
 
+from source_backend.model_lstm import LSTMRegressor, TimeSeriesDataset
+from torch.utils.data import DataLoader
+
 ########################################################################################################################
 #                                                                  
 # FUNCTION
@@ -163,20 +166,42 @@ class BayesianOptimization:
 
         # LSTM;
         elif self.model_name == "lstm":
-            # Import locally to avoid circular imports if model_lstm imports BayesianOptimization
-            from source_backend.model_lstm import LSTMRegressor, TimeSeriesDataset
-            
-            # Hyperparameters
+            # Hyperparameters;
             params = {
-                "hidden_size": trial.suggest_int("hidden_size", 32, 256, step=32),
-                "num_layers": trial.suggest_int("num_layers", 1, 3),
+                # Architecture Tuning;
+                "hidden_size": trial.suggest_categorical("hidden_size", [32, 64, 128, 256]), # Using powers of 2
+                "num_layers": trial.suggest_int("num_layers", 1, 5), # Expanded range for deeper networks
                 "dropout": trial.suggest_float("dropout", 0.0, 0.5),
+                
+                # Training Optimization;
                 "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True),
-                "epochs": 50, # Fixed epochs for optimization to save time, or tune it
-                "batch_size": 128, # Can also be tuned
-                "sequence_length": 12 # Fixed for now, or pass from outside
+                "batch_size": trial.suggest_categorical("batch_size", [64, 128, 256, 512]), # Now being tuned
+                "epochs": 50, # Fixed epochs for optimization speed is acceptable
+                
+                # Critical Time-Series Parameter (Now being tuned);
+                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48, 72]) 
             }
             return self.evaluate_lstm(params)
+
+        # SARIMA Integration;
+        elif self.model_name == "sarima":
+            from statsmodels.tsa.statespace.sarimax import SARIMAX
+            
+            # Define Search Space
+            # We tune the orders (p,d,q) and seasonal orders (P,D,Q,s)
+            params = {
+                'p': trial.suggest_int('p', 0, 3),
+                'd': trial.suggest_int('d', 0, 1), # Integration usually 0 or 1
+                'q': trial.suggest_int('q', 0, 3),
+                
+                'P': trial.suggest_int('P', 0, 2),
+                'D': trial.suggest_int('D', 0, 1),
+                'Q': trial.suggest_int('Q', 0, 2),
+                's': 12, # Fixed Seasonality (e.g. 12 months, or 12 hours) - Can be tuned if unsure
+                
+                'trend': trial.suggest_categorical('trend', ['c', 't', 'ct'])
+            }
+            return self.evaluate_sarima(params)
 
         else:
             self.logger.error("Please provide a supported model: XGBoost (xgboost), LightGBM (lightgbm) or LSTM (lstm)")
@@ -187,9 +212,7 @@ class BayesianOptimization:
         Evaluates the LSTM model using TimeSeriesSplit cross-validation.
         Custom implementation for PyTorch model.
         """
-        from source_backend.model_lstm import LSTMRegressor, TimeSeriesDataset
-        from torch.utils.data import DataLoader
-        
+        # Define Splits;        
         tscv = TimeSeriesSplit(n_splits=3) # Reduced splits for deep learning speed
         scores = []
         
@@ -266,6 +289,50 @@ class BayesianOptimization:
                     val_loss += criterion(outputs, targets).item() * inputs.size(0)
             
             scores.append(-np.sqrt(val_loss / len(val_dataset))) # Negative RMSE
+        return np.mean(scores) if scores else -float('inf')
+
+    def evaluate_sarima(self, params) -> float:
+        """
+        Custom Evaluation logic for SARIMA using TimeSeriesSplit
+        """
+        from statsmodels.tsa.statespace.sarimax import SARIMAX
+        
+        tscv = TimeSeriesSplit(n_splits=3)
+        scores = []
+        
+        # Data preparation (Handle Numpy vs DataFrame)
+        X = self.X_train.values if hasattr(self.X_train, 'values') else self.X_train
+        y = self.y_train.values if hasattr(self.y_train, 'values') else self.y_train
+
+        for train_index, val_index in tscv.split(X):
+            try:
+                # Split
+                X_train_f, X_val_f = X[train_index], X[val_index]
+                y_train_f, y_val_f = y[train_index], y[val_index]
+
+                # Fit SARIMAX
+                model = SARIMAX(
+                    endog=y_train_f,
+                    exog=X_train_f,
+                    order=(params['p'], params['d'], params['q']),
+                    seasonal_order=(params['P'], params['D'], params['Q'], params['s']),
+                    trend=params['trend'],
+                    enforce_stationarity=False,
+                    enforce_invertibility=False
+                )
+                model_fit = model.fit(disp=False)
+
+                # Predict (Out-of-sample forecast for the validation set)
+                # We must provide exog (X_val_f) for the prediction steps
+                pred = model_fit.get_forecast(steps=len(y_val_f), exog=X_val_f)
+                y_pred = pred.predicted_mean
+
+                # Score
+                rmse = np.sqrt(mean_squared_error(y_val_f, y_pred))
+                scores.append(-rmse) # Negative RMSE for maximization
+            except Exception as e:
+                # SARIMA can fail convergence on some bad param combos
+                return -float('inf')
         return np.mean(scores) if scores else -float('inf')
 
     def evaluate(self, model) -> float:

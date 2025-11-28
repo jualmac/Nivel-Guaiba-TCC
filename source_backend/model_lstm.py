@@ -1,72 +1,317 @@
 """
-Defines the LSTMModels class for time series forecasting using LSTM;
+Defines the LSTMModels class for automated time series forecasting using PyTorch. 
+This class acts as a wrapper to make a PyTorch LSTM compatible with Scikit-Learn Pipelines 
+and mirrors the structure of the existing XGBoost/LightGBM models.
 """
 
 ########################################################################################################################
-#                                                                  
+#
 # LIBRARIES
 #
 ########################################################################################################################
-# External libraries;
+import numpy as np
 import pandas as pd
-from typing import Tuple, List, Optional, Any, Dict
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+from typing import Optional, Dict
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
+from source_backend.optimize_params import BayesianOptimization
+from source_backend.mlflow_utils import MLFlowHandler
+from util import get_device_config
+from source_backend.metrics import nse as nash_sutcliffe_efficiency
 
 ########################################################################################################################
-#                                                                  
-# MODEL
+#
+# INNER PYTORCH MODULE
+#
+########################################################################################################################
+class _LSTMRegressor(nn.Module):
+    """
+    Standard PyTorch LSTM implementation.
+    Hidden class used internally by LSTMModels.
+    """
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout):
+        super(_LSTMRegressor, self).__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0
+        )
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        # x shape: (batch_size, seq_length, input_size)
+        out, _ = self.lstm(x)
+
+        # Take the output of the last time step
+        out = out[:, -1, :]
+        out = self.fc(out)
+        return out
+
+########################################################################################################################
+#
+# MODEL WRAPPER
 #
 ########################################################################################################################
 class LSTMModels:
     def __init__(self,
-                X: Optional[pd.DataFrame] = None,
-                y: Optional[pd.Series] = None,
-                random_state: int = 42,
-                n_trials: int = 10,
-                batch: int = 128,
-                steps: int = 12,
-                **kwargs
-                ):
+                 random_state: int = 42,
+                 n_trials: int = 10,
+                 batch: int = 128,
+                 steps: int = 12, 
+                 mode: str = 'CPU',
+                 **kwargs
+                 ):
         """
+        Initialize the model wrapper.
         """
-        # Define arguments;
+        self.model_name = 'lstm'
         self.random_state = random_state
         self.n_trials = n_trials
-        self.batch = batch
-        self.steps = steps
-
-        self.X = None
-        self.y = None
-        self.kwargs = kwargs
-
-    def fit(self, X: pd.DataFrame, y: pd.Series):
-        """
-        Fit the model.
-        """
-        # Create copy to avoid modifying the original datasets;
-        self.X = X.copy()
-        self.y = y.copy()
+        self.batch_size = batch
+        self.sequence_length = steps # This acts as 'sequence_length' lookback window;
+        self.mode = mode
         
-        # Standardize date column;
-        self._add_calendar_features()
+        # Determine device;
+        self.device = torch.device('cuda' if self.mode in ['GPU', 'CUDA'] and torch.cuda.is_available() else 'cpu')
         
-        #TODO: Implement training logic
+        # Placeholders;
+        self.model = None
+        self.X_train_shape = None
+
+    def fit(self, 
+            X: pd.DataFrame, 
+            y: pd.Series, 
+            X_val: Optional[pd.DataFrame] = None, 
+            y_val: Optional[pd.Series] = None,
+            optimize_hyperparameters: bool = True,
+            early_stopping: int = 10, # Epochs for patience
+            epochs: int = 100
+            ):
+        """
+        Fits the LSTM model. Compatible with sklearn Pipeline.
+        """
+        # Validation Logic;
+        if X is None or y is None:
+            raise ValueError("Input data (X and y) cannot be None.")
+        
+        # Check for empty inputs (handling DataFrames or Numpy arrays);
+        if hasattr(X, 'empty') and X.empty: raise ValueError("X cannot be empty.")
+        if hasattr(y, 'empty') and y.empty: raise ValueError("y cannot be empty.")
+
+        # Create copies/convert to numpy;
+        self.X = X.values if hasattr(X, 'values') else X
+        self.y = y.values if hasattr(y, 'values') else y
+        self.X_train_shape = self.X.shape
+
+        # Hyperparameter Optmization;
+        best_params = {}
+        if optimize_hyperparameters:
+            print("Running Bayesian Optimization for LSTM...")
+            best_params = self._get_best_params()
+        else:
+            print("Loading best parameters from MLflow...")
+            mlflow_handler = MLFlowHandler()
+            best_params = mlflow_handler.load_best_params(metric_name="lstm_best_rmse", mode="min")
+            if not best_params:
+                print("No best params found, using defaults.")
+                best_params = {
+                    "hidden_size": 64, "num_layers": 1, 
+                    "dropout": 0.0, "learning_rate": 0.001
+                }
+
+        # Clean params types;
+        for k, v in best_params.items():
+            if k in ['hidden_size', 'num_layers']: best_params[k] = int(v)
+
+        print(f"Training LSTM with params: {best_params}")
+
+        # Data Preparation - Reshape 2D into 3D Sequences;
+        X_seq, y_seq = self._create_sequences(self.X, self.y)
+        
+        # Create DataLoader;
+        train_dataset = TensorDataset(torch.FloatTensor(X_seq), torch.FloatTensor(y_seq))
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=False)
+
+        # Prepare Validation Data if present;
+        val_loader = None
+        if X_val is not None and y_val is not None:
+            X_val_np = X_val.values if hasattr(X_val, 'values') else X_val
+            y_val_np = y_val.values if hasattr(y_val, 'values') else y_val
+            
+            X_val_seq, y_val_seq = self._create_sequences(X_val_np, y_val_np)
+            if len(X_val_seq) > 0:
+                val_dataset = TensorDataset(torch.FloatTensor(X_val_seq), torch.FloatTensor(y_val_seq))
+                val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
+                print("Using validation set for early stopping.")
+
+        # Initialize Inner Model;
+        self.model = _LSTMRegressor(
+            input_size=self.X.shape[1],
+            hidden_size=best_params.get('hidden_size', 64),
+            num_layers=best_params.get('num_layers', 1),
+            output_size=1,
+            dropout=best_params.get('dropout', 0.0)
+        ).to(self.device)
+
+        # Training Loop with Early Stopping;
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=best_params.get('learning_rate', 0.001))
+        criterion = nn.MSELoss()
+
+        best_val_loss = float('inf')
+        patience_counter = 0
+
+        self.model.train()
+        for epoch in range(epochs):
+            train_loss = 0
+            for batch_X, batch_y in train_loader:
+                batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device).unsqueeze(1)
+                
+                optimizer.zero_grad()
+                outputs = self.model(batch_X)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+                train_loss += loss.item()
+
+            # Validation / Early Stopping;
+            if val_loader:
+                self.model.eval()
+                val_loss = 0
+                with torch.no_grad():
+                    for val_X, val_y in val_loader:
+                        val_X, val_y = val_X.to(self.device), val_y.to(self.device).unsqueeze(1)
+                        outputs = self.model(val_X)
+                        val_loss += criterion(outputs, val_y).item()
+                
+                avg_val_loss = val_loss / len(val_loader)
+                
+                if avg_val_loss < best_val_loss:
+                    best_val_loss = avg_val_loss
+                    patience_counter = 0
+                    # Ideally save model state dict here
+                else:
+                    patience_counter += 1
+                    if patience_counter >= early_stopping:
+                        print(f"Early stopping triggered at epoch {epoch}")
+                        break
+                self.model.train() # Switch back to train mode
         return self
 
-    def predict(self, X: pd.DataFrame):
-        #TODO: Implement prediction logic
-        return []
+    def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+        """
+        Predicts using the LSTM model.
+        """
+        if self.model is None:
+            raise ValueError("Model has not been fitted.")
+        if X_test is None:
+            raise ValueError("X_test cannot be None.")
 
-    def _add_calendar_features(self) -> None:
+        # Convert to numpy
+        X_np = X_test.values if hasattr(X_test, 'values') else X_test
+
+        # CRITICAL: LSTM needs sequences. 
+        # If X_test is just a 2D chunk, we treat it as the raw data to be sequenced.
+        # NOTE: This simple sequence generation loses the first 'sequence_length' predictions
+        # because we don't have history for them in X_test alone.
+        X_seq, _ = self._create_sequences(X_np, None)
+
+        if len(X_seq) == 0:
+            # Fallback for very small test sets: duplicate last known row to force a prediction?
+            # Or raise error. For strict comparability, we proceed with what we have.
+            return np.array([])
+
+        self.model.eval()
+        predictions = []
+        
+        # Batch processing for prediction;
+        dataset = TensorDataset(torch.FloatTensor(X_seq))
+        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
+
+        with torch.no_grad():
+            for batch_X, in loader:
+                batch_X = batch_X.to(self.device)
+                out = self.model(batch_X)
+                predictions.append(out.cpu().numpy())
+
+        # Flatten results;
+        self.y_pred = np.concatenate(predictions).flatten()
+        
+        # Pad the beginning with NaNs or first prediction to match X_test length (Since creating sequences consumes the first L rows);
+        padding = np.full(self.sequence_length, self.y_pred[0]) 
+        self.y_pred = np.concatenate([padding, self.y_pred])
+        
+        # Truncate if padding made it too long (rare) or fit to exactly X_test length;
+        return self.y_pred[:len(X_test)]
+
+    def metric(self, y_true: pd.Series, y_pred: Optional[pd.Series] = None):
         """
-        Sets 'Data_Hora_Medicao' as the index for time series models;
+        Identical metric method to GBM models.
         """
-        if self.X is not None and 'Data_Hora_Medicao' in self.X.columns:
-            # Convert to datetime and set as index;
-            self.X['Data_Hora_Medicao'] = pd.to_datetime(self.X['Data_Hora_Medicao'])
-            self.X.set_index('Data_Hora_Medicao', inplace=True)
-            self.X.sort_index(inplace=True)
+        if y_pred is None:
+            y_pred = self.y_pred
+
+        # Ensure lengths match (handle the sequence shortening)
+        min_len = min(len(y_true), len(y_pred))
+        y_true = y_true[-min_len:]
+        y_pred = y_pred[-min_len:]
+
+        rmse = root_mean_squared_error(y_true=y_true, y_pred=y_pred)
+        mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
+        nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
+        r2 = r2_score(y_true=y_true, y_pred=y_pred)
+
+        return {
+            "rmse": rmse,
+            "mae": mae,
+            "nse": nse,
+            "r2": r2
+        }
+
+    def _create_sequences(self, data, target=None):
+        """
+        Converts 2D array (N, F) into 3D array (N, Seq_Len, F).
+        """
+        xs = []
+        ys = []
+        length = len(data)
+        
+        if length <= self.sequence_length:
+            return np.array([]), np.array([])
+
+        for i in range(length - self.sequence_length):
+            x_chunk = data[i : i + self.sequence_length]
+            xs.append(x_chunk)
             
-            # Also set index for target if available;
-            if self.y is not None:
-                self.y.index = self.X.index
-        return None
+            if target is not None:
+                ys.append(target[i + self.sequence_length])
+        
+        xs = np.array(xs)
+        if target is not None:
+            ys = np.array(ys)
+            return xs, ys
+        return xs, None
+
+    def _get_best_params(self) -> dict:
+        """
+        Performs Bayesian optimization to find the best hyperparameters.
+        
+        Parameters:
+            - X_train: Training features
+            - y_train: Training target
+            
+        Returns:
+            - dict: Best hyperparameters
+        """
+        # Get best parameters from optimizer;
+        optimizer = BayesianOptimization(
+            model_name=self.model_name,
+            n_trials=self.n_trials, 
+            X_train=self.X,
+            y_train=self.y,
+            mode=self.mode
+        )
+        return optimizer.optimize()
