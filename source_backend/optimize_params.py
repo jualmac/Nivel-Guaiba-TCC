@@ -24,6 +24,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import os
+import gc
 from util import get_device_config
 
 from statsmodels.tsa.statespace.sarimax import SARIMAX
@@ -326,6 +327,14 @@ class BayesianOptimization:
                     val_loss += criterion(outputs, targets).item() * inputs.size(0)
             
             scores.append(-np.sqrt(val_loss / len(val_dataset))) # Negative RMSE
+            
+            # Cleanup memory
+            del model, optimizer, criterion, train_loader, val_loader, train_dataset, val_dataset
+            del X_train_seq, y_train_seq, X_val_seq, y_val_seq
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+            
         return np.mean(scores) if scores else -float('inf')
 
     def evaluate_sarima(self, params) -> float:
