@@ -5,7 +5,7 @@ and mirrors the structure of the existing XGBoost/LightGBM models.
 """
 
 ########################################################################################################################
-#
+#                                                                  
 # LIBRARIES
 #
 ########################################################################################################################
@@ -16,7 +16,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
-from source_backend.optimize_params import BayesianOptimization
 from source_backend.mlflow_utils import MLFlowHandler
 from util import get_device_config
 from source_backend.metrics import nse as nash_sutcliffe_efficiency
@@ -52,19 +51,19 @@ class _LSTMRegressor(nn.Module):
         return out
 
 ########################################################################################################################
-#
+#                                                                  
 # MODEL WRAPPER
 #
 ########################################################################################################################
 class LSTMModels:
     def __init__(self,
-                 random_state: int = 42,
-                 n_trials: int = 10,
-                 batch: int = 128,
-                 steps: int = 12, 
+                random_state: int = 42,
+                n_trials: int = 10,
+                batch: int = 128,
+                steps: int = 12,
                  mode: str = 'CPU',
-                 **kwargs
-                 ):
+                **kwargs
+                ):
         """
         Initialize the model wrapper.
         """
@@ -147,7 +146,7 @@ class LSTMModels:
                 val_dataset = TensorDataset(torch.FloatTensor(X_val_seq), torch.FloatTensor(y_val_seq))
                 val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
                 print("Using validation set for early stopping.")
-
+        
         # Initialize Inner Model;
         self.model = _LSTMRegressor(
             input_size=self.X.shape[1],
@@ -306,6 +305,9 @@ class LSTMModels:
         Returns:
             - dict: Best hyperparameters
         """
+        # Import here to avoid circular import;
+        from source_backend.optimize_params import BayesianOptimization
+        
         # Get best parameters from optimizer;
         optimizer = BayesianOptimization(
             model_name=self.model_name,

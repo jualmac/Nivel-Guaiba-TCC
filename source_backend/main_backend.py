@@ -201,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['XGBOOST'],
+                        default=['LSTM'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     

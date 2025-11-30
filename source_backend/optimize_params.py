@@ -37,7 +37,6 @@ import logging
 import json
 import mlflow
 
-from source_backend.model_lstm import LSTMRegressor, TimeSeriesDataset
 from torch.utils.data import DataLoader
 
 ########################################################################################################################
@@ -212,16 +211,48 @@ class BayesianOptimization:
         Evaluates the LSTM model using TimeSeriesSplit cross-validation.
         Custom implementation for PyTorch model.
         """
+        # Import here to avoid circular import;
+        from source_backend.model_lstm import _LSTMRegressor as LSTMRegressor
+        
         # Define Splits;        
         tscv = TimeSeriesSplit(n_splits=3) # Reduced splits for deep learning speed
         scores = []
         
-        # Prepare data
-        if 'Data_Hora_Medicao' in self.X_train.columns:
-             X = self.X_train.sort_values('Data_Hora_Medicao').drop(columns=['Data_Hora_Medicao']).values
+        # Prepare data - handle both DataFrame and numpy array inputs;
+        if isinstance(self.X_train, pd.DataFrame):
+            if 'Data_Hora_Medicao' in self.X_train.columns:
+                X = self.X_train.sort_values('Data_Hora_Medicao').drop(columns=['Data_Hora_Medicao']).values
+            else:
+                X = self.X_train.values
         else:
-             X = self.X_train.values
-        y = self.y_train.values
+            # Already a numpy array (from preprocessor pipeline)
+            X = self.X_train
+            
+        # Handle y_train similarly
+        if isinstance(self.y_train, pd.Series):
+            y = self.y_train.values
+        else:
+            y = self.y_train
+            
+        # Remove non-numeric columns (e.g., Timestamps) from object arrays
+        if hasattr(X, 'dtype') and X.dtype == object:
+            numeric_cols = []
+            for i in range(X.shape[1]):
+                try:
+                    # Check if the first element can be converted to float
+                    float(X[0, i])
+                    numeric_cols.append(i)
+                except (ValueError, TypeError):
+                    # Likely a Timestamp or non-numeric string; skip this column
+                    continue
+            
+            # Filter X if columns were removed
+            if len(numeric_cols) < X.shape[1]:
+                X = X[:, numeric_cols]
+            
+        # Ensure proper dtype for PyTorch (convert object dtype to float64);
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
         
         # Device
         device = torch.device('cuda' if self.mode in ['GPU', 'CUDA'] and torch.cuda.is_available() else 'cpu')
@@ -250,9 +281,15 @@ class BayesianOptimization:
             if len(X_train_seq) == 0 or len(X_val_seq) == 0:
                 continue
 
-            # Datasets
-            train_dataset = TimeSeriesDataset(X_train_seq, y_train_seq)
-            val_dataset = TimeSeriesDataset(X_val_seq, y_val_seq)
+            # Create PyTorch datasets manually (avoid importing TimeSeriesDataset)
+            train_dataset = torch.utils.data.TensorDataset(
+                torch.tensor(X_train_seq, dtype=torch.float32),
+                torch.tensor(y_train_seq, dtype=torch.float32)
+            )
+            val_dataset = torch.utils.data.TensorDataset(
+                torch.tensor(X_val_seq, dtype=torch.float32),
+                torch.tensor(y_val_seq, dtype=torch.float32)
+            )
             train_loader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=False)
             val_loader = DataLoader(val_dataset, batch_size=params['batch_size'], shuffle=False)
             

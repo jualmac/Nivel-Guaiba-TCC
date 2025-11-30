@@ -5,7 +5,7 @@ Scikit-Learn Pipelines and the existing project structure.
 """
 
 ########################################################################################################################
-#
+#                                                                  
 # LIBRARIES
 #
 ########################################################################################################################
@@ -14,24 +14,23 @@ import pandas as pd
 from typing import Optional, Tuple
 from statsmodels.tsa.statespace.sarimax import SARIMAX, SARIMAXResultsWrapper
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
-from source_backend.optimize_params import BayesianOptimization
 from source_backend.mlflow_utils import MLFlowHandler
 from source_backend.metrics import nse as nash_sutcliffe_efficiency
 
 ########################################################################################################################
-#
+#                                                                  
 # MODEL
 #
 ########################################################################################################################
 class SARIMAModels:
     def __init__(self,
-                 random_state: int = 42,
-                 n_trials: int = 10,
+                random_state: int = 42,
+                n_trials: int = 10,
                  batch: int = 128, # Unused in SARIMA, kept for API consistency
                  steps: int = 12,  # Prediction horizon
                  mode: str = 'CPU',
-                 **kwargs
-                 ):
+                **kwargs
+                ):
         """
         Initialize the SARIMA model wrapper.
         """
@@ -180,6 +179,9 @@ class SARIMAModels:
             # but BayesianOptimization handles numpy input for SARIMAX check.
             pass
 
+        # Import here to avoid circular import;
+        from source_backend.optimize_params import BayesianOptimization
+        
         optimizer = BayesianOptimization(
             model_name=self.model_name,
             n_trials=self.n_trials, 
