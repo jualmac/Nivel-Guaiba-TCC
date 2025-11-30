@@ -1,5 +1,6 @@
 # Tests
 test*
+mlruns/
 
 # Large data files (#TODO: LFS maybe?)
 ./data
