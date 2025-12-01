@@ -13,32 +13,20 @@ import json
 import logging
 import optuna
 import numpy as np
+import pandas as pd
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from pandas.core.series import Series
 from pandas.core.frame import DataFrame
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import TimeSeriesSplit, cross_val_score
 from sklearn.ensemble import RandomForestRegressor
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import os
 import gc
-from util import get_device_config
-
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_squared_error
-import itertools
-import warnings
-import numpy as np
-import pandas as pd
-import logging
-import json
 import mlflow
-
-from torch.utils.data import DataLoader
+from util import get_device_config
 
 ########################################################################################################################
 #                                                                  
@@ -169,39 +157,19 @@ class BayesianOptimization:
             # Hyperparameters;
             params = {
                 # Architecture Tuning;
-                "hidden_size": trial.suggest_categorical("hidden_size", [32, 64, 128, 256]), # Using powers of 2
+                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]), # Using powers of 2
                 "num_layers": trial.suggest_int("num_layers", 1, 5), # Expanded range for deeper networks
                 "dropout": trial.suggest_float("dropout", 0.0, 0.5),
                 
                 # Training Optimization;
                 "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [64, 128, 256, 512]), # Now being tuned
+                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]), # Now being tuned
                 "epochs": 50, # Fixed epochs for optimization speed is acceptable
                 
                 # Critical Time-Series Parameter (Now being tuned);
-                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48, 72]) 
+                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48]) 
             }
             return self.evaluate_lstm(params)
-
-        # SARIMA Integration;
-        elif self.model_name == "sarima":
-            from statsmodels.tsa.statespace.sarimax import SARIMAX
-            
-            # Define Search Space
-            # We tune the orders (p,d,q) and seasonal orders (P,D,Q,s)
-            params = {
-                'p': trial.suggest_int('p', 0, 3),
-                'd': trial.suggest_int('d', 0, 1), # Integration usually 0 or 1
-                'q': trial.suggest_int('q', 0, 3),
-                
-                'P': trial.suggest_int('P', 0, 2),
-                'D': trial.suggest_int('D', 0, 1),
-                'Q': trial.suggest_int('Q', 0, 2),
-                's': 12, # Fixed Seasonality (e.g. 12 months, or 12 hours) - Can be tuned if unsure
-                
-                'trend': trial.suggest_categorical('trend', ['c', 't', 'ct'])
-            }
-            return self.evaluate_sarima(params)
 
         else:
             self.logger.error("Please provide a supported model: XGBoost (xgboost), LightGBM (lightgbm) or LSTM (lstm)")
@@ -337,50 +305,6 @@ class BayesianOptimization:
             
         return np.mean(scores) if scores else -float('inf')
 
-    def evaluate_sarima(self, params) -> float:
-        """
-        Custom Evaluation logic for SARIMA using TimeSeriesSplit
-        """
-        from statsmodels.tsa.statespace.sarimax import SARIMAX
-        
-        tscv = TimeSeriesSplit(n_splits=3)
-        scores = []
-        
-        # Data preparation (Handle Numpy vs DataFrame)
-        X = self.X_train.values if hasattr(self.X_train, 'values') else self.X_train
-        y = self.y_train.values if hasattr(self.y_train, 'values') else self.y_train
-
-        for train_index, val_index in tscv.split(X):
-            try:
-                # Split
-                X_train_f, X_val_f = X[train_index], X[val_index]
-                y_train_f, y_val_f = y[train_index], y[val_index]
-
-                # Fit SARIMAX
-                model = SARIMAX(
-                    endog=y_train_f,
-                    exog=X_train_f,
-                    order=(params['p'], params['d'], params['q']),
-                    seasonal_order=(params['P'], params['D'], params['Q'], params['s']),
-                    trend=params['trend'],
-                    enforce_stationarity=False,
-                    enforce_invertibility=False
-                )
-                model_fit = model.fit(disp=False)
-
-                # Predict (Out-of-sample forecast for the validation set)
-                # We must provide exog (X_val_f) for the prediction steps
-                pred = model_fit.get_forecast(steps=len(y_val_f), exog=X_val_f)
-                y_pred = pred.predicted_mean
-
-                # Score
-                rmse = np.sqrt(mean_squared_error(y_val_f, y_pred))
-                scores.append(-rmse) # Negative RMSE for maximization
-            except Exception as e:
-                # SARIMA can fail convergence on some bad param combos
-                return -float('inf')
-        return np.mean(scores) if scores else -float('inf')
-
     def evaluate(self, model) -> float:
         """
         Evaluates the regression model using TimeSeriesSplit cross-validation.
@@ -448,153 +372,4 @@ class BayesianOptimization:
         mlflow.log_params(best_params)
 
         self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
-        return best_params
-
-
-class GridSearchOptimizer:
-    """
-    Performs Grid Search Optimization for SARIMA models.
-    
-    Attributes
-    ----------
-    model_name : str
-        Name of the model ('sarima').
-    X_train : DataFrame
-        Training data features.
-    y_train : Series
-        Training data target variable.
-    logger : Logger
-        Logger for logging messages.
-    file_name : str
-        Name of the file to save the best hyperparameters.
-    """
-    
-    def __init__(
-            self, 
-            model_name: str, 
-            X_train: pd.DataFrame, 
-            y_train: pd.Series, 
-            mode: str = 'CPU', 
-        ):
-        """
-        Initializes the GridSearchOptimizer class.
-        """
-        # Initialize Logger;
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        logger = logging.getLogger(__name__)
-
-        self.model_name = model_name
-        self.X_train = X_train
-        self.y_train = y_train
-        self.logger = logger
-        self.mode = mode
-        
-    def optimize(self) -> dict:
-        """
-        Conducts Grid Search optimization to find the best hyperparameters for SARIMA.
-        
-        Returns:
-            dict: The best hyperparameters found during optimization
-        """
-        # Define parameter grid for SARIMA
-        # p, d, q for ARIMA
-        p = d = q = range(0, 2)
-        # P, D, Q, s for Seasonal part
-        P = D = Q = range(0, 2)
-        s = [12] # Seasonal period (e.g., 12 for monthly data, or 24 for hourly)
-        
-        # Create all combinations
-        pdq = list(itertools.product(p, d, q))
-        seasonal_pdq = list(itertools.product(P, D, Q, s))
-        
-        best_score = float('inf')
-        best_params = None
-        
-        # TimeSeriesSplit for validation
-        tscv = TimeSeriesSplit(n_splits=3)
-        
-        # We only use the target variable y for univariate SARIMA, 
-        # but SARIMAX can use exogenous variables X if provided.
-        if 'Data_Hora_Medicao' in self.X_train.columns:
-             X = self.X_train.sort_values('Data_Hora_Medicao').drop(columns=['Data_Hora_Medicao'])
-        else:
-             X = self.X_train
-        
-        # Align y with X
-        if hasattr(self.y_train, 'index') and hasattr(X, 'index'):
-             y = self.y_train.loc[X.index]
-        else:
-             y = self.y_train
-             
-        # Use exogenous variables if available and not empty
-        exog = X if not X.empty else None
-        
-        print(f"Starting Grid Search for SARIMA with {len(pdq) * len(seasonal_pdq)} combinations...")
-        warnings.filterwarnings("ignore") # Suppress convergence warnings
-        
-        count = 0
-        total = len(pdq) * len(seasonal_pdq)
-        
-        for param in pdq:
-            for param_seasonal in seasonal_pdq:
-                count += 1
-                current_scores = []
-                
-                try:
-                    # Cross-validation loop
-                    for train_index, val_index in tscv.split(y):
-                        # Split data
-                        y_train_fold, y_val_fold = y.iloc[train_index], y.iloc[val_index]
-                        
-                        exog_train_fold = exog.iloc[train_index] if exog is not None else None
-                        exog_val_fold = exog.iloc[val_index] if exog is not None else None
-                        
-                        model = SARIMAX(
-                            y_train_fold,
-                            exog=exog_train_fold,
-                            order=param,
-                            seasonal_order=param_seasonal,
-                            enforce_stationarity=False,
-                            enforce_invertibility=False
-                        )
-                        
-                        results = model.fit(disp=False)
-                        
-                        # Forecast
-                        pred = results.get_forecast(steps=len(y_val_fold), exog=exog_val_fold)
-                        y_pred = pred.predicted_mean
-                        
-                        mse = mean_squared_error(y_val_fold, y_pred)
-                        current_scores.append(np.sqrt(mse)) # RMSE
-                    
-                    avg_rmse = np.mean(current_scores)
-                    
-                    if avg_rmse < best_score:
-                        best_score = avg_rmse
-                        best_params = {
-                            'order': param,
-                            'seasonal_order': param_seasonal
-                        }
-                        self.logger.info(f"New best SARIMA: {param}x{param_seasonal} - RMSE: {best_score:.4f}")
-                        
-                except Exception as e:
-                    continue
-        
-        if best_params is None:
-            self.logger.warning("Grid Search failed to find valid parameters. Using default (1,1,1)x(1,1,1,12).")
-            best_params = {
-                'order': (1, 1, 1),
-                'seasonal_order': (1, 1, 1, 12)
-            }
-            
-        # Log the final best metric and corresponding parameters to the current active MLflow run;
-        if best_params is not None:
-            mlflow.log_metric(f"{self.model_name}_best_rmse", best_score)
-            mlflow.log_params(best_params)
-            self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
-
         return best_params

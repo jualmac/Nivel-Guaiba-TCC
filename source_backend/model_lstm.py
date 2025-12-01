@@ -101,11 +101,11 @@ class LSTMModels:
         if hasattr(X, 'empty') and X.empty: raise ValueError("X cannot be empty.")
         if hasattr(y, 'empty') and y.empty: raise ValueError("y cannot be empty.")
 
-        # Create copies/convert to numpy;
-        self.X = X.values if hasattr(X, 'values') else X
-        self.y = y.values if hasattr(y, 'values') else y
+        # Force keeping DataFrames to perform column filtering later if needed
+        self.X = X 
+        self.y = y
         self.X_train_shape = self.X.shape
-
+        
         # Hyperparameter Optmization;
         best_params = {}
         if optimize_hyperparameters:
@@ -128,6 +128,20 @@ class LSTMModels:
 
         print(f"Training LSTM with params: {best_params}")
 
+        # Convert inputs to float32 numpy arrays to ensure TensorDataset compatibility
+        if isinstance(self.X, pd.DataFrame):
+            self.X = self.X.select_dtypes(include=[np.number]).values
+        
+        if hasattr(self.X, 'astype'):
+            self.X = self.X.astype(np.float32)
+        else:
+            self.X = np.array(self.X, dtype=np.float32)
+            
+        if hasattr(self.y, 'astype'):
+            self.y = self.y.astype(np.float32)
+        else:
+            self.y = np.array(self.y, dtype=np.float32)
+
         # Data Preparation - Reshape 2D into 3D Sequences;
         X_seq, y_seq = self._create_sequences(self.X, self.y)
         
@@ -138,9 +152,24 @@ class LSTMModels:
         # Prepare Validation Data if present;
         val_loader = None
         if X_val is not None and y_val is not None:
+            # Pre-clean validation data: drop non-numeric columns
+            if isinstance(X_val, pd.DataFrame):
+                X_val = X_val.select_dtypes(include=[np.number])
+
             X_val_np = X_val.values if hasattr(X_val, 'values') else X_val
             y_val_np = y_val.values if hasattr(y_val, 'values') else y_val
             
+            # Convert Validation to float32
+            if hasattr(X_val_np, 'astype'):
+                X_val_np = X_val_np.astype(np.float32)
+            else:
+                X_val_np = np.array(X_val_np, dtype=np.float32)
+                
+            if hasattr(y_val_np, 'astype'):
+                y_val_np = y_val_np.astype(np.float32)
+            else:
+                y_val_np = np.array(y_val_np, dtype=np.float32)
+
             X_val_seq, y_val_seq = self._create_sequences(X_val_np, y_val_np)
             if len(X_val_seq) > 0:
                 val_dataset = TensorDataset(torch.FloatTensor(X_val_seq), torch.FloatTensor(y_val_seq))
@@ -209,8 +238,18 @@ class LSTMModels:
         if X_test is None:
             raise ValueError("X_test cannot be None.")
 
+        # Pre-clean: drop non-numeric columns
+        if isinstance(X_test, pd.DataFrame):
+            X_test = X_test.select_dtypes(include=[np.number])
+
         # Convert to numpy
         X_np = X_test.values if hasattr(X_test, 'values') else X_test
+        
+        # Ensure float32
+        if hasattr(X_np, 'astype'):
+            X_np = X_np.astype(np.float32)
+        else:
+            X_np = np.array(X_np, dtype=np.float32)
 
         # CRITICAL: LSTM needs sequences. 
         # If X_test is just a 2D chunk, we treat it as the raw data to be sequenced.

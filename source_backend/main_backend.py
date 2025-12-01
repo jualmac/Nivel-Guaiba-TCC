@@ -201,14 +201,14 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['LSTM'],
+                        default=['SARIMA'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--freq', type=str, 
                         choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], 
