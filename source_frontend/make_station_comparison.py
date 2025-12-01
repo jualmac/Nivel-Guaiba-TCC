@@ -13,7 +13,6 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from ydata_profiling import ProfileReport
 from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE, STATION_CODES
 
 ########################################################################################################################
