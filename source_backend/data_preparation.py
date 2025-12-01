@@ -29,7 +29,7 @@ from util import STATION_COLS
 ########################################################################################################################
 def data_division(
     df: pd.DataFrame, 
-    target_column: Optional[str] = None,
+    target_column: str = None,
     train_size: float = 0.8, 
     test_size: float = 0.2,
     val_size: Optional[float] = None,
