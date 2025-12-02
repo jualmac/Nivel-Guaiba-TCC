@@ -12,13 +12,13 @@ model training, and evaluation;
 ########################################################################################################################
 import os
 import argparse
-from tkinter import Y
 import pandas as pd
 from typing import Optional
 from db_handler import DBConnection
 from source_backend.data_preparation import data_division, encoding_pipeline
 from source_backend.train_models import training_pipeline
 from source_backend.mlflow_utils import MLFlowHandler
+from source_database.data_io import save_to_database
 
 ########################################################################################################################
 #                                                                  
@@ -38,25 +38,35 @@ def main_backend(
     freq: str = 'h',
     mode: str = 'CPU',
     optimize: bool = True,
-    early_stopping: int = 50
+    early_stopping: int = 50,
+    save_to_db: bool = False
 ) -> None:
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
     
     Reads clean data from database (produced by source_database ETL), performs train/test split,
     applies feature encoding and preprocessing, trains the selected model, and evaluates performance;
+    Optionally saves predictions and metrics to database;
     
     Parameters:
         target_column (str): Name of target column to predict;
         models_to_use (Optional[list]): List of models to train ('SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM').
             If None, trains all models (default: None);
+        train_size (float): Proportion of data for training set (default: 0.7);
         test_size (float): Proportion of data for test set (default: 0.2);
         val_size (float): Proportion of data for validation set (default: 0.1);
         random_state (int): Random seed for reproducibility (default: 42);
-        mode (str): Training device mode ('CPU', 'GPU', 'CUDA');
+        n_trials (int): Number of trials for hyperparameter optimization (default: 10);
+        batch (int): Training batch size (default: 128);
+        steps (int): Prediction horizon in time steps (default: 12);
+        freq (str): Frequency of predictions (pandas offset) (default: 'h');
+        mode (str): Training device mode ('CPU', 'GPU', 'CUDA') (default: 'CPU');
+        optimize (bool): Whether to perform hyperparameter optimization (default: True);
+        early_stopping (int): Number of rounds for early stopping (default: 50);
+        save_to_db (bool): If True, save predictions and metrics to database (default: False);
     
     Returns:
-        None: Function performs training and persists results;
+        None: Function performs training and optionally persists results to database;
     """
     # Initialize MLFlow Handler and log initial parameters;
     mlflow_handler = MLFlowHandler(experiment_name="river_level_forecasting")
@@ -131,6 +141,9 @@ def main_backend(
     # Train each pipeline independently;
     print("Training model...")
     results = {}
+    all_predictions = []
+    all_metrics = []
+    
     for name, pipeline in pipelines.items():
         print(f"Training {name}...")
         
@@ -180,8 +193,49 @@ def main_backend(
         # Log the model with input example;
         mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}", input_example=(X_test.iloc[:1] if hasattr(X_test, 'iloc') else X_test[:1]))
         
+        # Store predictions and metrics for database saving;
+        # Create predictions dataframe for this model;
+        pred_df = pd.DataFrame({
+            'model_name': name,
+            'y_true': y_test.values if hasattr(y_test, 'values') else y_test,
+            'y_pred': y_pred,
+            'target_column': target_column
+        })
+        # Add index if available from X_test;
+        if hasattr(X_test, 'index'):
+            pred_df.index = X_test.index
+        all_predictions.append(pred_df)
+        
+        # Store metrics for this model;
+        metrics_row = {
+            'model_name': name,
+            'target_column': target_column,
+            'rmse': metrics['rmse'],
+            'mae': metrics['mae'],
+            'nse': metrics['nse'],
+            'r2': metrics['r2'],
+            'train_size': train_size,
+            'test_size': test_size,
+            'val_size': val_size,
+            'random_state': random_state
+        }
+        all_metrics.append(metrics_row)
+        
         # End MLFlow run;
         mlflow_handler.end_run()
+    
+    # Create combined results dataframe with predictions and metrics;
+    if all_predictions:
+        df_predictions = pd.concat(all_predictions, ignore_index=False)
+        df_metrics = pd.DataFrame(all_metrics)
+        # Merge predictions with metrics for comprehensive results;
+        df_ml_results = df_predictions.merge(df_metrics, on='model_name', how='left')
+        
+        # Save ML results to database if flag is set;
+        if save_to_db:
+            print("Saving ML results to database...")
+            save_to_database(df_ml_results=df_ml_results)
+    
     print("Backend pipeline completed!")
 
 ########################################################################################################################
@@ -245,6 +299,7 @@ if __name__ == "__main__":
         freq=args.freq,
         mode=args.mode,
         optimize=args.optimize,
-        early_stopping=args.early_stopping
+        early_stopping=args.early_stopping,
+        save_to_db=args.save_to_db
         )
     print('All Done!')
