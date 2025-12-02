@@ -39,7 +39,10 @@ def main_backend(
     mode: str = 'CPU',
     optimize: bool = True,
     early_stopping: int = 50,
-    save_to_db: bool = False
+    save_to_db: bool = False,
+    use_lags: bool = False,
+    use_feature_selection: bool = False,
+    n_features: Optional[int] = None
 ) -> None:
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
@@ -64,6 +67,11 @@ def main_backend(
         optimize (bool): Whether to perform hyperparameter optimization (default: True);
         early_stopping (int): Number of rounds for early stopping (default: 50);
         save_to_db (bool): If True, save predictions and metrics to database (default: False);
+        use_lags (bool): If True, add lag features transformer to pipeline (default: False).
+            Warning: LagFeaturesTransformer requires 'value' column which may not exist after preprocessing;
+        use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
+        n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
+            If None, uses default (50) (default: None);
     
     Returns:
         None: Function performs training and optionally persists results to database;
@@ -135,7 +143,10 @@ def main_backend(
         batch=batch,
         steps=steps,
         freq=freq,
-        mode=mode
+        mode=mode,
+        use_lags=use_lags,
+        use_feature_selection=use_feature_selection,
+        n_features=n_features
     ) 
     
     # Train each pipeline independently;
@@ -255,7 +266,7 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['SARIMA'],
+                        default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
@@ -264,6 +275,7 @@ if __name__ == "__main__":
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
     parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
+    parser.add_argument('--n_features', type=int, default=50, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, 
                         choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], 
                         default='h', 
@@ -275,11 +287,17 @@ if __name__ == "__main__":
     parser.add_argument('--no_save_to_db', dest='save_to_db', action='store_false', help='Do not save the results to the database')
     parser.add_argument('--optimize', action='store_true', help='Perform hyperparameter Optimization')
     parser.add_argument('--no_optimize', dest='optimize', action='store_false', help='Do not perform hyperparameter Optimization')
+    parser.add_argument('--use_lags', action='store_true', help='Add lag features transformer to pipeline (Warning: requires "value" column)')
+    parser.add_argument('--no_use_lags', dest='use_lags', action='store_false', help='Do not add lag features transformer')
+    parser.add_argument('--use_feature_selection', action='store_true', help='Add feature selection based on RandomForest importance')
+    parser.add_argument('--no_use_feature_selection', dest='use_feature_selection', action='store_false', help='Do not add feature selection')   
 
     # Set default values for booleans;
     parser.set_defaults(
         save_to_db=True,
-        optimize=True
+        optimize=True,
+        use_lags=False,
+        use_feature_selection=True
     )
     
     args = parser.parse_args()
@@ -300,6 +318,9 @@ if __name__ == "__main__":
         mode=args.mode,
         optimize=args.optimize,
         early_stopping=args.early_stopping,
-        save_to_db=args.save_to_db
+        save_to_db=args.save_to_db,
+        use_lags=args.use_lags,
+        use_feature_selection=args.use_feature_selection,
+        n_features=args.n_features
         )
     print('All Done!')

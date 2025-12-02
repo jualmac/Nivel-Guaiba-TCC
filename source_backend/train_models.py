@@ -11,6 +11,7 @@ Constructs sklearn pipelines that combine preprocessing and model training steps
 ########################################################################################################################
 import joblib
 import pandas as pd
+import numpy as np
 from typing import Optional
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -20,21 +21,51 @@ from source_backend.model_sarima import SARIMAModels
 from source_backend.model_lstm import LSTMModels
 from source_backend.model_xgboost import XGBoostModels
 from source_backend.model_lightgbm import LightGBMModels
+from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer
 
 ########################################################################################################################
 #                                                                  
 # TRAINING PIPELINE
 #
 ########################################################################################################################
-#TODO: Add rolling lags -> LagFeaturesTransformer or RollingStatsTransformer;
-#TODO: Add Feature Selection -> SelectKBest (if needed);
-def create_model_pipeline(model, preprocessor, model_name):
-    """Create a pipeline for a single model"""
-    pipe = Pipeline([
-        ("preprocessor", preprocessor),
-        (model_name, model)
-    ])
-    return pipe
+def create_model_pipeline(
+    model, 
+    preprocessor, 
+    model_name, 
+    use_lags: bool = False, 
+    use_feature_selection: bool = False, 
+    n_features: Optional[int] = None
+    ):
+    """
+    Create a pipeline for a single model with optional lag features and feature selection.
+    
+    Parameters:
+        model: Model instance (SARIMAModels, LSTMModels, etc.).
+        preprocessor: Fitted ColumnTransformer from data_preparation.
+        model_name (str): Name of the model ('SARIMA', 'LSTM', etc.).
+        use_lags (bool): If True, add lag features transformer (default: False).
+            Note: LagFeaturesTransformer requires 'value' column - may not work after preprocessing.
+        use_feature_selection (bool): If True, add feature selection step (default: False).
+        n_features (Optional[int]): Number of features to select if use_feature_selection=True.
+            If None, uses default (50) (default: None).
+    
+    Returns:
+        Pipeline: sklearn Pipeline with preprocessing, optional lags, optional feature selection, and model.
+    """
+    steps = [("preprocessor", preprocessor)]
+    
+    #TODO: Add lag features;
+    if use_lags:
+        steps.append(("lags", LagFeaturesTransformer()))
+    
+    # Add feature selection if requested
+    if use_feature_selection:
+        n_feat = n_features if n_features is not None else 50
+        steps.append(("feature_selection", FeatureImportanceSelector(n_features=n_feat)))
+    
+    # Add model as final step
+    steps.append((model_name, model))
+    return Pipeline(steps)
 
 
 def training_pipeline(
@@ -46,13 +77,16 @@ def training_pipeline(
     steps: int = 12,
     freq: str = 'h',
     mode: str = 'CPU',
+    use_lags: bool = False,
+    use_feature_selection: bool = False,
+    n_features: Optional[int] = None,
     **kwargs
-) -> None:
+) -> dict:
     """
     Construct sklearn Pipeline combining preprocessing and model training;
     
     Creates a pipeline that chains the preprocessing step (feature encoding, scaling)
-    with the selected model. The preprocessor is applied first, then the model is trained;
+    with optional lag features, optional feature selection, and the selected model;
     
     Parameters:
         preprocessor (ColumnTransformer): Fitted preprocessing pipeline from data_preparation;
@@ -63,32 +97,51 @@ def training_pipeline(
         batch (int): Training batch size (default: 128);
         steps (int): The amount of forward steps to be predicted (default: 12);
         freq (str): Frequency of predictions (pandas offset) (default: 'h');
+        mode (str): Training device mode ('CPU', 'GPU', 'CUDA') (default: 'CPU');
+        use_lags (bool): If True, add lag features transformer (default: False).
+            Warning: LagFeaturesTransformer requires 'value' column which may not exist after preprocessing;
+        use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
+        n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
+            If None, uses default (50) (default: None);
         **kwargs: Additional parameters to pass to models;
     
     Returns:
-        Pipeline: sklearn Pipeline with preprocessing and model steps;
+        dict: Dictionary of model names to Pipeline objects with preprocessing, optional lags, 
+            optional feature selection, and model steps;
     """
     # Create separate pipeline for each model with arguments;
     pipelines = {
         'SARIMA': create_model_pipeline(
             SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
             preprocessor,
-            model_name='SARIMA'
+            model_name='SARIMA',
+            use_lags=use_lags,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
         ),
         'LSTM': create_model_pipeline(
             LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
             preprocessor,
-            model_name='LSTM'
+            model_name='LSTM',
+            use_lags=use_lags,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
         ),
         'XGBOOST': create_model_pipeline(
             XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
             preprocessor,
-            model_name='XGBOOST'
+            model_name='XGBOOST',
+            use_lags=use_lags,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
         ),
         'LIGHTGBM': create_model_pipeline(
             LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
             preprocessor,
-            model_name='LIGHTGBM'
+            model_name='LIGHTGBM',
+            use_lags=use_lags,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
         )
     }
 
