@@ -69,14 +69,14 @@ def save_to_database(
     df_out: Optional[pd.DataFrame] = None,
     df_agg: Optional[pd.DataFrame] = None,
     df_imp: Optional[pd.DataFrame] = None,
-    df_melted: Optional[pd.DataFrame] = None
+    df_melted: Optional[pd.DataFrame] = None,
+    df_ml_results: Optional[pd.DataFrame] = None
 ) -> None:
     """
-    Persist ETL-processed dataframes to DuckDB database tables;
+    Persist ETL-processed and ML results dataframes to DuckDB database tables;
     
     Writes each provided dataframe to its corresponding table using inplace=True (replaces existing
-    data). Only dataframes that are not None are saved. This function is only for ETL data,
-    not for ML-processed data (train/test splits, encodings, etc);
+    data). Only dataframes that are not None are saved. Handles both ETL data and ML model results;
     
     Parameters:
         df_cleaned (Optional[pd.DataFrame]): Cleaned data -> 'data_stations_cleaned' (default: None);
@@ -86,6 +86,7 @@ def save_to_database(
         df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
         df_imp (Optional[pd.DataFrame]): Imputed data -> 'data_stations_imputed' (default: None);
         df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations' (default: None);
+        df_ml_results (Optional[pd.DataFrame]): ML model predictions and metrics -> 'ml_model_results' (default: None);
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -105,5 +106,7 @@ def save_to_database(
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
     if df_melted is not None:
         db.write(df=df_melted, table_name='data_stations', inplace=True)
+    if df_ml_results is not None:
+        db.write(df=df_ml_results, table_name='ml_model_results', inplace=True)
     
-    print("ETL data successfully saved to database.")
+    print("Data successfully saved to database.")
