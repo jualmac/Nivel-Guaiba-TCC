@@ -1,6 +1,8 @@
 """
 SARIMAModels: Scikit-Learn compatible wrapper for SARIMAX time series forecasting.
-Uses pmdarima for efficient Stepwise Hyperparameter tuning.
+
+Uses pmdarima for efficient Stepwise Hyperparameter tuning, with additional
+performance optimizations for handling a high number of exogenous variables (X).
 """
 
 ########################################################################################################################
@@ -13,6 +15,7 @@ import pandas as pd
 import warnings
 from typing import Optional, Union, Tuple
 import pmdarima as pm
+from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.base import BaseEstimator, RegressorMixin
 from source_backend.metrics import nse as nash_sutcliffe_efficiency
@@ -33,6 +36,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 batch: int = 128,
                 steps: int = 12,
                 mode: str = 'CPU',
+                max_exog_features: int = 10, # SAFETY BRAKE: Hard limit on features to prevent crash
                 **kwargs
                 ):
         self.model_name = 'sarima'
@@ -41,12 +45,47 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         self.batch = batch
         self.steps = steps
         self.mode = mode
+        self.max_exog_features = max_exog_features
         self.kwargs = kwargs
         
         # Default initialization
         self.model = None
         self.y_pred = None
-        self.X_train = None # Store for shape validation
+        # X_train now stores the *reduced* (feature-selected) exogenous data
+        self.X_train = None 
+        self.feature_selector = None # To track which features we kept
+
+    def _preprocess_exog(self, X, training: bool = True, y=None):
+        """
+        Handles Exogenous variables: Fills NaNs and limits number of features.
+        """
+        if X is None:
+            return None
+            
+        # Standardize to numpy/numeric and fill NaNs (ARIMA requirement)
+        if isinstance(X, pd.DataFrame):
+            X_clean = X.select_dtypes(include=[np.number]).fillna(0).values
+        else:
+            X_clean = np.nan_to_num(X)
+            
+        # Feature Selection (Critical for stability)
+        if training:
+            # If we have more columns than allowed, select top K
+            if X_clean.shape[1] > self.max_exog_features:
+                print(f"SARIMA: Reducing features from {X_clean.shape[1]} to {self.max_exog_features} for stability.")
+                # Use f_regression to select features based on linear correlation with target (y)
+                self.feature_selector = SelectKBest(score_func=f_regression, k=self.max_exog_features)
+                X_reduced = self.feature_selector.fit_transform(X_clean, y)
+                return X_reduced
+            else:
+                return X_clean
+        else:
+            # Transform Test data using stored selector
+            if self.feature_selector is not None:
+                return self.feature_selector.transform(X_clean)
+            else:
+                # If no selection was needed during training, use all
+                return X_clean
 
     def fit(self, 
             X: pd.DataFrame, 
@@ -65,43 +104,44 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         """
         if X is None or y is None:
             raise ValueError("Input data (X and y) cannot be None.")
-        
-        # Data Cleaning;
-        if isinstance(X, pd.DataFrame):
-            # Select numeric and fill NaN with 0 (ARIMA cannot handle NaN in exog);
-            self.X_train = X.select_dtypes(include=[np.number]).fillna(0)
-        else:
-            self.X_train = np.nan_to_num(X)
             
         # Ensure Target is numeric;
         y_clean = y.astype(float) if isinstance(y, pd.Series) else y.astype(float)
         
+        # Data Cleaning and Feature Selection (The crash fix);
+        self.X_train = self._preprocess_exog(X, training=True, y=y_clean)
+        
         # Fit Model;
         print(f"Fitting SARIMA (AutoARIMA)... Optimization: {optimize_hyperparameters}")
+        print(f"Exogenous features used: {self.X_train.shape[1] if self.X_train is not None else 0}")
         
         # We use a try-except block because SARIMA is prone to LinAlgErrors with high feature counts
         try:
             if optimize_hyperparameters:
+                # Optimized Stepwise Search
                 self.model = pm.auto_arima(
                     y=y_clean,
                     X=self.X_train,
                     start_p=1, start_q=1,
-                    max_p=3, max_q=3,
-                    m=12,                               # Seasonality (Monthly) - Adjust if needed;
+                    max_p=3, max_q=3,           # User requested non-seasonal range
+                    m=12,                       # Seasonality (Monthly) - Adjust if needed;
                     start_P=0, seasonal=True,
-                    d=None,                             # Let model determine 'd';
-                    D=1,                                # Force seasonal difference if needed, or set None;
-                    trace=True,                         # Prints progress;
-                    error_action='ignore',  
-                    suppress_warnings=True, 
-                    stepwise=True,                      # Performance -> Avoids a full grid search;
-                    n_jobs=-1,                          # Parallelize grid search (if stepwise=False);
+                    max_P=1, max_Q=1,           # Constrained seasonal range for speed
+                    d=None,                     # Let model determine 'd';
+                    D=1,                        # Force seasonal difference if needed, or set None;
+                    test='kpss',                # Faster stationarity test
+                    trace=True,                 # Prints progress;
+                    error_action='ignore',      
+                    suppress_warnings=True,     
+                    stepwise=True,              # Performance -> Avoids a full grid search;
+                    approximation=True,         # HUGE SPEEDUP: Uses CSS instead of MLE for search
+                    maxiter=25,                 # SAFETY BRAKE: Stop solver if not converging quickly
+                    n_jobs=1,                   # Set to 1 for stability with exog variables
                     random_state=self.random_state,
-                    max_order=None                      # Allow wider search if needed;
                 )
             else:
                 # Fast fallback for no optimization;
-                self.model = pm.ARIMA(order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+                self.model = pm.ARIMA(order=(1, 1, 1), seasonal_order=(1, 1, 1, 12), suppress_warnings=True)
                 self.model.fit(y_clean, X=self.X_train)
                 
             print(f"SARIMA Best Fit Order: {self.model.order}, Seasonal: {self.model.seasonal_order}")
@@ -129,13 +169,9 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
 
         n_steps = len(X_test)
         
-        # Prepare Exogenous var;
-        X_test_clean = None
-        if self.X_train is not None:
-            if isinstance(X_test, pd.DataFrame):
-                X_test_clean = X_test.select_dtypes(include=[np.number]).fillna(0)
-            else:
-                X_test_clean = np.nan_to_num(X_test)
+        # Prepare Exogenous var (applies the same feature selection as in fit);
+        # Only call preprocess if we actually used exog during fit (self.X_train is not None)
+        X_test_clean = self._preprocess_exog(X_test, training=False) if self.X_train is not None else None
 
         try:
             # Predict;
@@ -151,6 +187,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         # Handle Series return type;
         if isinstance(self.y_pred, pd.Series):
             self.y_pred = self.y_pred.values
+            
         return self.y_pred
 
     def metric(self, y_true: pd.Series, y_pred: Optional[pd.Series] = None):
@@ -168,6 +205,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
         r2 = r2_score(y_true=y_true, y_pred=y_pred)
+
         return {
             "rmse": rmse,
             "mae": mae,
