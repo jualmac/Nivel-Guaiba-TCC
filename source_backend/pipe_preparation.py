@@ -180,10 +180,16 @@ def encoding_pipeline(
         ('scaler', StandardScaler())
     ])
 
+    # Define categorical pipeline;
+    categorical_pipeline = Pipeline([
+        ('imputer', SimpleImputer(strategy='constant')),
+        ('scaler', OneHotEncoder(sparse_output=False))
+    ])
+
     # Create ColumnTransformer;
     preprocessor = ColumnTransformer([
         ("numerical", numerical_pipeline, numerical_cols),
-        ("categorical",  OneHotEncoder(sparse_output=False), categorical_cols),
+        ("categorical",  categorical_pipeline, categorical_cols),
         ], remainder="passthrough", verbose_feature_names_out=False)
     preprocessor.set_output(transform="pandas")
     return preprocessor
