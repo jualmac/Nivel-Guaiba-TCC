@@ -13,9 +13,10 @@ model training, and evaluation;
 import os
 import argparse
 import pandas as pd
+from sklearn.pipeline import Pipeline
 from typing import Optional
 from db_handler import DBConnection
-from source_backend.data_preparation import data_division, encoding_pipeline
+from source_backend.pipe_preparation import data_division, encoding_pipeline
 from source_backend.train_models import training_pipeline
 from source_backend.mlflow_utils import MLFlowHandler
 from source_database.data_io import save_to_database
@@ -173,19 +174,41 @@ def main_backend(
         
         # Fit validation data for early stopping if available (only for XGBOOST and LIGHTGBM);
         fit_params = {f"{name}__optimize_hyperparameters": optimize}
-        if val_size is not None and name in ['XGBOOST', 'LIGHTGBM']:
-            # Retrieve the preprocessor step from the current pipeline and apply it manually to validation dataset;
-            preprocessor_step = pipeline.named_steps['preprocessor']
-            X_val_processed = preprocessor_step.transform(X_val)
-
-            # Add Validation dataset and early stopping to fit;
-            fit_params = {f"{name}__optimize_hyperparameters": optimize}
-            fit_params[f"{name}__X_val"] = X_val_processed
-            fit_params[f"{name}__y_val"] = y_val
-            fit_params[f"{name}__early_stopping"] = early_stopping
         
-        # Fit Pipeline;
-        pipeline.fit(X_train, y_train, **fit_params)
+        if val_size is not None and name in ['XGBOOST', 'LIGHTGBM']:
+            print(f"Preparing validation data for {name} early stopping...")
+            
+            # Split pipeline into feature engineering and model steps;
+            feature_steps = pipeline.steps[:-1]
+            model_step_name, model_instance = pipeline.steps[-1]
+            
+            # Create and fit feature pipeline on training data;
+            # This ensures all transformations (preprocessor, lags, selection) are learned from training data;
+            feature_pipeline = Pipeline(feature_steps)
+            feature_pipeline.fit(X_train, y_train)
+            
+            # Transform both train and validation sets using the fitted feature pipeline;
+            X_train_processed = feature_pipeline.transform(X_train)
+            X_val_processed = feature_pipeline.transform(X_val)
+
+            # Prepare parameters for manual model fitting (remove pipeline prefixes);
+            model_params = {
+                "optimize_hyperparameters": optimize,
+                "X_val": X_val_processed,
+                "y_val": y_val,
+                "early_stopping": early_stopping
+            }
+            
+            # Fit the model instance directly with processed data;
+            # This avoids "double fitting" the transformers which would happen if we called pipeline.fit();
+            model_instance.fit(X_train_processed, y_train, **model_params)
+            
+            # Reconstruct the pipeline with the fitted steps for future use (prediction, logging);
+            pipeline = Pipeline(feature_pipeline.steps + [(model_step_name, model_instance)])
+        
+        else:
+            # Standard Pipeline fit for other models or when no validation set is used;
+            pipeline.fit(X_train, y_train, **fit_params)
         
         # Predict with fitted Pipeline;
         y_pred = pipeline.predict(X_test)
