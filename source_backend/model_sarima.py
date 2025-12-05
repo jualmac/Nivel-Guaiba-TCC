@@ -13,6 +13,7 @@ performance optimizations for handling a high number of exogenous variables (X).
 import numpy as np
 import pandas as pd
 import warnings
+import gc
 from typing import Optional, Union, Tuple
 import pmdarima as pm
 from sklearn.feature_selection import SelectKBest, f_regression
@@ -37,6 +38,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 steps: int = 12,
                 mode: str = 'CPU',
                 max_exog_features: int = 10, # SAFETY BRAKE: Hard limit on features to prevent crash
+                search_sample_size: int = 3000, # Optimization: Limit samples for stepwise search
                 **kwargs
                 ):
         self.model_name = 'sarima'
@@ -46,6 +48,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         self.steps = steps
         self.mode = mode
         self.max_exog_features = max_exog_features
+        self.search_sample_size = search_sample_size
         self.kwargs = kwargs
         
         # Default initialization
@@ -102,11 +105,12 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
             optimize_hyperparameters (bool): If True, runs stepwise search. 
                                              If False, fits a default ARIMA(1,1,1).
         """
+        # optimize_hyperparameters = False
         if X is None or y is None:
             raise ValueError("Input data (X and y) cannot be None.")
             
         # Ensure Target is numeric;
-        y_clean = y.astype(float) if isinstance(y, pd.Series) else y.astype(float)
+        y_clean = y.astype(np.float32) if isinstance(y, pd.Series) else y.astype(np.float32)
         
         # Data Cleaning and Feature Selection (The crash fix);
         self.X_train = self._preprocess_exog(X, training=True, y=y_clean)
@@ -118,10 +122,19 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         # We use a try-except block because SARIMA is prone to LinAlgErrors with high feature counts
         try:
             if optimize_hyperparameters:
+                # OPTIMIZATION: Use subset for search if data is too large to prevent RAM explosion
+                if len(y_clean) > self.search_sample_size:
+                    print(f"SARIMA: Using last {self.search_sample_size} samples for hyperparameter search to save memory.")
+                    y_search = y_clean[-self.search_sample_size:]
+                    X_search = self.X_train[-self.search_sample_size:] if self.X_train is not None else None
+                else:
+                    y_search = y_clean
+                    X_search = self.X_train
+
                 # Optimized Stepwise Search
-                self.model = pm.auto_arima(
-                    y=y_clean,
-                    X=self.X_train,
+                search_model = pm.auto_arima(
+                    y=y_search,
+                    X=X_search,
                     start_p=1, start_q=1,
                     max_p=3, max_q=3,           # User requested non-seasonal range
                     m=12,                       # Seasonality (Monthly) - Adjust if needed;
@@ -139,6 +152,21 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     n_jobs=1,                   # Set to 1 for stability with exog variables
                     random_state=self.random_state,
                 )
+                
+                # Refit best model on FULL data
+                print(f"Refitting best order {search_model.order} on full dataset ({len(y_clean)} rows)...")
+                self.model = pm.ARIMA(
+                    order=search_model.order, 
+                    seasonal_order=search_model.seasonal_order,
+                    suppress_warnings=True
+                )
+                
+                # Clear memory from search
+                del search_model
+                gc.collect()
+                
+                self.model.fit(y_clean, X=self.X_train)
+
             else:
                 # Fast fallback for no optimization;
                 self.model = pm.ARIMA(order=(1, 1, 1), seasonal_order=(1, 1, 1, 12), suppress_warnings=True)
