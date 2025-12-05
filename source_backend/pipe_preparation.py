@@ -72,7 +72,7 @@ def data_division(
     if val_size is not None:
         if train_size + val_size + test_size != float(1.0):
             raise ValueError("Train + Validation + Test Size must equal to 1")
-        if val_size <= 0 or val_size >= 1:
+        if val_size < 0 or val_size >= 1:
             raise ValueError("val_size must be in range (0, 1)")
         if test_size <= 0 or test_size >= 1:
             raise ValueError("test_size must be in range (0, 1)")
