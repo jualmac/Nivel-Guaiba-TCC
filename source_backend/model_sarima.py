@@ -38,7 +38,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 steps: int = 12,
                 mode: str = 'CPU',
                 max_exog_features: int = 10, # SAFETY BRAKE: Hard limit on features to prevent crash
-                search_sample_size: int = 3000, # Optimization: Limit samples for stepwise search
+                search_sample_size: int = 10000, # Optimization: Limit samples for stepwise search
                 **kwargs
                 ):
         self.model_name = 'sarima'
