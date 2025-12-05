@@ -1,4 +1,3 @@
-#TODO: Review used libraries and rebuild this;
 geopandas
 hyperopt
 ipykernel
@@ -24,6 +23,8 @@ lightgbm
 category_encoders
 mlflow
 pmdarima
+torch
+optuna
 
 #statsforecast
 #neuralforecast
