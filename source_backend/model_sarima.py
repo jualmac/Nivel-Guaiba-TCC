@@ -154,7 +154,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 )
                 
                 # Refit best model on FULL data
-                print(f"Refitting best order {search_model.order} on full dataset ({len(y_clean)} rows)...")
+                print(f"Refitting best order {search_model.order}{search_model.seasonal_order} on full dataset ({len(y_clean)} rows)...")
                 self.model = pm.ARIMA(
                     order=search_model.order, 
                     seasonal_order=search_model.seasonal_order,
