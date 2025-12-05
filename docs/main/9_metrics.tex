@@ -50,10 +50,11 @@ NSE = 1 - \frac{\sum_{t=1}^{T} (Q^t_0 - Q^t_m)^2}{\sum_{t=1}^{T} (Q^t_0 - \overl
 Em que: $Q^t_0$ é o valor observado no tempo $t$, $Q^t_m$ é o valor simulado pelo modelo no tempo $t$, $\overline{Q}_0$
 é a média dos valores observados e $T$ é o número total de observações.
 
-O NSE varia entre $-\infty$ e $1$. Um valor de $NSE = 1$ indica uma correspondência perfeita entre os valores simulados
-e observados. Já um valor de $NSE = 0$ indica que o modelo não apresenta melhor desempenho do que simplesmente usar a
-média dos dados observados como preditor. Valores negativos ($NSE < 0$) indicam que a média dos dados observados é mais
-eficiente que o modelo na previsão.
+O NSE pode variar entre $-\infty$ e $1$. Em alguns casos, esse valor negativo pode apresentar problemas para os modelos
+e, por isso, é comum utilizar a normalização do NSE dada por $NNSE = \frac{1}{2-NSE}$. Desta forma, um valor de $NNSE =
+1$ indica uma correspondência perfeita entre os valores simulados e observados. Já um valor de $NNSE = 0.5$ indica que o
+modelo não apresenta melhor desempenho do que simplesmente usar a média dos dados observados como preditor. $NNSE
+\approx 0$ indica que a média dos dados observados é mais eficiente que o modelo na previsão.
 
 Essa métrica é especialmente útil para avaliar o quão bem um modelo captura a dinâmica temporal dos dados, sendo
 amplamente utilizada em estudos hidrológicos e ambientais.

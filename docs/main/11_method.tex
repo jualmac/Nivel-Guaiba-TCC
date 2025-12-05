@@ -1,15 +1,79 @@
 
 \section{Fonte de Dados}
-Este trabalho emprega dados primários do Portal Hidroweb, integrante do Sistema Nacional de Informações sobre Recursos
+Este trabalho empregou dados primários do Portal Hidroweb, integrante do Sistema Nacional de Informações sobre Recursos
 Hídricos (SNIRH) da Agência Nacional de Águas (ANA) \cite{snirh}. Este sistema consolida informações de estações
 hidrometeorológicas, incluindo níveis fluviais, vazões, precipitação, entre outros. A coleta automatizada dos dados foi
 viabilizada mediante acesso à API do Hidroweb, concedido pela ANA ao autor.
 
-Priorizam-se séries históricas do nível do Guaíba e seus tributários, como o Rio Gravataí, Rio Jacuí, Rio dos Sinos e
-Rio Taquari, coletados a cada hora para um período histórico de 5 anos em centímetros. Para o próprio Guaíba, adotam-se
-complementarmente as estações do Caís da Mauá e do Gasômetro, estratégia necessária devido à descontinuidade nos
-registros da primeira estação em 2-3 de maio de 2024. Conforme atestado pela SEMA \cite{informativo_sema}, este hiato
-decorreu de danos nos equipamentos de medição durante as enchentes.
+As possíveis estações foram obtidas do endpoint \textit{HidroInventarioEstacoes} \cite{HidroInventarioEstacoes},
+enquanto as séries detalhadas foram obtidas do endpoint \textit{HidroinfoanaSerieTelemetricaDetalhada}
+\cite{HidroinfoanaSerieTelemetricaDetalhada}.
+
+As estações analisadas pertencem à Bacia Hidrográfica do Guaíba, no Rio Grande do Sul, abrangendo em especial o Rio
+Guaíba ('87200000') e os principais rios afluentes — Taquari ('86001000'), Caí ('87220000'), Gravataí ('87240000'),
+Sinos ('87230000') e Jacuí ('85001000')— a fim de garantir ampla cobertura espacial e boa qualidade dos dados. Para
+isto, foi necessário investigar todas as possíveis estações para estes rios. O total inicial era de 258 estações. Após
+filtrar por estações em operação e estações telemétricas, restaram apenas 43 estações. As séries históricas destas foram
+analisadas quanto à disponibilidade, qualidade, lacunas, duração e representatividade. Também excluíram-se estações com
+finalidades específicas (energéticas, piezométricas etc.), que não apresentam as informações relevantes para este
+estudo. 
+
+\begin{figure}[htb]
+	\caption{\label{funil} Funil de estações selecionadas do SNIRH}
+	\begin{center}
+	    \includegraphics[scale=0.35]{img/funil_estações.png}
+	\end{center}
+	\legend{Fonte: Reprodução própria}
+\end{figure} 
+
+Com isto, determinou-se que somente 15 estações na Bacia Hidrográfica desejada apresentavam informações da forma
+desejada. Destas, foram selecionadas pelo menos uma para cada um dos principais rios listados acima. Alguns rios, como o
+Sinos e o Taquari, apresentavam 3-4 estações cujas informações poderiam ser utilizadas, mas por fim, foi determinado que
+no máximo 2 estações seriam selecionadas de cada rio, a fim de manter um equilíbrio de dados e não introduzir um maior
+peso para estes corpos hídricos, inclusive quando alguns, como o Rio Jacuí, só teriam 1 estação disponível.
+
+Estas foram coletadas com dados à cada 15 minutos para um período histórico de 5 anos. Para o próprio Guaíba, adotou-se
+como alvo, a estação CAIS MAUÁ C6 ('87450004') e complementarmente a estação do USINA DO GASÔMETRO - CHEIA 2024
+('87444000'), estratégia necessária devido à descontinuidade nos registros da primeira estação em 2-3 de maio de 2024.
+Conforme atestado pela SEMA \cite{informativo_sema}, este hiato decorreu de danos nos equipamentos de medição durante as
+enchentes.
+
+Por fim, a lista de estações selecionadas foram:
+\begin{table}[h!]
+    \centering
+    \caption{Estações Hidrometeorológicas por Bacia}
+    \label{tab:estacoes_hidro}
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Rio} & \textbf{Estação} & \textbf{Código Estação} \\
+        \hline
+        \hline
+        \multirow{2}{*}{\textbf{Guaíba}} & CAIS MAUÁ C6 & 87450004 \\
+        \cline{2-3}
+        & USINA DO GASÔMETRO (CHEIA 2024) & 87444000 \\
+        \hline
+        \multirow{2}{*}{\textbf{Taquari}} & MUÇUM & 86510000 \\
+        \cline{2-3}
+        & ENCANTADO & 86720000 \\
+        \hline
+        \multirow{2}{*}{\textbf{Caí}} & LINHA GONZAGA & 87150000 \\
+        \cline{2-3}
+        & BARCA DO CAÍ & 87170000 \\
+        \hline
+        \textbf{Gravataí} & PASSO DAS CANOAS - AUXILIAR & 87399000 \\
+        \hline
+        \multirow{2}{*}{\textbf{Sinos}} & SÃO LEOPOLDO & 87382000 \\
+        \cline{2-3}
+        & CAMPO BOM & 87380000 \\
+        \hline
+        \textbf{Jacuí} & RIO PARDO & 85900000 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Para uniformizar as séries, adotou-se `2018-08-01` como data inicial comum e `2025-12-01` como data final comum,
+totalizando cerca de seis anos de dados telemétricos, com registros a cada 15 minutos. Devido ao limite de 30 dias
+imposto pela API, o processo de coleta foi realizado em chunks mensais posteriormente concatenados.
 
 Para dados de metereológicos, também serão utilizados dados disponibilizados pelo SNIRH e os mesmos serão coletados com
 a mesma frequência e o mesmo período histórico, de forma a complementar os dados do nível da água.
@@ -64,5 +128,3 @@ conforme novos dados ou modelos forem incorporados.
 % following specifica- tions: 12th Gen Intel(R) Core(TM) i5-12500H, 16GB RAM and a NVIDIA GeForce RTX 3050 Laptop 4GB
 % VRAM. The LSTM model takes in training around 1.5 seconds per epoch, which led to around 2.5 to 4 minutes per
 % experiment. Additionally, the feature importance calculation for each prediction takes around 1 second per prediction.
-
-% O processo de treinamento será realizado em uma máquina com as seguintes especificações: Intel i5-7200U de 3.100GHz, 
