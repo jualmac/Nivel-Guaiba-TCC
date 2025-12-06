@@ -260,15 +260,30 @@ def main_backend(
     
     # Create combined results dataframe with predictions and metrics;
     if all_predictions:
-        df_predictions = pd.concat(all_predictions, ignore_index=False)
+        # Concatenate all predictions;
+        full_preds = pd.concat(all_predictions, ignore_index=False)
+        
+        # Pivot to have columns per model (index is date);
+        df_predictions = full_preds.pivot_table(index=full_preds.index, columns='model_name', values='y_pred')
+        
+        # Add y_true (should be same for all models for same index);
+        # Group by index and take the first value of y_true;
+        y_true = full_preds.groupby(level=0)['y_true'].first()
+        df_predictions['y_true'] = y_true
+        
+        # Reset index to make date a column;
+        df_predictions = df_predictions.reset_index().rename(columns={'index': 'date', 'Data_Hora_Medicao': 'date'})
+        
+        # Metrics DataFrame;
         df_metrics = pd.DataFrame(all_metrics)
-        # Merge predictions with metrics for comprehensive results;
-        df_ml_results = df_predictions.merge(df_metrics, on='model_name', how='left')
         
         # Save ML results to database if flag is set;
         if save_to_db:
             print("Saving ML results to database...")
-            save_to_database(df_ml_results=df_ml_results)
+            save_to_database(
+                df_predictions=df_predictions,
+                df_metrics=df_metrics
+            )
     
     print("Backend pipeline completed!")
 

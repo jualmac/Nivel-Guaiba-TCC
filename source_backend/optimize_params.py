@@ -107,7 +107,7 @@ class BayesianOptimization:
         # XGBoost;
         if self.model_name == "xgboost":
             params = {
-                "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
+                "n_estimators": trial.suggest_int("n_estimators", 100, 3000, step=100),
                 "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.1, log=True),
                 "max_depth": trial.suggest_int("max_depth", 3, 12),
                 "min_child_weight": trial.suggest_int("min_child_weight", 1, 20),
@@ -131,7 +131,7 @@ class BayesianOptimization:
         # LightGBM;
         elif self.model_name == "lightgbm":
             params = {
-                "n_estimators": trial.suggest_int("n_estimators", 100, 2000, step=100),
+                "n_estimators": trial.suggest_int("n_estimators", 100, 3000, step=100),
                 "max_depth": trial.suggest_int("max_depth", 3, 12),
                 "num_leaves": trial.suggest_int("num_leaves", 20, 150),
                 "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
@@ -157,18 +157,13 @@ class BayesianOptimization:
             # Hyperparameters;
             params = {
                 # Architecture Tuning;
-                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]), # Using powers of 2
+                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256, 512]),
                 "num_layers": trial.suggest_int("num_layers", 1, 5), # Expanded range for deeper networks
                 "dropout": trial.suggest_float("dropout", 0.0, 0.5),
-                
-                # Training Optimization;
                 "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]), # Now being tuned
+                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512]),
                 "epochs": 50, # Fixed epochs for optimization speed is acceptable
-                
-                # Critical Time-Series Parameter (Now being tuned);
-                # Expanded range for hydrological contexts (catchment response time);
-                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48, 72, 168]) 
+                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48, 72, 168]) # Expanded range for hydrological contexts (catchment response time);
             }
             return self.evaluate_lstm(params)
 

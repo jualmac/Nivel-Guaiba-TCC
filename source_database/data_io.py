@@ -70,7 +70,8 @@ def save_to_database(
     df_agg: Optional[pd.DataFrame] = None,
     df_imp: Optional[pd.DataFrame] = None,
     df_melted: Optional[pd.DataFrame] = None,
-    df_ml_results: Optional[pd.DataFrame] = None
+    df_predictions: Optional[pd.DataFrame] = None,
+    df_metrics: Optional[pd.DataFrame] = None
 ) -> None:
     """
     Persist ETL-processed and ML results dataframes to DuckDB database tables;
@@ -86,7 +87,8 @@ def save_to_database(
         df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
         df_imp (Optional[pd.DataFrame]): Imputed data -> 'data_stations_imputed' (default: None);
         df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations' (default: None);
-        df_ml_results (Optional[pd.DataFrame]): ML model predictions and metrics -> 'ml_model_results' (default: None);
+        df_predictions (Optional[pd.DataFrame]): ML model predictions -> 'models_predictions' (default: None);
+        df_metrics (Optional[pd.DataFrame]): ML model metrics -> 'models_metrics' (default: None);
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -106,7 +108,69 @@ def save_to_database(
         db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
     if df_melted is not None:
         db.write(df=df_melted, table_name='data_stations', inplace=True)
-    if df_ml_results is not None:
-        db.write(df=df_ml_results, table_name='ml_model_results', inplace=True)
     
+    # Save predictions;
+    if df_predictions is not None:
+        db.write(df=df_predictions, table_name='models_predictions', inplace=True)
+
+    # Save and Update metrics;
+    if df_metrics is not None:
+        try:
+            existing_metrics = db.run("SELECT * FROM models_metrics")['result']
+        except:
+            existing_metrics = pd.DataFrame()
+
+        if not existing_metrics.empty:
+            # Separate current run metrics (non-BEST) and existing BEST metrics;
+            existing_best = existing_metrics[existing_metrics['model_name'].str.endswith('_BEST')]
+            
+            # List to hold updated rows;
+            updated_rows = []
+            
+            # Add current run metrics (overwriting any non-BEST rows naturally by just inserting them);
+            updated_rows.append(df_metrics)
+            
+            # Process BEST metrics;
+            for _, row in df_metrics.iterrows():
+                model = row['model_name']
+                best_model_name = f"{model}_BEST"
+                
+                # Get existing best for this model if any;
+                current_best_row = existing_best[existing_best['model_name'] == best_model_name]
+                
+                if not current_best_row.empty:
+                    current_best_rmse = current_best_row.iloc[0]['rmse']
+                    new_rmse = row['rmse']
+                    
+                    # Compare RMSE (lower is better);
+                    if new_rmse < current_best_rmse:
+                         # New record is better, create BEST row from current row;
+                         best_row = row.copy()
+                         best_row['model_name'] = best_model_name
+                         updated_rows.append(pd.DataFrame([best_row]))
+                    else:
+                         # Keep existing best;
+                         updated_rows.append(current_best_row)
+                else:
+                    # No existing best, create one;
+                    best_row = row.copy()
+                    best_row['model_name'] = best_model_name
+                    updated_rows.append(pd.DataFrame([best_row]))
+            
+            # Concatenate all;
+            final_metrics = pd.concat(updated_rows, ignore_index=True)
+            
+            # We also need to keep existing BEST rows for models NOT in the current run (if any);
+            current_models_best = [f"{m}_BEST" for m in df_metrics['model_name'].unique()]
+            other_best = existing_best[~existing_best['model_name'].isin(current_models_best)]
+            if not other_best.empty:
+                final_metrics = pd.concat([final_metrics, other_best], ignore_index=True)
+
+        else:
+            # No existing metrics, just create current + best;
+            best_metrics = df_metrics.copy()
+            best_metrics['model_name'] = best_metrics['model_name'] + '_BEST'
+            final_metrics = pd.concat([df_metrics, best_metrics], ignore_index=True)
+            
+        db.write(df=final_metrics, table_name='models_metrics', inplace=True)
     print("Data successfully saved to database.")
