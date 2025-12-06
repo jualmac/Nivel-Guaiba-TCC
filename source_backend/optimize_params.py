@@ -167,7 +167,8 @@ class BayesianOptimization:
                 "epochs": 50, # Fixed epochs for optimization speed is acceptable
                 
                 # Critical Time-Series Parameter (Now being tuned);
-                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48]) 
+                # Expanded range for hydrological contexts (catchment response time);
+                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48, 72, 168]) 
             }
             return self.evaluate_lstm(params)
 

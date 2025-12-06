@@ -74,7 +74,6 @@ def training_pipeline(
     random_state: int = 42,
     n_trials: int = 10,
     batch: int = 128,
-    steps: int = 12,
     freq: str = 'h',
     mode: str = 'CPU',
     use_lags: bool = False,
@@ -95,7 +94,6 @@ def training_pipeline(
         random_state (int): Random seed for reproducibility (default: 42);
         n_trials (int): Number of trials for hyperparameter optimization (default: 10);
         batch (int): Training batch size (default: 128);
-        steps (int): The amount of forward steps to be predicted (default: 12);
         freq (str): Frequency of predictions (pandas offset) (default: 'h');
         mode (str): Training device mode ('CPU', 'GPU', 'CUDA') (default: 'CPU');
         use_lags (bool): If True, add lag features transformer (default: False).
@@ -112,7 +110,7 @@ def training_pipeline(
     # Create separate pipeline for each model with arguments;
     pipelines = {
         'SARIMA': create_model_pipeline(
-            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='SARIMA',
             use_lags=use_lags,
@@ -120,7 +118,7 @@ def training_pipeline(
             n_features=20 #Harcoded due to slowness of SARIMA;
         ),
         'LSTM': create_model_pipeline(
-            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='LSTM',
             use_lags=use_lags,
@@ -128,7 +126,7 @@ def training_pipeline(
             n_features=n_features
         ),
         'XGBOOST': create_model_pipeline(
-            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='XGBOOST',
             use_lags=use_lags,
@@ -136,7 +134,7 @@ def training_pipeline(
             n_features=n_features
         ),
         'LIGHTGBM': create_model_pipeline(
-            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='LIGHTGBM',
             use_lags=use_lags,

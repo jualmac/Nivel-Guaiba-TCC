@@ -60,8 +60,7 @@ class LSTMModels:
                 random_state: int = 42,
                 n_trials: int = 10,
                 batch: int = 128,
-                steps: int = 12,
-                 mode: str = 'CPU',
+                mode: str = 'CPU',
                 **kwargs
                 ):
         """
@@ -71,7 +70,7 @@ class LSTMModels:
         self.random_state = random_state
         self.n_trials = n_trials
         self.batch_size = batch
-        self.sequence_length = steps # This acts as 'sequence_length' lookback window;
+        self.sequence_length = None
         self.mode = mode
         
         # Determine device;
@@ -119,12 +118,16 @@ class LSTMModels:
                 print("No best params found, using defaults.")
                 best_params = {
                     "hidden_size": 64, "num_layers": 1, 
-                    "dropout": 0.0, "learning_rate": 0.001
+                    "dropout": 0.0, "learning_rate": 0.001,
+                    "sequence_length": 24  # Default for hydrological data (24 hours);
                 }
 
         # Clean params types;
         for k, v in best_params.items():
-            if k in ['hidden_size', 'num_layers']: best_params[k] = int(v)
+            if k in ['hidden_size', 'num_layers', 'sequence_length']: best_params[k] = int(v)
+        
+        # Set sequence_length from optimized/loaded params;
+        self.sequence_length = best_params.get('sequence_length', 24)
 
         print(f"Training LSTM with params: {best_params}")
 
