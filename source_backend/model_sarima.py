@@ -136,20 +136,20 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     y=y_search,
                     X=X_search,
                     start_p=1, start_q=1,
-                    max_p=3, max_q=3,           # User requested non-seasonal range
-                    m=12,                       # Seasonality (Monthly) - Adjust if needed;
+                    max_p=5, max_q=5, max_d=2,              # User requested non-seasonal range
+                    m=12,                                   # Seasonality (Monthly) - Adjust if needed;
                     start_P=0, seasonal=True,
-                    max_P=1, max_Q=1,           # Constrained seasonal range for speed
-                    d=None,                     # Let model determine 'd';
-                    D=1,                        # Force seasonal difference if needed, or set None;
-                    test='kpss',                # Faster stationarity test
-                    trace=True,                 # Prints progress;
+                    max_P=1, max_Q=1,                       # Constrained seasonal range for speed
+                    # d=None,                               # Let model determine 'd';
+                    D=1,                                    # Force seasonal difference if needed, or set None;
+                    test='kpss',                            # Faster stationarity test
+                    trace=True,                             # Prints progress;
                     error_action='ignore',      
                     suppress_warnings=True,     
-                    stepwise=True,              # Performance -> Avoids a full grid search;
-                    approximation=True,         # HUGE SPEEDUP: Uses CSS instead of MLE for search
-                    maxiter=25,                 # SAFETY BRAKE: Stop solver if not converging quickly
-                    n_jobs=1,                   # Set to 1 for stability with exog variables
+                    stepwise=True,                          # Performance -> Avoids a full grid search;
+                    approximation=True,                     # HUGE SPEEDUP: Uses CSS instead of MLE for search
+                    maxiter=25,                             # SAFETY BRAKE: Stop solver if not converging quickly
+                    n_jobs=1,                               # Set to 1 for stability with exog variables
                     random_state=self.random_state,
                 )
                 
