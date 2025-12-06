@@ -107,15 +107,15 @@ class BayesianOptimization:
         # XGBoost;
         if self.model_name == "xgboost":
             params = {
-                "n_estimators": trial.suggest_int("n_estimators", 100, 3000, step=100),
-                "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.1, log=True),
-                "max_depth": trial.suggest_int("max_depth", 3, 12),
-                "min_child_weight": trial.suggest_int("min_child_weight", 1, 20),
-                "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-                "gamma": trial.suggest_float("gamma", 0, 5),
-                "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 1.0, log=True),
-                "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 1.0, log=True),
+                "n_estimators": trial.suggest_int("n_estimators", 100, 5000, step=100),
+                "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
+                "max_depth": trial.suggest_int("max_depth", 3, 15),
+                "min_child_weight": trial.suggest_int("min_child_weight", 1, 50),
+                "subsample": trial.suggest_float("subsample", 0.3, 1.0),
+                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.3, 1.0),
+                "gamma": trial.suggest_float("gamma", 0, 20),
+                "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
+                "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
                 "grow_policy": trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
                 "random_state": self.random_state,
                 "n_jobs": self.n_jobs,
@@ -131,16 +131,16 @@ class BayesianOptimization:
         # LightGBM;
         elif self.model_name == "lightgbm":
             params = {
-                "n_estimators": trial.suggest_int("n_estimators", 100, 3000, step=100),
-                "max_depth": trial.suggest_int("max_depth", 3, 12),
-                "num_leaves": trial.suggest_int("num_leaves", 20, 150),
-                "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
+                "n_estimators": trial.suggest_int("n_estimators", 100, 5000, step=100),
+                "max_depth": trial.suggest_int("max_depth", 3, 15),
+                "num_leaves": trial.suggest_int("num_leaves", 20, 300),
+                "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
                 "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
-                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-                "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.3, 1.0),
+                "subsample": trial.suggest_float("subsample", 0.3, 1.0),
                 "subsample_freq": trial.suggest_int("subsample_freq", 1, 10),
-                "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
-                "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
+                "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 100.0, log=True),
+                "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 100.0, log=True),
                 "random_state": self.random_state,
                 "num_threads": self.n_jobs if self.n_jobs != -1 else 0,
             }
@@ -158,12 +158,12 @@ class BayesianOptimization:
             params = {
                 # Architecture Tuning;
                 "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256, 512]),
-                "num_layers": trial.suggest_int("num_layers", 1, 5), # Expanded range for deeper networks
-                "dropout": trial.suggest_float("dropout", 0.0, 0.5),
-                "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True),
+                "num_layers": trial.suggest_int("num_layers", 1, 6), 
+                "dropout": trial.suggest_float("dropout", 0.0, 0.6),
+                "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True),
                 "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512]),
-                "epochs": 50, # Fixed epochs for optimization speed is acceptable
-                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48, 72, 168]) # Expanded range for hydrological contexts (catchment response time);
+                "epochs": 50, 
+                "sequence_length": trial.suggest_categorical("sequence_length", [12, 24, 36, 48, 72, 96, 168, 336]) 
             }
             return self.evaluate_lstm(params)
 
