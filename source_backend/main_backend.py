@@ -108,7 +108,7 @@ def main_backend(
 
     # Split data into train/test sets;
     print("Splitting data into train/test sets...")
-    if val_size is not None:
+    if val_size is not None and val_size > 0:
         X_train, X_val, X_test, y_train, y_val, y_test = data_division(
             df=df,
             target_column=target_column,
@@ -175,7 +175,7 @@ def main_backend(
         # Fit validation data for early stopping if available (only for XGBOOST and LIGHTGBM);
         fit_params = {f"{name}__optimize_hyperparameters": optimize}
         
-        if val_size is not None and name in ['XGBOOST', 'LIGHTGBM']:
+        if val_size is not None and val_size > 0 and name in ['XGBOOST', 'LIGHTGBM']:
             print(f"Preparing validation data for {name} early stopping...")
             
             # Split pipeline into feature engineering and model steps;
@@ -282,8 +282,8 @@ if __name__ == "__main__":
     
     # Main backend parameters;
     parser.add_argument('--target_column', type=str, default='Cota_Adotada_87450004', help='Name of target column to predict')
-    parser.add_argument('--train_size', type=float, default=0.7, help='Proportion of data for training set (0.0 to 1.0)')
-    parser.add_argument('--test_size', type=float, default=0.3, help='Proportion of data for test set (0.0 to 1.0)')
+    parser.add_argument('--train_size', type=float, default=0.8, help='Proportion of data for training set (0.0 to 1.0)')
+    parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
     parser.add_argument('--val_size', type=float, default=0.0, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')

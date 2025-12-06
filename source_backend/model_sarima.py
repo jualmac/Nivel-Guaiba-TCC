@@ -37,7 +37,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 batch: int = 128,
                 steps: int = 12,
                 mode: str = 'CPU',
-                max_exog_features: int = 10, # SAFETY BRAKE: Hard limit on features to prevent crash
+                max_exog_features: int = 20, # SAFETY BRAKE: Hard limit on features to prevent crash
                 search_sample_size: int = 10000, # Optimization: Limit samples for stepwise search
                 **kwargs
                 ):
@@ -164,8 +164,8 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 # Clear memory from search
                 del search_model
                 gc.collect()
-                
-                self.model.fit(y_clean, X=self.X_train)
+
+                self.model.fit(X=self.X_train, y=y_clean)
 
             else:
                 # Fast fallback for no optimization;

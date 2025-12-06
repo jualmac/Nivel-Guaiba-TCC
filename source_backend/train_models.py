@@ -117,7 +117,7 @@ def training_pipeline(
             model_name='SARIMA',
             use_lags=use_lags,
             use_feature_selection=use_feature_selection,
-            n_features=10 #Harcoded due to slowness of SARIMA;
+            n_features=20 #Harcoded due to slowness of SARIMA;
         ),
         'LSTM': create_model_pipeline(
             LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
