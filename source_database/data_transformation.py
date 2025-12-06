@@ -218,7 +218,8 @@ def fill_gaps(
             df_cpy = df_cpy.merge(station_meta, how='left', on='codigoestacao')
 
     # Select only the columns that are needed;
-    df_cpy = df_cpy[STATION_COLS]
+    cols_to_keep = [col for col in STATION_COLS if col in df_cpy.columns]
+    df_cpy = df_cpy[cols_to_keep]
     return df_cpy, missing_values
 
 
