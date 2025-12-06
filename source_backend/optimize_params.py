@@ -364,7 +364,7 @@ class BayesianOptimization:
             pass # LSTM doesn't use n_jobs parameter in this context;
         
         # Log the final best metric and corresponding parameters to the current active MLflow run;
-        mlflow.log_metric(f"{self.model_name}_best_rmse", study.best_value)
+        mlflow.log_metric(f"train_best_rmse", study.best_value)
         mlflow.log_params(best_params)
 
         self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
