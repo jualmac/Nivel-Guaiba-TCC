@@ -183,7 +183,8 @@ def encoding_pipeline(
     # Define categorical pipeline;
     categorical_pipeline = Pipeline([
         ('imputer', SimpleImputer(strategy='constant')),
-        ('scaler', OneHotEncoder(sparse_output=False))
+        # handle_unknown='ignore' prevents failures when validation/test folds contain categories unseen in the training split; leakage-safe CV needs this;
+        ('scaler', OneHotEncoder(sparse_output=False, handle_unknown='ignore'))
     ])
 
     # Create ColumnTransformer;

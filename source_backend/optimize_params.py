@@ -12,6 +12,7 @@ Bayesian optimization to find the best hyperparameters for regression models.
 import json
 import logging
 import optuna
+from optuna.trial import TrialState
 import numpy as np
 import pandas as pd
 from xgboost import XGBRegressor
@@ -171,7 +172,7 @@ class BayesianOptimization:
             params = {
                 # Architecture Tuning;
                 "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]),
-                "num_layers": trial.suggest_int("num_layers", 1, 5), 
+                "num_layers": trial.suggest_int("num_layers", 1, 3), 
                 "dropout": trial.suggest_float("dropout", 0.0, 0.5),
                 "learning_rate": trial.suggest_float("learning_rate", 1e-3, 1e-2, log=True),
                 "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]),
@@ -392,6 +393,10 @@ class BayesianOptimization:
             n_jobs=self.n_jobs,
             timeout=600  # 10 minutes timeout;
         )
+
+        completed_trials = [t for t in study.trials if t.state == TrialState.COMPLETE]
+        if not completed_trials:
+            raise ValueError("No trials are completed yet; check preprocessing or model errors during CV.")
 
         # Add model-specific parameters;
         best_params = study.best_params.copy()

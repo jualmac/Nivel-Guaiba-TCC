@@ -49,9 +49,11 @@ def kge(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """
     Calculate the Kling Gupta Efficiency (KGE);
     """
-    # For 1-D array;
-    evaluator = RegressionMetric(y_true=y_true, y_pred=y_pred)
-    return(evaluator.kling_gupta_efficiency())
+    # Ensure numpy arrays for permetrics input;
+    y_true_arr = np.asarray(y_true).ravel()
+    y_pred_arr = np.asarray(y_pred).ravel()
+    evaluator = RegressionMetric(y_true=y_true_arr, y_pred=y_pred_arr)
+    return evaluator.kling_gupta_efficiency()
 
 
 ########################################################################################################################
