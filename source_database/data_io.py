@@ -71,7 +71,8 @@ def save_to_database(
     df_imp: Optional[pd.DataFrame] = None,
     df_melted: Optional[pd.DataFrame] = None,
     df_predictions: Optional[pd.DataFrame] = None,
-    df_metrics: Optional[pd.DataFrame] = None
+    df_metrics: Optional[pd.DataFrame] = None,
+    df_features: Optional[pd.DataFrame] = None
 ) -> None:
     """
     Persist ETL-processed and ML results dataframes to DuckDB database tables;
@@ -89,6 +90,8 @@ def save_to_database(
         df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations' (default: None);
         df_predictions (Optional[pd.DataFrame]): ML model predictions -> 'models_predictions' (default: None);
         df_metrics (Optional[pd.DataFrame]): ML model metrics -> 'models_metrics' (default: None);
+        df_features (Optional[pd.DataFrame]): Processed feature matrices (post-preprocessing and feature selection)
+            for model inputs -> 'models_features' (default: None);
     """
     # Initialize the Connection;
     db = DBConnection()
@@ -173,4 +176,8 @@ def save_to_database(
             final_metrics = pd.concat([df_metrics, best_metrics], ignore_index=True)
             
         db.write(df=final_metrics, table_name='models_metrics', inplace=True)
+    
+    # Save processed feature matrices for model inputs;
+    if df_features is not None:
+        db.write(df=df_features, table_name='models_features', inplace=True)
     print("Data successfully saved to database.")

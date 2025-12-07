@@ -166,6 +166,7 @@ def main_backend(
     results = {}
     all_predictions = []
     all_metrics = []
+    all_features = []
     
     for name, pipeline in pipelines.items():
         print(f"Training {name}...")
@@ -233,6 +234,27 @@ def main_backend(
         else:
             # Standard Pipeline fit for other models or when no validation set is used;
             pipeline.fit(X_train, y_train, **fit_params)
+        
+        # Collect transformed feature matrices (post-preprocessor + feature engineering + selection);
+        if save_to_db:
+            def collect_features(split_name, X_split, y_split):
+                orig_index = X_split.index if hasattr(X_split, "index") else None
+                features = X_split
+                for step_name, step in pipeline.steps[:-1]:
+                    features = step.transform(features)
+                if not isinstance(features, pd.DataFrame):
+                    features = pd.DataFrame(features, index=orig_index)
+                features = features.copy()
+                target_series = y_split.reindex(features.index) if isinstance(y_split, pd.Series) else pd.Series(y_split, index=features.index, name='target')
+                features['target'] = target_series
+                features['model_name'] = name
+                features['split'] = split_name
+                return features
+
+            all_features.append(collect_features('train', X_train, y_train))
+            if val_size is not None and val_size > 0:
+                all_features.append(collect_features('val', X_val, y_val))
+            all_features.append(collect_features('test', X_test, y_test))
         
         # Predict with fitted Pipeline;
         y_pred = pipeline.predict(X_test)
@@ -307,7 +329,8 @@ def main_backend(
             print("Saving ML results to database...")
             save_to_database(
                 df_predictions=df_predictions,
-                df_metrics=df_metrics
+                df_metrics=df_metrics,
+                df_features=pd.concat(all_features, ignore_index=True) if all_features else None
             )
     print("Backend pipeline completed!")
 
