@@ -57,7 +57,6 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         # Default initialization
         self.model = None
         self.y_pred = None
-        # X_train now stores the *reduced* (feature-selected) exogenous data
         self.X_train = None 
         self.feature_selector = None # To track which features we kept
 

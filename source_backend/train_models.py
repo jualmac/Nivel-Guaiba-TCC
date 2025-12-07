@@ -21,6 +21,7 @@ from source_backend.model_sarima import SARIMAModels
 from source_backend.model_lstm import LSTMModels
 from source_backend.model_xgboost import XGBoostModels
 from source_backend.model_lightgbm import LightGBMModels
+from source_backend.model_dummy import DummyModels
 from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer
 
 ########################################################################################################################
@@ -90,7 +91,7 @@ def training_pipeline(
     Parameters:
         preprocessor (ColumnTransformer): Fitted preprocessing pipeline from data_preparation;
         models_to_use (Optional[list]): List of model names to use. Options: 'SARIMA', 'LSTM', 
-            'XGBOOST', 'LIGHTGBM'. If None, trains all models (default: None);
+            'XGBOOST', 'LIGHTGBM', 'DUMMY'. If None, trains all models (default: None);
         random_state (int): Random seed for reproducibility (default: 42);
         n_trials (int): Number of trials for hyperparameter optimization (default: 10);
         batch (int): Training batch size (default: 128);
@@ -137,6 +138,14 @@ def training_pipeline(
             LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='LIGHTGBM',
+            use_lags=use_lags,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
+        ),
+        'DUMMY': create_model_pipeline(
+            DummyModels(strategy='mean', random_state=random_state, **kwargs),
+            preprocessor,
+            model_name='DUMMY',
             use_lags=use_lags,
             use_feature_selection=use_feature_selection,
             n_features=n_features

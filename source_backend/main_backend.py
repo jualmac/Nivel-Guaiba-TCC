@@ -54,7 +54,7 @@ def main_backend(
     
     Parameters:
         target_column (str): Name of target column to predict;
-        models_to_use (Optional[list]): List of models to train ('SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM').
+        models_to_use (Optional[list]): List of models to train ('SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY').
             If None, trains all models (default: None);
         train_size (float): Proportion of data for training set (default: 0.7);
         test_size (float): Proportion of data for test set (default: 0.2);
@@ -217,8 +217,7 @@ def main_backend(
                 "cv_gap": 24,
             }
             
-            # Fit the model instance directly with processed data;
-            # This avoids "double fitting" the transformers which would happen if we called pipeline.fit();
+            # Fit the model instance directly with processed data -> This avoids "double fitting" the transformers which would happen if we called pipeline.fit();
             model_instance.fit(X_train_processed, y_train, **model_params)
             
             # Reconstruct the pipeline with the fitted steps for future use (prediction, logging);
@@ -303,7 +302,6 @@ def main_backend(
                 df_predictions=df_predictions,
                 df_metrics=df_metrics
             )
-    
     print("Backend pipeline completed!")
 
 ########################################################################################################################
@@ -320,10 +318,10 @@ if __name__ == "__main__":
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
     parser.add_argument('--val_size', type=float, default=0.0, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
-    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
+    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
-                        choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['LSTM', 'XGBOOST', 'LIGHTGBM'],
+                        choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY'],
+                        default=['DUMMY'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
