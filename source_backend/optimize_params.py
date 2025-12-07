@@ -157,11 +157,11 @@ class BayesianOptimization:
             # Hyperparameters;
             params = {
                 # Architecture Tuning;
-                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256, 512]),
+                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]),
                 "num_layers": trial.suggest_int("num_layers", 1, 6), 
                 "dropout": trial.suggest_float("dropout", 0.0, 0.6),
                 "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512]),
+                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]),
                 "epochs": 50, 
                 "sequence_length": trial.suggest_categorical("sequence_length", [12, 24, 36, 48, 72, 96, 168, 336]) 
             }

@@ -106,7 +106,7 @@ if __name__ == "__main__":
     
     # Set default values for booleans;
     parser.set_defaults(
-        save_to_db=False,
+        save_to_db=True,
     )
     
     args = parser.parse_args()
