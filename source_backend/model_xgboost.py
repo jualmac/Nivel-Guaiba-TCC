@@ -1,3 +1,7 @@
+#TODO: DMatrix?
+# dtrain_gpu = xgb.DMatrix(X_train_scaled, label=y_train)
+# dtest_gpu = xgb.DMatrix(X_test_scaled, label=y_test)
+
 """
 Defines the XGBoostModels class for automated time series forecasting using XGBoost. This class facilitates the 
 initialization with a dataset and model configurations, supporting both general and item-specific predictions. The main 

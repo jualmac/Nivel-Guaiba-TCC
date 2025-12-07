@@ -120,14 +120,12 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
             # Add back Data_Hora_Medicao if it was preserved
             if preserved_data is not None:
                 df_transformed['Data_Hora_Medicao'] = preserved_data
-                
             return df_transformed
-            
         return X_transformed
 
 class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
     """Create lag features for time series"""
-    def __init__(self, lags=[1, 7, 30]):
+    def __init__(self, lags=[1, 6, 12, 24, 48]):
         self.lags = lags
     
     def fit(self, X, y=None):
@@ -141,7 +139,7 @@ class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
 
 class RollingStatsTransformer(BaseEstimator, TransformerMixin):
     """Create rolling window statistics"""
-    def __init__(self, windows=[4, 16, 32, 96]):
+    def __init__(self, windows=[12, 24, 48, 72, 168]):
         self.windows = windows
     
     def fit(self, X, y=None):
