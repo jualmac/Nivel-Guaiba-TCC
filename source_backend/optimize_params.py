@@ -313,8 +313,7 @@ class BayesianOptimization:
             del X_train_seq, y_train_seq, X_val_seq, y_val_seq
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            gc.collect()
-            
+            gc.collect() 
         return np.mean(scores) if scores else -float('inf')
 
     def evaluate(self, model) -> float:
@@ -363,10 +362,10 @@ class BayesianOptimization:
 
             y_true_np = np.asarray(y_val_fold, dtype=float).ravel()
             preds_np = np.asarray(preds, dtype=float).ravel()
+
             # Compute KGE for the validation fold; 
             kge_score = kge(y_true=y_true_np, y_pred=preds_np)
             scores.append(kge_score)
-
         return np.mean(scores) if scores else -float('inf')
 
     def optimize(self) -> dict:
