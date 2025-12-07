@@ -51,8 +51,7 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
         if isinstance(X, pd.DataFrame):
             X_numeric = X.select_dtypes(include=['number'])
         else:
-            # Wrap numpy array with synthetic column names so downstream selectors;
-            # retain feature name metadata and avoid feature-name warnings;
+            # Wrap numpy array with synthetic column names so downstream selectors. Retain feature name metadata and avoid feature-name warnings;
             X_numeric = pd.DataFrame(X)
         
         # Track feature names for reuse in transform;
@@ -130,10 +129,31 @@ class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X):
-        X_copy = X.copy()
-        for lag in self.lags:
-            X_copy[f'lag_{lag}'] = X_copy['value'].shift(lag)
-        return X_copy.fillna(0)
+        input_is_df = isinstance(X, pd.DataFrame)
+        X_copy = X.copy() if input_is_df else pd.DataFrame(X)
+
+        # Identify columns that should not be lagged (date/index-like columns);
+        exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
+        engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
+        non_lag_cols = {
+            col for col in X_copy.columns
+            if pd.api.types.is_datetime64_any_dtype(X_copy[col])
+            or (isinstance(col, str) and (col.lower() in exclude_names or col.startswith(engineered_prefixes)))
+        }
+
+        # Add lagged versions for every eligible feature column using concat to avoid fragmentation;
+        feature_cols = [col for col in X_copy.columns if col not in non_lag_cols]
+        lag_data = {}
+        for col in feature_cols:
+            for lag in self.lags:
+                lag_data[f'lag_{lag}_{col}'] = X_copy[col].shift(lag)
+        if lag_data:
+            lag_df = pd.DataFrame(lag_data, index=X_copy.index)
+            X_copy = pd.concat([X_copy, lag_df], axis=1)
+
+        # Fill NaNs;
+        X_copy = X_copy.fillna(0)
+        return X_copy if input_is_df else X_copy.to_numpy()
 
 class RollingStatsTransformer(BaseEstimator, TransformerMixin):
     """Create rolling window statistics"""
@@ -144,8 +164,70 @@ class RollingStatsTransformer(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X):
-        X_copy = X.copy()
-        for window in self.windows:
-            X_copy[f'rolling_mean_{window}'] = X_copy['value'].rolling(window).mean()
-            X_copy[f'rolling_std_{window}'] = X_copy['value'].rolling(window).std()
-        return X_copy.fillna(0)
+        input_is_df = isinstance(X, pd.DataFrame)
+        X_copy = X.copy() if input_is_df else pd.DataFrame(X)
+
+        # Identify columns that should not be rolled (date/index-like columns);
+        exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
+        engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
+        non_roll_cols = {
+            col for col in X_copy.columns
+            if pd.api.types.is_datetime64_any_dtype(X_copy[col])
+            or (isinstance(col, str) and (col.lower() in exclude_names or col.startswith(engineered_prefixes)))
+        }
+
+        # Add rolling statistics for numeric eligible columns using concat to avoid fragmentation;
+        feature_cols = [
+            col for col in X_copy.columns
+            if col not in non_roll_cols and pd.api.types.is_numeric_dtype(X_copy[col])
+        ]
+        roll_data = {}
+        for col in feature_cols:
+            for window in self.windows:
+                roll_data[f'rolling_mean_{window}_{col}'] = X_copy[col].rolling(window).mean()
+                roll_data[f'rolling_std_{window}_{col}'] = X_copy[col].rolling(window).std()
+        if roll_data:
+            roll_df = pd.DataFrame(roll_data, index=X_copy.index)
+            X_copy = pd.concat([X_copy, roll_df], axis=1)
+
+        # Fill NaNs;
+        X_copy = X_copy.fillna(0)
+        return X_copy if input_is_df else X_copy.to_numpy()
+
+class CumulativeFeaturesTransformer(BaseEstimator, TransformerMixin):
+    """Create cumulative/rolling-sum features across all eligible columns"""
+    def __init__(self, windows=[96, 672, 2880]):
+        self.windows = windows
+    
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, X):
+        input_is_df = isinstance(X, pd.DataFrame)
+        X_copy = X.copy() if input_is_df else pd.DataFrame(X)
+
+        # Identify columns that should not be accumulated (date/index-like columns);
+        exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
+        engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
+        non_accum_cols = {
+            col for col in X_copy.columns
+            if pd.api.types.is_datetime64_any_dtype(X_copy[col])
+            or (isinstance(col, str) and (col.lower() in exclude_names or col.startswith(engineered_prefixes)))
+        }
+
+        # Add rolling-sum cumulative features for numeric eligible columns using concat to avoid fragmentation;
+        feature_cols = [
+            col for col in X_copy.columns
+            if col not in non_accum_cols and pd.api.types.is_numeric_dtype(X_copy[col])
+        ]
+        accum_data = {}
+        for col in feature_cols:
+            for window in self.windows:
+                accum_data[f'cum_sum_{window}_{col}'] = X_copy[col].rolling(window, min_periods=1).sum()
+        if accum_data:
+            accum_df = pd.DataFrame(accum_data, index=X_copy.index)
+            X_copy = pd.concat([X_copy, accum_df], axis=1)
+
+        # Fill NaNs;
+        X_copy = X_copy.fillna(0)
+        return X_copy if input_is_df else X_copy.to_numpy()

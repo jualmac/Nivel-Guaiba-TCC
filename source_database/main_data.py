@@ -15,7 +15,7 @@ from sklearn.pipeline import Pipeline
 
 # Internal imports;
 from source_database.data_io import get_data, save_to_database
-from source_database.data_cleaning import clean_dataframe, make_acc_rain
+from source_database.data_cleaning import clean_dataframe
 from source_database.data_transformation import fill_gaps, aggregate_data, melt_dataframe
 from source_database.outlier_detection import outlier_removal
 from source_database.data_imputation import feature_imputation
@@ -57,11 +57,8 @@ def main_database(
     # Fill the data gaps;
     df_filled, missing = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
-    # Correct the Accumulated rain columns;
-    df_rain = make_acc_rain(df=df_filled)
-
     # Identify and remove Outliers (dynamic threshold per station);
-    df_out = outlier_removal(df=df_rain, threshold_method='iqr')
+    df_out = outlier_removal(df=df_filled, threshold_method='iqr')
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_out, frequency=frequency)

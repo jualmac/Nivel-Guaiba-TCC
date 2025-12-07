@@ -42,6 +42,8 @@ def main_backend(
     early_stopping: int = 50,
     save_to_db: bool = False,
     use_lags: bool = False,
+    use_rolling_stats: bool = False,
+    use_cumulative: bool = False,
     use_feature_selection: bool = False,
     n_features: Optional[int] = None
 ) -> None:
@@ -69,7 +71,8 @@ def main_backend(
         early_stopping (int): Number of rounds for early stopping (default: 50);
         save_to_db (bool): If True, save predictions and metrics to database (default: False);
         use_lags (bool): If True, add lag features transformer to pipeline (default: False).
-            Warning: LagFeaturesTransformer requires 'value' column which may not exist after preprocessing;
+        use_rolling_stats (bool): If True, add rolling statistics transformer to pipeline (default: False).
+        use_cumulative (bool): If True, add cumulative rolling-sum transformer to pipeline (default: False).
         use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
         n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
             If None, uses default (50) (default: None);
@@ -98,6 +101,8 @@ def main_backend(
         "early_stopping": early_stopping,
         "save_to_db": save_to_db,
         "use_lags": use_lags,
+        "use_rolling_stats": use_rolling_stats,
+        "use_cumulative": use_cumulative,
         "use_feature_selection": use_feature_selection,
         "n_features": n_features if n_features is not None else "None"
     }
@@ -150,6 +155,8 @@ def main_backend(
         freq=freq,
         mode=mode,
         use_lags=use_lags,
+        use_rolling_stats=use_rolling_stats,
+        use_cumulative=use_cumulative,
         use_feature_selection=use_feature_selection,
         n_features=n_features
     ) 
@@ -342,8 +349,12 @@ if __name__ == "__main__":
     parser.add_argument('--no_save_to_db', dest='save_to_db', action='store_false', help='Do not save the results to the database')
     parser.add_argument('--optimize', action='store_true', help='Perform hyperparameter Optimization')
     parser.add_argument('--no_optimize', dest='optimize', action='store_false', help='Do not perform hyperparameter Optimization')
-    parser.add_argument('--use_lags', action='store_true', help='Add lag features transformer to pipeline (Warning: requires "value" column)')
+    parser.add_argument('--use_lags', action='store_true', help='Add lag features transformer to pipeline')
     parser.add_argument('--no_use_lags', dest='use_lags', action='store_false', help='Do not add lag features transformer')
+    parser.add_argument('--use_rolling_stats', action='store_true', help='Add rolling statistics transformer to pipeline')
+    parser.add_argument('--no_use_rolling_stats', dest='use_rolling_stats', action='store_false', help='Do not add rolling statistics transformer')
+    parser.add_argument('--use_cumulative', action='store_true', help='Add cumulative rolling-sum transformer to pipeline')
+    parser.add_argument('--no_use_cumulative', dest='use_cumulative', action='store_false', help='Do not add cumulative rolling-sum transformer')
     parser.add_argument('--use_feature_selection', action='store_true', help='Add feature selection based on RandomForest importance')
     parser.add_argument('--no_use_feature_selection', dest='use_feature_selection', action='store_false', help='Do not add feature selection')   
 
@@ -351,7 +362,9 @@ if __name__ == "__main__":
     parser.set_defaults(
         save_to_db=True,
         optimize=True,
-        use_lags=False,
+        use_lags=True,
+        use_rolling_stats=True,
+        use_cumulative=True,
         use_feature_selection=True
     )
     
@@ -375,6 +388,8 @@ if __name__ == "__main__":
         early_stopping=args.early_stopping,
         save_to_db=args.save_to_db,
         use_lags=args.use_lags,
+        use_rolling_stats=args.use_rolling_stats,
+        use_cumulative=args.use_cumulative,
         use_feature_selection=args.use_feature_selection,
         n_features=args.n_features
         )

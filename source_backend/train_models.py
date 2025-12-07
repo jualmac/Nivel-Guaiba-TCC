@@ -22,7 +22,7 @@ from source_backend.model_lstm import LSTMModels
 from source_backend.model_xgboost import XGBoostModels
 from source_backend.model_lightgbm import LightGBMModels
 from source_backend.model_dummy import DummyModels
-from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer
+from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer, CumulativeFeaturesTransformer
 
 ########################################################################################################################
 #                                                                  
@@ -34,6 +34,8 @@ def create_model_pipeline(
     preprocessor, 
     model_name, 
     use_lags: bool = False, 
+    use_rolling_stats: bool = False,
+    use_cumulative: bool = False,
     use_feature_selection: bool = False, 
     n_features: Optional[int] = None
     ):
@@ -45,7 +47,8 @@ def create_model_pipeline(
         preprocessor: Fitted ColumnTransformer from data_preparation.
         model_name (str): Name of the model ('SARIMA', 'LSTM', etc.).
         use_lags (bool): If True, add lag features transformer (default: False).
-            Note: LagFeaturesTransformer requires 'value' column - may not work after preprocessing.
+        use_rolling_stats (bool): If True, add rolling statistics transformer (default: False).
+        use_cumulative (bool): If True, add cumulative rolling-sum transformer (default: False).
         use_feature_selection (bool): If True, add feature selection step (default: False).
         n_features (Optional[int]): Number of features to select if use_feature_selection=True.
             If None, uses default (50) (default: None).
@@ -53,18 +56,27 @@ def create_model_pipeline(
     Returns:
         Pipeline: sklearn Pipeline with preprocessing, optional lags, optional feature selection, and model.
     """
+    # Add preprocessor;
     steps = [("preprocessor", preprocessor)]
-    
-    #TODO: Add lag features;
+
+    # Add lag features if requested;
     if use_lags:
         steps.append(("lags", LagFeaturesTransformer()))
+
+    # Add cumulative rolling-sum features if requested;
+    if use_cumulative:
+        steps.append(("cumulative", CumulativeFeaturesTransformer()))
+
+    # Add rolling statistics if requested;
+    if use_rolling_stats:
+        steps.append(("rolling_stats", RollingStatsTransformer()))
     
-    # Add feature selection if requested
+    # Add feature selection if requested;
     if use_feature_selection:
         n_feat = n_features if n_features is not None else 50
         steps.append(("feature_selection", FeatureImportanceSelector(n_features=n_feat)))
     
-    # Add model as final step
+    # Add model as final step;
     steps.append((model_name, model))
     return Pipeline(steps)
 
@@ -78,6 +90,8 @@ def training_pipeline(
     freq: str = 'h',
     mode: str = 'CPU',
     use_lags: bool = False,
+    use_rolling_stats: bool = False,
+    use_cumulative: bool = False,
     use_feature_selection: bool = False,
     n_features: Optional[int] = None,
     **kwargs
@@ -98,7 +112,8 @@ def training_pipeline(
         freq (str): Frequency of predictions (pandas offset) (default: 'h');
         mode (str): Training device mode ('CPU', 'GPU', 'CUDA') (default: 'CPU');
         use_lags (bool): If True, add lag features transformer (default: False).
-            Warning: LagFeaturesTransformer requires 'value' column which may not exist after preprocessing;
+        use_rolling_stats (bool): If True, add rolling statistics transformer (default: False).
+        use_cumulative (bool): If True, add cumulative rolling-sum transformer (default: False).
         use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
         n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
             If None, uses default (50) (default: None);
@@ -115,6 +130,8 @@ def training_pipeline(
             preprocessor,
             model_name='SARIMA',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=20 #Harcoded due to slowness of SARIMA;
         ),
@@ -123,6 +140,8 @@ def training_pipeline(
             preprocessor,
             model_name='LSTM',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         ),
@@ -131,6 +150,8 @@ def training_pipeline(
             preprocessor,
             model_name='XGBOOST',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         ),
@@ -139,6 +160,8 @@ def training_pipeline(
             preprocessor,
             model_name='LIGHTGBM',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         ),
@@ -147,6 +170,8 @@ def training_pipeline(
             preprocessor,
             model_name='DUMMY',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         )

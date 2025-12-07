@@ -75,62 +75,62 @@ def clean_dataframe(
     df_cpy.loc[is_now_filled, 'Cota_Adotada_Status'] = 4
     return df_cpy
 
-def make_acc_rain(
-    df: pd.DataFrame, 
-    cut: bool = True
-) -> pd.DataFrame:
-    """
-    Entry dataframe has a 15 minutes frequency;
-    1 day = 96 steps;
-    7 days = 672 steps;
-    30 days = 2880 steps;
-    """
-    print("Correcting Acc Rain values...")
+# def make_acc_rain(
+#     df: pd.DataFrame, 
+#     cut: bool = True
+# ) -> pd.DataFrame:
+#     """
+#     Entry dataframe has a 15 minutes frequency;
+#     1 day = 96 steps;
+#     7 days = 672 steps;
+#     30 days = 2880 steps;
+#     """
+#     print("Correcting Acc Rain values...")
     
-    # Copy dataframe to not propagate changes;
-    df_cpy = df.copy()
+#     # Copy dataframe to not propagate changes;
+#     df_cpy = df.copy()
 
-    # Drop incoming Acc Rain;
-    if 'Chuva_Acumulada' in df_cpy.columns:
-        df_cpy.drop(columns='Chuva_Acumulada', inplace=True)
-    if 'Chuva_Acumulada_Status' in df_cpy.columns:
-        df_cpy.drop(columns='Chuva_Acumulada_Status', inplace=True)
+#     # Drop incoming Acc Rain;
+#     if 'Chuva_Acumulada' in df_cpy.columns:
+#         df_cpy.drop(columns='Chuva_Acumulada', inplace=True)
+#     if 'Chuva_Acumulada_Status' in df_cpy.columns:
+#         df_cpy.drop(columns='Chuva_Acumulada_Status', inplace=True)
 
-    # Recreate the accumulated rain for certain time windows for each station;
-    stations_list = []
-    for station in df_cpy['codigoestacao'].unique():
-        df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
-        df_station['Chuva_Acumulada_1dia'] = round(df_station['Chuva_Adotada'].rolling(96, min_periods=1).sum(), 2)
-        df_station['Chuva_Acumulada_7dia'] = round(df_station['Chuva_Adotada'].rolling(672, min_periods=1).sum(), 2)
-        df_station['Chuva_Acumulada_30dia'] = round(df_station['Chuva_Adotada'].rolling(2880, min_periods=1).sum(), 2)
+#     # Recreate the accumulated rain for certain time windows for each station;
+#     stations_list = []
+#     for station in df_cpy['codigoestacao'].unique():
+#         df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
+#         df_station['Chuva_Acumulada_1dia'] = round(df_station['Chuva_Adotada'].rolling(96, min_periods=1).sum(), 2)
+#         df_station['Chuva_Acumulada_7dia'] = round(df_station['Chuva_Adotada'].rolling(672, min_periods=1).sum(), 2)
+#         df_station['Chuva_Acumulada_30dia'] = round(df_station['Chuva_Adotada'].rolling(2880, min_periods=1).sum(), 2)
 
-        # Create Status for the accumulated rain columns based on the Status of Chuva_Adotada (Most common value);
-        # Optimized using one-hot encoding + rolling sum to avoid slow rolling().apply();
-        status_dummies = pd.get_dummies(df_station['Chuva_Adotada_Status']).astype(float)
+#         # Create Status for the accumulated rain columns based on the Status of Chuva_Adotada (Most common value);
+#         # Optimized using one-hot encoding + rolling sum to avoid slow rolling().apply();
+#         status_dummies = pd.get_dummies(df_station['Chuva_Adotada_Status']).astype(float)
         
-        windows = {
-            'Chuva_Acumulada_1dia_Status': 96,
-            'Chuva_Acumulada_7dia_Status': 672,
-            'Chuva_Acumulada_30dia_Status': 2880
-        }
+#         windows = {
+#             'Chuva_Acumulada_1dia_Status': 96,
+#             'Chuva_Acumulada_7dia_Status': 672,
+#             'Chuva_Acumulada_30dia_Status': 2880
+#         }
         
-        if not status_dummies.empty:
-            for col_name, window in windows.items():
-                # Calculate count of each status in the window
-                counts = status_dummies.rolling(window, min_periods=1).sum()
-                # Find status with max count (mode)
-                modes = counts.idxmax(axis=1)
-                df_station[col_name] = modes.astype('Int64')
+#         if not status_dummies.empty:
+#             for col_name, window in windows.items():
+#                 # Calculate count of each status in the window
+#                 counts = status_dummies.rolling(window, min_periods=1).sum()
+#                 # Find status with max count (mode)
+#                 modes = counts.idxmax(axis=1)
+#                 df_station[col_name] = modes.astype('Int64')
                 
-                # If original status was all NaN/missing (dummies are 0), the sum is 0.
-                # idxmax returns first column label, which is incorrect. Mask these out.
-                valid_mask = counts.sum(axis=1) > 0
-                df_station.loc[~valid_mask, col_name] = pd.NA
-        else:
-             for col_name in windows.keys():
-                 df_station[col_name] = pd.NA
+#                 # If original status was all NaN/missing (dummies are 0), the sum is 0.
+#                 # idxmax returns first column label, which is incorrect. Mask these out.
+#                 valid_mask = counts.sum(axis=1) > 0
+#                 df_station.loc[~valid_mask, col_name] = pd.NA
+#         else:
+#              for col_name in windows.keys():
+#                  df_station[col_name] = pd.NA
 
-        # Append each station and concat at the end;
-        stations_list.append(df_station)
-    df_all_stations = pd.concat(stations_list, ignore_index=True)
-    return df_all_stations
+#         # Append each station and concat at the end;
+#         stations_list.append(df_station)
+#     df_all_stations = pd.concat(stations_list, ignore_index=True)
+#     return df_all_stations
