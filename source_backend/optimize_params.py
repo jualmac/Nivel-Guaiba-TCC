@@ -18,7 +18,9 @@ from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from pandas.core.series import Series
 from pandas.core.frame import DataFrame
-from sklearn.model_selection import TimeSeriesSplit, cross_val_score
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_squared_error
+from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor
 import torch
 import torch.nn as nn
@@ -57,7 +59,12 @@ class BayesianOptimization:
             n_trials: int, 
             X_train: DataFrame, 
             y_train: Series, 
-            mode: str = 'CPU', 
+            mode: str = 'CPU',
+            feature_pipeline=None,
+            X_raw: DataFrame | None = None,
+            n_splits: int = 5,
+            gap: int = 24,
+            postprocess_fn=None,
         ):
         """
         Initializes the BayesianOptimization class with the specified model and parameters.
@@ -89,6 +96,11 @@ class BayesianOptimization:
         self.random_state = 42
         self.n_jobs = -1
         self.mode = mode
+        self.feature_pipeline = feature_pipeline
+        self.X_raw = X_raw
+        self.n_splits = n_splits
+        self.gap = gap
+        self.postprocess_fn = postprocess_fn
 
     def objective(self, trial: optuna.Trial) -> float:
         """
@@ -179,53 +191,49 @@ class BayesianOptimization:
         # Import here to avoid circular import;
         from source_backend.model_lstm import _LSTMRegressor as LSTMRegressor
         
-        # Define Splits;        
-        tscv = TimeSeriesSplit(n_splits=3) # Reduced splits for deep learning speed
+        # Use raw features when available to refit preprocessing per fold;
+        X_source = self.X_raw if self.X_raw is not None else self.X_train
+        y_source = self.y_train
+
+        # Sort once to keep temporal order consistent;
+        if isinstance(X_source, pd.DataFrame) and 'Data_Hora_Medicao' in X_source.columns:
+            X_source = X_source.sort_values('Data_Hora_Medicao')
+            if isinstance(y_source, (pd.Series, pd.DataFrame)):
+                y_source = y_source.loc[X_source.index]
+
+        # Define Splits;
+        tscv = TimeSeriesSplit(n_splits=self.n_splits, gap=self.gap)
         scores = []
-        
-        # Prepare data - handle both DataFrame and numpy array inputs;
-        if isinstance(self.X_train, pd.DataFrame):
-            if 'Data_Hora_Medicao' in self.X_train.columns:
-                X = self.X_train.sort_values('Data_Hora_Medicao').drop(columns=['Data_Hora_Medicao']).values
-            else:
-                X = self.X_train.values
-        else:
-            # Already a numpy array (from preprocessor pipeline)
-            X = self.X_train
-            
-        # Handle y_train similarly
-        if isinstance(self.y_train, pd.Series):
-            y = self.y_train.values
-        else:
-            y = self.y_train
-            
-        # Remove non-numeric columns (e.g., Timestamps) from object arrays
-        if hasattr(X, 'dtype') and X.dtype == object:
-            numeric_cols = []
-            for i in range(X.shape[1]):
-                try:
-                    # Check if the first element can be converted to float
-                    float(X[0, i])
-                    numeric_cols.append(i)
-                except (ValueError, TypeError):
-                    # Likely a Timestamp or non-numeric string; skip this column
-                    continue
-            
-            # Filter X if columns were removed
-            if len(numeric_cols) < X.shape[1]:
-                X = X[:, numeric_cols]
-            
-        # Ensure proper dtype for PyTorch (convert object dtype to float64);
-        X = np.asarray(X, dtype=np.float64)
-        y = np.asarray(y, dtype=np.float64)
         
         # Device
         device = torch.device('cuda' if self.mode in ['GPU', 'CUDA'] and torch.cuda.is_available() else 'cpu')
         
-        for train_index, val_index in tscv.split(X):
+        # Helper to slice arrays/DataFrames;
+        def _slice(data, idx):
+            return data.iloc[idx] if hasattr(data, "iloc") else data[idx]
+
+        for train_index, val_index in tscv.split(X_source):
             # Split data
-            X_train_fold, X_val_fold = X[train_index], X[val_index]
-            y_train_fold, y_val_fold = y[train_index], y[val_index]
+            X_train_fold = _slice(X_source, train_index)
+            X_val_fold = _slice(X_source, val_index)
+            y_train_fold = _slice(y_source, train_index)
+            y_val_fold = _slice(y_source, val_index)
+
+            # Fit feature pipeline on the fold to avoid leakage;
+            if self.feature_pipeline is not None:
+                fold_pipeline = clone(self.feature_pipeline)
+                X_train_fold = fold_pipeline.fit_transform(X_train_fold, y_train_fold)
+                X_val_fold = fold_pipeline.transform(X_val_fold)
+
+            # Remove non-numeric columns and enforce float dtype;
+            if isinstance(X_train_fold, pd.DataFrame):
+                X_train_fold = X_train_fold.select_dtypes(include=[np.number])
+                X_val_fold = X_val_fold.select_dtypes(include=[np.number])
+            
+            X = np.asarray(X_train_fold, dtype=np.float64)
+            y = np.asarray(y_train_fold, dtype=np.float64)
+            X_val_np = np.asarray(X_val_fold, dtype=np.float64)
+            y_val_np = np.asarray(y_val_fold, dtype=np.float64)
             
             # Create sequences (simplified version of _create_sequences logic)
             seq_len = params['sequence_length']
@@ -237,11 +245,11 @@ class BayesianOptimization:
                     targs.append(data_y[i+seq_len])
                 return np.array(seqs), np.array(targs)
             
-            if len(X_train_fold) <= seq_len or len(X_val_fold) <= seq_len:
+            if len(X) <= seq_len or len(X_val_np) <= seq_len:
                 continue # Skip if not enough data
                 
-            X_train_seq, y_train_seq = create_seq(X_train_fold, y_train_fold)
-            X_val_seq, y_val_seq = create_seq(X_val_fold, y_val_fold)
+            X_train_seq, y_train_seq = create_seq(X, y)
+            X_val_seq, y_val_seq = create_seq(X_val_np, y_val_np)
             
             if len(X_train_seq) == 0 or len(X_val_seq) == 0:
                 continue
@@ -303,27 +311,51 @@ class BayesianOptimization:
 
     def evaluate(self, model) -> float:
         """
-        Evaluates the regression model using TimeSeriesSplit cross-validation.
-
-        Parameters
-        ----------
-        model : The regression model to evaluate.
-
-        Returns
-        -------
-        float
-            The negative RMSE score across TimeSeriesSplit splits.
+        Evaluates the regression model using TimeSeriesSplit cross-validation with proper
+        refitting of preprocessing inside each fold to avoid leakage.
         """
-        tscv = TimeSeriesSplit(n_splits=5)
-        scores = cross_val_score(
-            model, 
-            X=self.X_train, 
-            y=self.y_train, 
-            cv=tscv, 
-            scoring='neg_root_mean_squared_error',
-            n_jobs=self.n_jobs
-        )
-        return scores.mean()
+        # Select raw data when provided so scalers/encoders are refit per fold;
+        X_source = self.X_raw if self.X_raw is not None else self.X_train
+        y_source = self.y_train
+
+        tscv = TimeSeriesSplit(n_splits=self.n_splits, gap=self.gap)
+        scores = []
+
+        # Helper to index DataFrame/ndarray consistently;
+        def _slice(data, idx):
+            return data.iloc[idx] if hasattr(data, "iloc") else data[idx]
+
+        for train_idx, val_idx in tscv.split(X_source):
+            if len(train_idx) == 0 or len(val_idx) == 0:
+                continue  # Skip degenerate splits;
+
+            X_train_fold = _slice(X_source, train_idx)
+            X_val_fold = _slice(X_source, val_idx)
+            y_train_fold = _slice(y_source, train_idx)
+            y_val_fold = _slice(y_source, val_idx)
+
+            # Fit feature pipeline on the fold to prevent leakage;
+            if self.feature_pipeline is not None:
+                fold_pipeline = clone(self.feature_pipeline)
+                X_train_transformed = fold_pipeline.fit_transform(X_train_fold, y_train_fold)
+                X_val_transformed = fold_pipeline.transform(X_val_fold)
+            else:
+                X_train_transformed = X_train_fold
+                X_val_transformed = X_val_fold
+
+            # Optional postprocessing hook (e.g., calendar features) after pipeline;
+            if self.postprocess_fn is not None:
+                X_train_transformed = self.postprocess_fn(X_train_transformed.copy())
+                X_val_transformed = self.postprocess_fn(X_val_transformed.copy())
+
+            model_fold = clone(model)
+            model_fold.fit(X_train_transformed, y_train_fold)
+            preds = model_fold.predict(X_val_transformed)
+
+            rmse = mean_squared_error(y_true=y_val_fold, y_pred=preds, squared=False) #TODO: Change to KGE';
+            scores.append(-rmse)
+
+        return np.mean(scores) if scores else -float('inf')
 
     def optimize(self) -> dict:
         """

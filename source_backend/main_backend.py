@@ -176,19 +176,29 @@ def main_backend(
             "model_type": name
         })
         
+        # Build feature pipeline reference (preprocessor + optional steps) for CV leakage-free folds;
+        feature_steps = pipeline.steps[:-1]
+        feature_pipeline = Pipeline(feature_steps)
+
         # Fit validation data for early stopping if available (only for XGBOOST and LIGHTGBM);
         fit_params = {f"{name}__optimize_hyperparameters": optimize}
+        if name in ['XGBOOST', 'LIGHTGBM', 'LSTM']:
+            cv_folds = 5 if name != 'LSTM' else 3
+            fit_params.update({
+                f"{name}__feature_pipeline": feature_pipeline,
+                f"{name}__X_raw": X_train,
+                f"{name}__cv_n_splits": cv_folds,
+                f"{name}__cv_gap": 24,  # One-day gap on hourly data to reduce leakage;
+            })
         
         if val_size is not None and val_size > 0 and name in ['XGBOOST', 'LIGHTGBM']:
             print(f"Preparing validation data for {name} early stopping...")
             
             # Split pipeline into feature engineering and model steps;
-            feature_steps = pipeline.steps[:-1]
             model_step_name, model_instance = pipeline.steps[-1]
             
             # Create and fit feature pipeline on training data;
             # This ensures all transformations (preprocessor, lags, selection) are learned from training data;
-            feature_pipeline = Pipeline(feature_steps)
             feature_pipeline.fit(X_train, y_train)
             
             # Transform both train and validation sets using the fitted feature pipeline;
@@ -200,7 +210,11 @@ def main_backend(
                 "optimize_hyperparameters": optimize,
                 "X_val": X_val_processed,
                 "y_val": y_val,
-                "early_stopping": early_stopping
+                "early_stopping": early_stopping,
+                "feature_pipeline": feature_pipeline,
+                "X_raw": X_train,
+                "cv_n_splits": 5,
+                "cv_gap": 24,
             }
             
             # Fit the model instance directly with processed data;
@@ -305,17 +319,17 @@ if __name__ == "__main__":
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
     parser.add_argument('--val_size', type=float, default=0.0, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
-    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
+    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
-                        default=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM'],
+                        default=['LSTM', 'XGBOOST', 'LIGHTGBM'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=100, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=2, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=100, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, 
@@ -336,7 +350,7 @@ if __name__ == "__main__":
 
     # Set default values for booleans;
     parser.set_defaults(
-        save_to_db=True,
+        save_to_db=False,
         optimize=True,
         use_lags=False,
         use_feature_selection=True

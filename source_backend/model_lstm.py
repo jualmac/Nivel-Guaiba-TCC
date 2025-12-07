@@ -87,7 +87,11 @@ class LSTMModels:
             y_val: Optional[pd.Series] = None,
             optimize_hyperparameters: bool = True,
             early_stopping: int = 10, # Epochs for patience
-            epochs: int = 100
+            epochs: int = 100,
+            feature_pipeline=None,
+            X_raw: Optional[pd.DataFrame] = None,
+            cv_n_splits: int = 3,
+            cv_gap: int = 24
             ):
         """
         Fits the LSTM model. Compatible with sklearn Pipeline.
@@ -104,6 +108,10 @@ class LSTMModels:
         self.X = X 
         self.y = y
         self.X_train_shape = self.X.shape
+        self.feature_pipeline = feature_pipeline
+        self.X_raw = X_raw
+        self.cv_n_splits = cv_n_splits
+        self.cv_gap = cv_gap
         
         # Hyperparameter Optmization;
         best_params = {}
@@ -356,6 +364,10 @@ class LSTMModels:
             n_trials=self.n_trials, 
             X_train=self.X,
             y_train=self.y,
-            mode=self.mode
+            mode=self.mode,
+            feature_pipeline=self.feature_pipeline,
+            X_raw=self.X_raw,
+            n_splits=self.cv_n_splits,
+            gap=self.cv_gap
         )
         return optimizer.optimize()

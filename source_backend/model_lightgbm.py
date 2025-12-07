@@ -57,6 +57,10 @@ class LightGBMModels:
             y_val: Optional[pd.Series] = None,
             optimize_hyperparameters: bool = True,
             early_stopping: int = 50,
+            feature_pipeline=None,
+            X_raw: Optional[pd.DataFrame] = None,
+            cv_n_splits: int = 5,
+            cv_gap: int = 24,
             ):
         """
         Fits the model with the provided X and y, optionally using validation data for early stopping;
@@ -76,6 +80,10 @@ class LightGBMModels:
         # Create copy to avoid modifying the original datasets;
         self.X = X.copy()
         self.y = y.copy()
+        self.X_raw = X_raw
+        self.feature_pipeline = feature_pipeline
+        self.cv_n_splits = cv_n_splits
+        self.cv_gap = cv_gap
         
         # Standardize date column;
         if self.X is not None:
@@ -261,6 +269,11 @@ class LightGBMModels:
             n_trials=self.n_trials, 
             X_train=self.X,
             y_train=self.y,
-            mode=self.mode
+            mode=self.mode,
+            feature_pipeline=self.feature_pipeline,
+            X_raw=self.X_raw,
+            n_splits=self.cv_n_splits,
+            gap=self.cv_gap,
+            postprocess_fn=self._add_calendar_features
         )
         return optimizer.optimize()
