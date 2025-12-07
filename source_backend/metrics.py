@@ -9,6 +9,7 @@ packages like scikit learn. However, some of them may depend on these packages o
 #
 ########################################################################################################################
 import numpy as np
+from permetrics.regression import RegressionMetric
 
 ########################################################################################################################
 #                                                                  
@@ -42,3 +43,59 @@ def nse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """
     nse = 1-(np.sum((y_true - y_pred) ** 2) / np.sum((y_true - np.mean(y_true)) ** 2))
     return 1/(2-nse)
+
+
+def kge(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """
+    Calculate the Kling Gupta Efficiency (KGE);
+    """
+    # For 1-D array;
+    evaluator = RegressionMetric(y_true=y_true, y_pred=y_pred)
+    return(evaluator.kling_gupta_efficiency())
+
+
+########################################################################################################################
+#                                                                  
+# TEST SECTION
+#
+########################################################################################################################
+if __name__ == "__main__":
+    # Test KGE with example data;
+    print("Testing KGE metric with example data:\n")
+    
+    # Example 1: Perfect prediction (should be close to 1.0);
+    y_true_1 = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    y_pred_1 = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    kge_1 = kge(y_true=y_true_1, y_pred=y_pred_1)
+    print(f"Example 1 - Perfect prediction:")
+    print(f"  y_true: {y_true_1}")
+    print(f"  y_pred: {y_pred_1}")
+    print(f"  KGE: {kge_1}\n")
+    
+    # Example 2: Predictions with some error;
+    y_true_2 = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    y_pred_2 = np.array([12.0, 18.0, 32.0, 38.0, 52.0])
+    kge_2 = kge(y_true=y_true_2, y_pred=y_pred_2)
+    print(f"Example 2 - Predictions with error:")
+    print(f"  y_true: {y_true_2}")
+    print(f"  y_pred: {y_pred_2}")
+    print(f"  KGE: {kge_2}\n")
+    
+    # Example 3: Larger dataset with noise;
+    np.random.seed(42)
+    y_true_3 = np.random.randn(20) * 10 + 50  # Mean=50, std=10;
+    y_pred_3 = y_true_3 + np.random.randn(20) * 2  # Add some noise;
+    kge_3 = kge(y_true=y_true_3, y_pred=y_pred_3)
+    print(f"Example 3 - Larger dataset with noise:")
+    print(f"  y_true: {y_true_3[:5]} ... (showing first 5 of {len(y_true_3)})")
+    print(f"  y_pred: {y_pred_3[:5]} ... (showing first 5 of {len(y_pred_3)})")
+    print(f"  KGE: {kge_3}\n")
+    
+    # Example 4: Different scales;
+    y_true_4 = np.array([100.0, 200.0, 300.0, 400.0, 500.0])
+    y_pred_4 = np.array([100.0, 200.0, 300.0, 750.0, 750.0])
+    kge_4 = kge(y_true=y_true_4, y_pred=y_pred_4)
+    print(f"Example 4 - Different scales:")
+    print(f"  y_true: {y_true_4}")
+    print(f"  y_pred: {y_pred_4}")
+    print(f"  KGE: {kge_4}")

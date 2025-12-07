@@ -26,7 +26,10 @@ from source_backend.optimize_params import BayesianOptimization
 from source_database.transformations import nature_encode
 from source_backend.mlflow_utils import MLFlowHandler
 from util import get_device_config, is_cpu_mode
-from source_backend.metrics import nse as nash_sutcliffe_efficiency
+from source_backend.metrics import (
+    nse as nash_sutcliffe_efficiency,
+    kge as kling_gupta_efficiency,
+)
 
 ########################################################################################################################
 #
@@ -190,26 +193,25 @@ class XGBoostModels:
             y_pred: Predicted target values for test set
         
         Returns:
-            Dict[str, float]: Dictionary containing rmse, mae, nse, and r2 metrics
+            Dict[str, float]: Dictionary containing rmse, mae, nse, r2, and kge metrics
         """
         if y_pred is None:
             y_pred = self.y_pred
 
-        # # Calculate NSE using hydroeval;
-        # nse_score = evaluator(nse, simulations=y_pred, evaluation=y_true, axis=0)
-        
         # Calculate all metrics;
         rmse = root_mean_squared_error(y_true=y_true, y_pred=y_pred)
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
         r2 = r2_score(y_true=y_true, y_pred=y_pred)
+        kge = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
         
         # Return metrics as dictionary for easier logging;
         return {
             "rmse": rmse,
             "mae": mae,
             "nse": nse,
-            "r2": r2
+            "r2": r2,
+            "kge": kge,
         }
 
     def _add_calendar_features(self, X: pd.DataFrame) -> pd.DataFrame:

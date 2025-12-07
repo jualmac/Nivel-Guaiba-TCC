@@ -266,6 +266,7 @@ def main_backend(
             'mae': metrics['mae'],
             'nse': metrics['nse'],
             'r2': metrics['r2'],
+            'kge': metrics['kge'],
             'train_size': train_size,
             'test_size': test_size,
             'val_size': val_size,

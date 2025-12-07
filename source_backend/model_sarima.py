@@ -19,7 +19,10 @@ import pmdarima as pm
 from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.base import BaseEstimator, RegressorMixin
-from source_backend.metrics import nse as nash_sutcliffe_efficiency
+from source_backend.metrics import (
+    nse as nash_sutcliffe_efficiency,
+    kge as kling_gupta_efficiency,
+)
 
 ########################################################################################################################
 #                                                                  
@@ -233,10 +236,12 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
         r2 = r2_score(y_true=y_true, y_pred=y_pred)
+        kge = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
 
         return {
             "rmse": rmse,
             "mae": mae,
             "nse": nse,
-            "r2": r2
+            "r2": r2,
+            "kge": kge,
         }

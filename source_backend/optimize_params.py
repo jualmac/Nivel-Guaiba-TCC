@@ -19,7 +19,6 @@ from lightgbm import LGBMRegressor
 from pandas.core.series import Series
 from pandas.core.frame import DataFrame
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_squared_error
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor
 import torch
@@ -29,6 +28,7 @@ import os
 import gc
 import mlflow
 from util import get_device_config
+from source_backend.metrics import kge
 
 ########################################################################################################################
 #                                                                  
@@ -38,6 +38,7 @@ from util import get_device_config
 class BayesianOptimization:
     """
     Performs Bayesian Optimization on specified regression models.
+    Optimization maximizes Kling Gupta Efficiency (KGE), which ranges from (-inf, 1] and peaks at 1.0.
 
     Attributes
     ----------
@@ -114,7 +115,7 @@ class BayesianOptimization:
         Returns
         -------
         float
-            The negative RMSE score for the given trial.
+            The KGE score for the given trial (higher is better; max is 1.0).
         """
         # XGBoost;
         if self.model_name == "xgboost":
@@ -186,7 +187,7 @@ class BayesianOptimization:
     def evaluate_lstm(self, params) -> float:
         """
         Evaluates the LSTM model using TimeSeriesSplit cross-validation.
-        Custom implementation for PyTorch model.
+        Custom implementation for PyTorch model returning mean KGE across splits.
         """
         # Import here to avoid circular import;
         from source_backend.model_lstm import _LSTMRegressor as LSTMRegressor
@@ -291,14 +292,21 @@ class BayesianOptimization:
             
             # Validate
             model.eval()
-            val_loss = 0
+            # Collect validation predictions to compute KGE per fold;
+            y_val_true_all = []
+            y_val_pred_all = []
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs, targets = inputs.to(device), targets.to(device).unsqueeze(1)
                     outputs = model(inputs)
-                    val_loss += criterion(outputs, targets).item() * inputs.size(0)
+                    y_val_true_all.append(targets.cpu().numpy().ravel())
+                    y_val_pred_all.append(outputs.cpu().numpy().ravel())
             
-            scores.append(-np.sqrt(val_loss / len(val_dataset))) # Negative RMSE
+            if y_val_true_all and y_val_pred_all:
+                y_true_np = np.concatenate(y_val_true_all)
+                y_pred_np = np.concatenate(y_val_pred_all)
+                kge_score = kge(y_true=y_true_np, y_pred=y_pred_np)
+                scores.append(kge_score)
             
             # Cleanup memory
             del model, optimizer, criterion, train_loader, val_loader, train_dataset, val_dataset
@@ -313,6 +321,7 @@ class BayesianOptimization:
         """
         Evaluates the regression model using TimeSeriesSplit cross-validation with proper
         refitting of preprocessing inside each fold to avoid leakage.
+        Returns the mean KGE across splits (higher is better; max is 1.0).
         """
         # Select raw data when provided so scalers/encoders are refit per fold;
         X_source = self.X_raw if self.X_raw is not None else self.X_train
@@ -352,8 +361,11 @@ class BayesianOptimization:
             model_fold.fit(X_train_transformed, y_train_fold)
             preds = model_fold.predict(X_val_transformed)
 
-            rmse = mean_squared_error(y_true=y_val_fold, y_pred=preds, squared=False) #TODO: Change to KGE';
-            scores.append(-rmse)
+            y_true_np = np.asarray(y_val_fold, dtype=float).ravel()
+            preds_np = np.asarray(preds, dtype=float).ravel()
+            # Compute KGE for the validation fold; 
+            kge_score = kge(y_true=y_true_np, y_pred=preds_np)
+            scores.append(kge_score)
 
         return np.mean(scores) if scores else -float('inf')
 
@@ -396,7 +408,7 @@ class BayesianOptimization:
             pass # LSTM doesn't use n_jobs parameter in this context;
         
         # Log the final best metric and corresponding parameters to the current active MLflow run;
-        mlflow.log_metric(f"train_best_rmse", study.best_value)
+        mlflow.log_metric(f"train_best_kge", study.best_value)
         mlflow.log_params(best_params)
 
         self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")

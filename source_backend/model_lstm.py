@@ -18,7 +18,10 @@ from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from source_backend.mlflow_utils import MLFlowHandler
 from util import get_device_config
-from source_backend.metrics import nse as nash_sutcliffe_efficiency
+from source_backend.metrics import (
+    nse as nash_sutcliffe_efficiency,
+    kge as kling_gupta_efficiency,
+)
 
 ########################################################################################################################
 #
@@ -303,7 +306,7 @@ class LSTMModels:
         if y_pred is None:
             y_pred = self.y_pred
 
-        # Ensure lengths match (handle the sequence shortening)
+        # Ensure lengths match (handle the sequence shortening);
         min_len = min(len(y_true), len(y_pred))
         y_true = y_true[-min_len:]
         y_pred = y_pred[-min_len:]
@@ -312,12 +315,14 @@ class LSTMModels:
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
         r2 = r2_score(y_true=y_true, y_pred=y_pred)
+        kge = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
 
         return {
             "rmse": rmse,
             "mae": mae,
             "nse": nse,
-            "r2": r2
+            "r2": r2,
+            "kge": kge,
         }
 
     def _create_sequences(self, data, target=None):
