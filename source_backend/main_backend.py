@@ -95,7 +95,11 @@ def main_backend(
         "freq": freq,
         "mode": mode,
         "optimize": optimize,
-        "early_stopping": early_stopping
+        "early_stopping": early_stopping,
+        "save_to_db": save_to_db,
+        "use_lags": use_lags,
+        "use_feature_selection": use_feature_selection,
+        "n_features": n_features if n_features is not None else "None"
     }
     mlflow_handler.log_params(log_params)
     mlflow_handler.end_run()
@@ -311,7 +315,7 @@ if __name__ == "__main__":
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=500, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=100, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=100, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, 
