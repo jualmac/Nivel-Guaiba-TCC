@@ -37,6 +37,7 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
         self.selector = None
         self.selected_features_ = None
         self.numeric_indices_ = None
+        self.feature_names_ = None
     
     def fit(self, X, y):
         """
@@ -46,18 +47,17 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
             X: Feature matrix (pd.DataFrame or np.ndarray).
             y: Target vector (pd.Series or np.ndarray).
         """
-        # Ensure X contains only numeric columns for RandomForest
-        X_numeric = X
+        # Ensure X contains only numeric columns for RandomForest;
         if isinstance(X, pd.DataFrame):
-            # Select only numeric columns
             X_numeric = X.select_dtypes(include=['number'])
-            # Save original feature names corresponding to numeric columns
-            numeric_feature_names = X_numeric.columns.tolist()
         else:
-            # For numpy arrays, assume all are numeric or handle object dtype
-            if X.dtype == object:
-                pass
+            # Wrap numpy array with synthetic column names so downstream selectors;
+            # retain feature name metadata and avoid feature-name warnings;
+            X_numeric = pd.DataFrame(X)
         
+        # Track feature names for reuse in transform;
+        self.feature_names_ = X_numeric.columns.tolist()
+
         # Use RandomForest to compute feature importance;
         rf = RandomForestRegressor(
             n_estimators=500,
@@ -77,13 +77,10 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
             threshold=-np.inf
         )
         
-        # Store selected feature names if X is DataFrame;
-        if isinstance(X, pd.DataFrame):
-            # Get support boolean mask
-            support = self.selector.get_support()
-            # Map back to the original numeric column names
-            selected_numeric_cols = [col for col, selected in zip(numeric_feature_names, support) if selected]
-            self.selected_features_ = selected_numeric_cols
+        # Store selected feature names (works for both DataFrame and synthetic names);
+        support = self.selector.get_support()
+        selected_numeric_cols = [col for col, selected in zip(self.feature_names_, support) if selected]
+        self.selected_features_ = selected_numeric_cols
         return self
     
     def transform(self, X):
@@ -96,32 +93,33 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
         Returns:
             Transformed feature matrix with selected features only.
         """
-        # Prepare data same as fit
-        X_numeric = X
+        # Prepare data same as fit;
         preserved_data = None
-
         if isinstance(X, pd.DataFrame):
             X_numeric = X.select_dtypes(include=['number'])
-            # Preserve Data_Hora_Medicao if it exists
             if 'Data_Hora_Medicao' in X.columns:
                 preserved_data = X['Data_Hora_Medicao']
-            
-        # Transform using the selector
+        else:
+            # Ensure column names align with those used at fit time;
+            X_numeric = pd.DataFrame(X, columns=self.feature_names_)
+        
+        # Transform using the selector;
         X_transformed = self.selector.transform(X_numeric)
         
-        # Return DataFrame if input was DataFrame
-        if isinstance(X, pd.DataFrame):
-            df_transformed = pd.DataFrame(
-                X_transformed,
-                columns=self.selected_features_,
-                index=X.index
-            )
-            
-            # Add back Data_Hora_Medicao if it was preserved
-            if preserved_data is not None:
-                df_transformed['Data_Hora_Medicao'] = preserved_data
-            return df_transformed
-        return X_transformed
+        # Return DataFrame if input was DataFrame (or wrapped as such above);
+        df_transformed = pd.DataFrame(
+            X_transformed,
+            columns=self.selected_features_,
+            index=X_numeric.index
+        )
+        
+        # Add back Data_Hora_Medicao if it was preserved;
+        if preserved_data is not None:
+            df_transformed['Data_Hora_Medicao'] = preserved_data
+        # If original input was ndarray, keep ndarray output to avoid surprising type change;
+        if not isinstance(X, pd.DataFrame):
+            return df_transformed.to_numpy()
+        return df_transformed
 
 class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
     """Create lag features for time series"""

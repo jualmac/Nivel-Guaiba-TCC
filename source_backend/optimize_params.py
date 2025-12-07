@@ -64,7 +64,7 @@ class BayesianOptimization:
             mode: str = 'CPU',
             feature_pipeline=None,
             X_raw: DataFrame | None = None,
-            n_splits: int = 5,
+            n_splits: int = 3,
             gap: int = 24,
             postprocess_fn=None,
         ):
