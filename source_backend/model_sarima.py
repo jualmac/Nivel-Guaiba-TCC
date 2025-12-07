@@ -19,7 +19,10 @@ import pmdarima as pm
 from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.base import BaseEstimator, RegressorMixin
-from source_backend.metrics import nse as nash_sutcliffe_efficiency
+from source_backend.metrics import (
+    nse as nash_sutcliffe_efficiency,
+    kge as kling_gupta_efficiency,
+)
 
 ########################################################################################################################
 #                                                                  
@@ -37,7 +40,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 batch: int = 128,
                 steps: int = 12,
                 mode: str = 'CPU',
-                max_exog_features: int = 10, # SAFETY BRAKE: Hard limit on features to prevent crash
+                max_exog_features: int = 20, # SAFETY BRAKE: Hard limit on features to prevent crash
                 search_sample_size: int = 10000, # Optimization: Limit samples for stepwise search
                 **kwargs
                 ):
@@ -54,7 +57,6 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         # Default initialization
         self.model = None
         self.y_pred = None
-        # X_train now stores the *reduced* (feature-selected) exogenous data
         self.X_train = None 
         self.feature_selector = None # To track which features we kept
 
@@ -131,25 +133,25 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     y_search = y_clean
                     X_search = self.X_train
 
-                # Optimized Stepwise Search
+                # Optimized Stepwise Search;
                 search_model = pm.auto_arima(
                     y=y_search,
                     X=X_search,
-                    start_p=1, start_q=1,
-                    max_p=3, max_q=3,           # User requested non-seasonal range
-                    m=12,                       # Seasonality (Monthly) - Adjust if needed;
+                    start_p=1, start_q=1, start_d=1,
+                    max_p=3, max_q=3, max_d=2,
+                    max_order=None,
+                    m=12,                                   # Seasonality (Monthly) - Adjust if needed;
                     start_P=0, seasonal=True,
-                    max_P=1, max_Q=1,           # Constrained seasonal range for speed
-                    d=None,                     # Let model determine 'd';
-                    D=1,                        # Force seasonal difference if needed, or set None;
-                    test='kpss',                # Faster stationarity test
-                    trace=True,                 # Prints progress;
+                    max_P=1, max_Q=1,                       # Constrained seasonal range for speed;
+                    D=1,                                    # Force seasonal difference if needed, or set None;;
+                    test='kpss',                            # Faster stationarity test;
+                    trace=True,                             # Prints progress;
                     error_action='ignore',      
                     suppress_warnings=True,     
-                    stepwise=True,              # Performance -> Avoids a full grid search;
-                    approximation=True,         # HUGE SPEEDUP: Uses CSS instead of MLE for search
-                    maxiter=25,                 # SAFETY BRAKE: Stop solver if not converging quickly
-                    n_jobs=1,                   # Set to 1 for stability with exog variables
+                    stepwise=False,                         # Impacts performance -> Controls full grid search;
+                    approximation=True,                     # Uses CSS instead of MLE for search;
+                    maxiter=25,                             # Stop solver if not converging quickly;
+                    n_jobs=1,                               # Set to 1 for stability with exog variables
                     random_state=self.random_state,
                 )
                 
@@ -164,8 +166,8 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 # Clear memory from search
                 del search_model
                 gc.collect()
-                
-                self.model.fit(y_clean, X=self.X_train)
+
+                self.model.fit(X=self.X_train, y=y_clean)
 
             else:
                 # Fast fallback for no optimization;
@@ -233,10 +235,13 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
         r2 = r2_score(y_true=y_true, y_pred=y_pred)
-
+        kge = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
+        
+        # Return metrics as dictionary for easier logging;
         return {
             "rmse": rmse,
             "mae": mae,
             "nse": nse,
-            "r2": r2
+            "r2": r2,
+            "kge": kge,
         }

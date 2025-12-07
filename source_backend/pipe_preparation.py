@@ -69,7 +69,7 @@ def data_division(
         raise ValueError("target_column must be provided (cannot be None)")
     
     # Validate split sizes;
-    if val_size is not None:
+    if val_size is not None and val_size > 0:
         if train_size + val_size + test_size != float(1.0):
             raise ValueError("Train + Validation + Test Size must equal to 1")
         if val_size < 0 or val_size >= 1:
@@ -91,7 +91,7 @@ def data_division(
         raise ValueError(f"Target column '{target_column}' not found in DataFrame")
     
     # Three-way split (Train/Val/Test) for early stopping;
-    if val_size is not None:
+    if val_size is not None and val_size > 0:
         # First split: Train vs (Val + Test);
         X_train, X_temp, y_train, y_temp = train_test_split(
             X,
@@ -183,7 +183,8 @@ def encoding_pipeline(
     # Define categorical pipeline;
     categorical_pipeline = Pipeline([
         ('imputer', SimpleImputer(strategy='constant')),
-        ('scaler', OneHotEncoder(sparse_output=False))
+        # handle_unknown='ignore' prevents failures when validation/test folds contain categories unseen in the training split; leakage-safe CV needs this;
+        ('scaler', OneHotEncoder(sparse_output=False, handle_unknown='ignore'))
     ])
 
     # Create ColumnTransformer;

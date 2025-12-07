@@ -21,7 +21,8 @@ from source_backend.model_sarima import SARIMAModels
 from source_backend.model_lstm import LSTMModels
 from source_backend.model_xgboost import XGBoostModels
 from source_backend.model_lightgbm import LightGBMModels
-from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer
+from source_backend.model_dummy import DummyModels
+from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer, CumulativeFeaturesTransformer
 
 ########################################################################################################################
 #                                                                  
@@ -33,6 +34,8 @@ def create_model_pipeline(
     preprocessor, 
     model_name, 
     use_lags: bool = False, 
+    use_rolling_stats: bool = False,
+    use_cumulative: bool = False,
     use_feature_selection: bool = False, 
     n_features: Optional[int] = None
     ):
@@ -44,7 +47,8 @@ def create_model_pipeline(
         preprocessor: Fitted ColumnTransformer from data_preparation.
         model_name (str): Name of the model ('SARIMA', 'LSTM', etc.).
         use_lags (bool): If True, add lag features transformer (default: False).
-            Note: LagFeaturesTransformer requires 'value' column - may not work after preprocessing.
+        use_rolling_stats (bool): If True, add rolling statistics transformer (default: False).
+        use_cumulative (bool): If True, add cumulative rolling-sum transformer (default: False).
         use_feature_selection (bool): If True, add feature selection step (default: False).
         n_features (Optional[int]): Number of features to select if use_feature_selection=True.
             If None, uses default (50) (default: None).
@@ -52,18 +56,27 @@ def create_model_pipeline(
     Returns:
         Pipeline: sklearn Pipeline with preprocessing, optional lags, optional feature selection, and model.
     """
+    # Add preprocessor;
     steps = [("preprocessor", preprocessor)]
-    
-    #TODO: Add lag features;
+
+    # Add lag features if requested;
     if use_lags:
         steps.append(("lags", LagFeaturesTransformer()))
+
+    # Add cumulative rolling-sum features if requested;
+    if use_cumulative:
+        steps.append(("cumulative", CumulativeFeaturesTransformer()))
+
+    # Add rolling statistics if requested;
+    if use_rolling_stats:
+        steps.append(("rolling_stats", RollingStatsTransformer()))
     
-    # Add feature selection if requested
+    # Add feature selection if requested;
     if use_feature_selection:
         n_feat = n_features if n_features is not None else 50
         steps.append(("feature_selection", FeatureImportanceSelector(n_features=n_feat)))
     
-    # Add model as final step
+    # Add model as final step;
     steps.append((model_name, model))
     return Pipeline(steps)
 
@@ -74,10 +87,11 @@ def training_pipeline(
     random_state: int = 42,
     n_trials: int = 10,
     batch: int = 128,
-    steps: int = 12,
     freq: str = 'h',
     mode: str = 'CPU',
     use_lags: bool = False,
+    use_rolling_stats: bool = False,
+    use_cumulative: bool = False,
     use_feature_selection: bool = False,
     n_features: Optional[int] = None,
     **kwargs
@@ -91,15 +105,15 @@ def training_pipeline(
     Parameters:
         preprocessor (ColumnTransformer): Fitted preprocessing pipeline from data_preparation;
         models_to_use (Optional[list]): List of model names to use. Options: 'SARIMA', 'LSTM', 
-            'XGBOOST', 'LIGHTGBM'. If None, trains all models (default: None);
+            'XGBOOST', 'LIGHTGBM', 'DUMMY'. If None, trains all models (default: None);
         random_state (int): Random seed for reproducibility (default: 42);
         n_trials (int): Number of trials for hyperparameter optimization (default: 10);
         batch (int): Training batch size (default: 128);
-        steps (int): The amount of forward steps to be predicted (default: 12);
         freq (str): Frequency of predictions (pandas offset) (default: 'h');
         mode (str): Training device mode ('CPU', 'GPU', 'CUDA') (default: 'CPU');
         use_lags (bool): If True, add lag features transformer (default: False).
-            Warning: LagFeaturesTransformer requires 'value' column which may not exist after preprocessing;
+        use_rolling_stats (bool): If True, add rolling statistics transformer (default: False).
+        use_cumulative (bool): If True, add cumulative rolling-sum transformer (default: False).
         use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
         n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
             If None, uses default (50) (default: None);
@@ -112,34 +126,52 @@ def training_pipeline(
     # Create separate pipeline for each model with arguments;
     pipelines = {
         'SARIMA': create_model_pipeline(
-            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='SARIMA',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
-            n_features=10 #Harcoded due to slowness of SARIMA;
+            n_features=20 #Harcoded due to slowness of SARIMA;
         ),
         'LSTM': create_model_pipeline(
-            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='LSTM',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         ),
         'XGBOOST': create_model_pipeline(
-            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='XGBOOST',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         ),
         'LIGHTGBM': create_model_pipeline(
-            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, steps=steps, mode=mode, **kwargs), 
+            LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, **kwargs), 
             preprocessor,
             model_name='LIGHTGBM',
             use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
+        ),
+        'DUMMY': create_model_pipeline(
+            DummyModels(strategy='mean', random_state=random_state, **kwargs),
+            preprocessor,
+            model_name='DUMMY',
+            use_lags=use_lags,
+            use_rolling_stats=use_rolling_stats,
+            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features
         )

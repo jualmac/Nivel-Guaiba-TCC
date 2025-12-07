@@ -18,7 +18,10 @@ from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from source_backend.mlflow_utils import MLFlowHandler
 from util import get_device_config
-from source_backend.metrics import nse as nash_sutcliffe_efficiency
+from source_backend.metrics import (
+    nse as nash_sutcliffe_efficiency,
+    kge as kling_gupta_efficiency,
+)
 
 ########################################################################################################################
 #
@@ -60,8 +63,7 @@ class LSTMModels:
                 random_state: int = 42,
                 n_trials: int = 10,
                 batch: int = 128,
-                steps: int = 12,
-                 mode: str = 'CPU',
+                mode: str = 'CPU',
                 **kwargs
                 ):
         """
@@ -71,7 +73,7 @@ class LSTMModels:
         self.random_state = random_state
         self.n_trials = n_trials
         self.batch_size = batch
-        self.sequence_length = steps # This acts as 'sequence_length' lookback window;
+        self.sequence_length = None
         self.mode = mode
         
         # Determine device;
@@ -88,7 +90,11 @@ class LSTMModels:
             y_val: Optional[pd.Series] = None,
             optimize_hyperparameters: bool = True,
             early_stopping: int = 10, # Epochs for patience
-            epochs: int = 100
+            epochs: int = 100,
+            feature_pipeline=None,
+            X_raw: Optional[pd.DataFrame] = None,
+            cv_n_splits: int = 3,
+            cv_gap: int = 24
             ):
         """
         Fits the LSTM model. Compatible with sklearn Pipeline.
@@ -105,6 +111,10 @@ class LSTMModels:
         self.X = X 
         self.y = y
         self.X_train_shape = self.X.shape
+        self.feature_pipeline = feature_pipeline
+        self.X_raw = X_raw
+        self.cv_n_splits = cv_n_splits
+        self.cv_gap = cv_gap
         
         # Hyperparameter Optmization;
         best_params = {}
@@ -119,12 +129,16 @@ class LSTMModels:
                 print("No best params found, using defaults.")
                 best_params = {
                     "hidden_size": 64, "num_layers": 1, 
-                    "dropout": 0.0, "learning_rate": 0.001
+                    "dropout": 0.0, "learning_rate": 0.001,
+                    "sequence_length": 24  # Default for hydrological data (24 hours);
                 }
 
         # Clean params types;
         for k, v in best_params.items():
-            if k in ['hidden_size', 'num_layers']: best_params[k] = int(v)
+            if k in ['hidden_size', 'num_layers', 'sequence_length']: best_params[k] = int(v)
+        
+        # Set sequence_length from optimized/loaded params;
+        self.sequence_length = best_params.get('sequence_length', 24)
 
         print(f"Training LSTM with params: {best_params}")
 
@@ -292,7 +306,7 @@ class LSTMModels:
         if y_pred is None:
             y_pred = self.y_pred
 
-        # Ensure lengths match (handle the sequence shortening)
+        # Ensure lengths match (handle the sequence shortening);
         min_len = min(len(y_true), len(y_pred))
         y_true = y_true[-min_len:]
         y_pred = y_pred[-min_len:]
@@ -301,12 +315,15 @@ class LSTMModels:
         mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
         nse = nash_sutcliffe_efficiency(y_true=y_true, y_pred=y_pred)
         r2 = r2_score(y_true=y_true, y_pred=y_pred)
-
+        kge = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
+        
+        # Return metrics as dictionary for easier logging;
         return {
             "rmse": rmse,
             "mae": mae,
             "nse": nse,
-            "r2": r2
+            "r2": r2,
+            "kge": kge,
         }
 
     def _create_sequences(self, data, target=None):
@@ -353,6 +370,10 @@ class LSTMModels:
             n_trials=self.n_trials, 
             X_train=self.X,
             y_train=self.y,
-            mode=self.mode
+            mode=self.mode,
+            feature_pipeline=self.feature_pipeline,
+            X_raw=self.X_raw,
+            n_splits=self.cv_n_splits,
+            gap=self.cv_gap
         )
         return optimizer.optimize()

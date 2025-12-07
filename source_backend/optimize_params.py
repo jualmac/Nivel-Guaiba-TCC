@@ -12,13 +12,15 @@ Bayesian optimization to find the best hyperparameters for regression models.
 import json
 import logging
 import optuna
+from optuna.trial import TrialState
 import numpy as np
 import pandas as pd
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from pandas.core.series import Series
 from pandas.core.frame import DataFrame
-from sklearn.model_selection import TimeSeriesSplit, cross_val_score
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor
 import torch
 import torch.nn as nn
@@ -27,6 +29,7 @@ import os
 import gc
 import mlflow
 from util import get_device_config
+from source_backend.metrics import kge
 
 ########################################################################################################################
 #                                                                  
@@ -36,6 +39,7 @@ from util import get_device_config
 class BayesianOptimization:
     """
     Performs Bayesian Optimization on specified regression models.
+    Optimization maximizes Kling Gupta Efficiency (KGE), which ranges from (-inf, 1] and peaks at 1.0.
 
     Attributes
     ----------
@@ -57,7 +61,12 @@ class BayesianOptimization:
             n_trials: int, 
             X_train: DataFrame, 
             y_train: Series, 
-            mode: str = 'CPU', 
+            mode: str = 'CPU',
+            feature_pipeline=None,
+            X_raw: DataFrame | None = None,
+            n_splits: int = 3,
+            gap: int = 24,
+            postprocess_fn=None,
         ):
         """
         Initializes the BayesianOptimization class with the specified model and parameters.
@@ -89,6 +98,11 @@ class BayesianOptimization:
         self.random_state = 42
         self.n_jobs = -1
         self.mode = mode
+        self.feature_pipeline = feature_pipeline
+        self.X_raw = X_raw
+        self.n_splits = n_splits
+        self.gap = gap
+        self.postprocess_fn = postprocess_fn
 
     def objective(self, trial: optuna.Trial) -> float:
         """
@@ -102,18 +116,18 @@ class BayesianOptimization:
         Returns
         -------
         float
-            The negative RMSE score for the given trial.
+            The KGE score for the given trial (higher is better; max is 1.0).
         """
         # XGBoost;
         if self.model_name == "xgboost":
             params = {
-                "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
+                "n_estimators": trial.suggest_int("n_estimators", 100, 3000, step=100),
                 "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.1, log=True),
-                "max_depth": trial.suggest_int("max_depth", 3, 12),
-                "min_child_weight": trial.suggest_int("min_child_weight", 1, 20),
+                "max_depth": trial.suggest_int("max_depth", 3, 10),
+                "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
                 "subsample": trial.suggest_float("subsample", 0.5, 1.0),
                 "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-                "gamma": trial.suggest_float("gamma", 0, 5),
+                "gamma": trial.suggest_float("gamma", 0, 10),
                 "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 1.0, log=True),
                 "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 1.0, log=True),
                 "grow_policy": trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"]),
@@ -131,21 +145,21 @@ class BayesianOptimization:
         # LightGBM;
         elif self.model_name == "lightgbm":
             params = {
-                "n_estimators": trial.suggest_int("n_estimators", 100, 2000, step=100),
-                "max_depth": trial.suggest_int("max_depth", 3, 12),
-                "num_leaves": trial.suggest_int("num_leaves", 20, 150),
-                "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
-                "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
-                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+                "n_estimators": trial.suggest_int("n_estimators", 100, 3000, step=100),
+                "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.1, log=True),
+                "max_depth": trial.suggest_int("max_depth", 3, 10),
+                "num_leaves": trial.suggest_int("num_leaves", 20, 300),
+                "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 0.8, step=0.05),
                 "subsample": trial.suggest_float("subsample", 0.5, 1.0),
                 "subsample_freq": trial.suggest_int("subsample_freq", 1, 10),
-                "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
-                "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
+                "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 100.0, log=True),
+                "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 100.0, log=True),
                 "random_state": self.random_state,
                 "num_threads": self.n_jobs if self.n_jobs != -1 else 0,
             }
             
-            # Get device config
+            # Get device config;
             device_config = get_device_config(self.mode, 'lightgbm')
             params.update(device_config)
 
@@ -157,17 +171,13 @@ class BayesianOptimization:
             # Hyperparameters;
             params = {
                 # Architecture Tuning;
-                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]), # Using powers of 2
-                "num_layers": trial.suggest_int("num_layers", 1, 5), # Expanded range for deeper networks
+                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]),
+                "num_layers": trial.suggest_int("num_layers", 1, 3), 
                 "dropout": trial.suggest_float("dropout", 0.0, 0.5),
-                
-                # Training Optimization;
-                "learning_rate": trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]), # Now being tuned
-                "epochs": 50, # Fixed epochs for optimization speed is acceptable
-                
-                # Critical Time-Series Parameter (Now being tuned);
-                "sequence_length": trial.suggest_categorical("sequence_length", [6, 12, 24, 48]) 
+                "learning_rate": trial.suggest_float("learning_rate", 1e-3, 1e-2, log=True),
+                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]),
+                "epochs": 50, 
+                "sequence_length": trial.suggest_categorical("sequence_length", [12, 24, 36, 48, 72, 96, 168]) 
             }
             return self.evaluate_lstm(params)
 
@@ -178,58 +188,54 @@ class BayesianOptimization:
     def evaluate_lstm(self, params) -> float:
         """
         Evaluates the LSTM model using TimeSeriesSplit cross-validation.
-        Custom implementation for PyTorch model.
+        Custom implementation for PyTorch model returning mean KGE across splits.
         """
         # Import here to avoid circular import;
         from source_backend.model_lstm import _LSTMRegressor as LSTMRegressor
         
-        # Define Splits;        
-        tscv = TimeSeriesSplit(n_splits=3) # Reduced splits for deep learning speed
+        # Use raw features when available to refit preprocessing per fold;
+        X_source = self.X_raw if self.X_raw is not None else self.X_train
+        y_source = self.y_train
+
+        # Sort once to keep temporal order consistent;
+        if isinstance(X_source, pd.DataFrame) and 'Data_Hora_Medicao' in X_source.columns:
+            X_source = X_source.sort_values('Data_Hora_Medicao')
+            if isinstance(y_source, (pd.Series, pd.DataFrame)):
+                y_source = y_source.loc[X_source.index]
+
+        # Define Splits;
+        tscv = TimeSeriesSplit(n_splits=self.n_splits, gap=self.gap)
         scores = []
-        
-        # Prepare data - handle both DataFrame and numpy array inputs;
-        if isinstance(self.X_train, pd.DataFrame):
-            if 'Data_Hora_Medicao' in self.X_train.columns:
-                X = self.X_train.sort_values('Data_Hora_Medicao').drop(columns=['Data_Hora_Medicao']).values
-            else:
-                X = self.X_train.values
-        else:
-            # Already a numpy array (from preprocessor pipeline)
-            X = self.X_train
-            
-        # Handle y_train similarly
-        if isinstance(self.y_train, pd.Series):
-            y = self.y_train.values
-        else:
-            y = self.y_train
-            
-        # Remove non-numeric columns (e.g., Timestamps) from object arrays
-        if hasattr(X, 'dtype') and X.dtype == object:
-            numeric_cols = []
-            for i in range(X.shape[1]):
-                try:
-                    # Check if the first element can be converted to float
-                    float(X[0, i])
-                    numeric_cols.append(i)
-                except (ValueError, TypeError):
-                    # Likely a Timestamp or non-numeric string; skip this column
-                    continue
-            
-            # Filter X if columns were removed
-            if len(numeric_cols) < X.shape[1]:
-                X = X[:, numeric_cols]
-            
-        # Ensure proper dtype for PyTorch (convert object dtype to float64);
-        X = np.asarray(X, dtype=np.float64)
-        y = np.asarray(y, dtype=np.float64)
         
         # Device
         device = torch.device('cuda' if self.mode in ['GPU', 'CUDA'] and torch.cuda.is_available() else 'cpu')
         
-        for train_index, val_index in tscv.split(X):
+        # Helper to slice arrays/DataFrames;
+        def _slice(data, idx):
+            return data.iloc[idx] if hasattr(data, "iloc") else data[idx]
+
+        for train_index, val_index in tscv.split(X_source):
             # Split data
-            X_train_fold, X_val_fold = X[train_index], X[val_index]
-            y_train_fold, y_val_fold = y[train_index], y[val_index]
+            X_train_fold = _slice(X_source, train_index)
+            X_val_fold = _slice(X_source, val_index)
+            y_train_fold = _slice(y_source, train_index)
+            y_val_fold = _slice(y_source, val_index)
+
+            # Fit feature pipeline on the fold to avoid leakage;
+            if self.feature_pipeline is not None:
+                fold_pipeline = clone(self.feature_pipeline)
+                X_train_fold = fold_pipeline.fit_transform(X_train_fold, y_train_fold)
+                X_val_fold = fold_pipeline.transform(X_val_fold)
+
+            # Remove non-numeric columns and enforce float dtype;
+            if isinstance(X_train_fold, pd.DataFrame):
+                X_train_fold = X_train_fold.select_dtypes(include=[np.number])
+                X_val_fold = X_val_fold.select_dtypes(include=[np.number])
+            
+            X = np.asarray(X_train_fold, dtype=np.float64)
+            y = np.asarray(y_train_fold, dtype=np.float64)
+            X_val_np = np.asarray(X_val_fold, dtype=np.float64)
+            y_val_np = np.asarray(y_val_fold, dtype=np.float64)
             
             # Create sequences (simplified version of _create_sequences logic)
             seq_len = params['sequence_length']
@@ -241,11 +247,11 @@ class BayesianOptimization:
                     targs.append(data_y[i+seq_len])
                 return np.array(seqs), np.array(targs)
             
-            if len(X_train_fold) <= seq_len or len(X_val_fold) <= seq_len:
+            if len(X) <= seq_len or len(X_val_np) <= seq_len:
                 continue # Skip if not enough data
                 
-            X_train_seq, y_train_seq = create_seq(X_train_fold, y_train_fold)
-            X_val_seq, y_val_seq = create_seq(X_val_fold, y_val_fold)
+            X_train_seq, y_train_seq = create_seq(X, y)
+            X_val_seq, y_val_seq = create_seq(X_val_np, y_val_np)
             
             if len(X_train_seq) == 0 or len(X_val_seq) == 0:
                 continue
@@ -287,47 +293,81 @@ class BayesianOptimization:
             
             # Validate
             model.eval()
-            val_loss = 0
+            # Collect validation predictions to compute KGE per fold;
+            y_val_true_all = []
+            y_val_pred_all = []
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs, targets = inputs.to(device), targets.to(device).unsqueeze(1)
                     outputs = model(inputs)
-                    val_loss += criterion(outputs, targets).item() * inputs.size(0)
+                    y_val_true_all.append(targets.cpu().numpy().ravel())
+                    y_val_pred_all.append(outputs.cpu().numpy().ravel())
             
-            scores.append(-np.sqrt(val_loss / len(val_dataset))) # Negative RMSE
+            if y_val_true_all and y_val_pred_all:
+                y_true_np = np.concatenate(y_val_true_all)
+                y_pred_np = np.concatenate(y_val_pred_all)
+                kge_score = kge(y_true=y_true_np, y_pred=y_pred_np)
+                scores.append(kge_score)
             
             # Cleanup memory
             del model, optimizer, criterion, train_loader, val_loader, train_dataset, val_dataset
             del X_train_seq, y_train_seq, X_val_seq, y_val_seq
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            gc.collect()
-            
+            gc.collect() 
         return np.mean(scores) if scores else -float('inf')
 
     def evaluate(self, model) -> float:
         """
-        Evaluates the regression model using TimeSeriesSplit cross-validation.
-
-        Parameters
-        ----------
-        model : The regression model to evaluate.
-
-        Returns
-        -------
-        float
-            The negative RMSE score across TimeSeriesSplit splits.
+        Evaluates the regression model using TimeSeriesSplit cross-validation with proper
+        refitting of preprocessing inside each fold to avoid leakage.
+        Returns the mean KGE across splits (higher is better; max is 1.0).
         """
-        tscv = TimeSeriesSplit(n_splits=5)
-        scores = cross_val_score(
-            model, 
-            X=self.X_train, 
-            y=self.y_train, 
-            cv=tscv, 
-            scoring='neg_root_mean_squared_error',
-            n_jobs=self.n_jobs
-        )
-        return scores.mean()
+        # Select raw data when provided so scalers/encoders are refit per fold;
+        X_source = self.X_raw if self.X_raw is not None else self.X_train
+        y_source = self.y_train
+
+        tscv = TimeSeriesSplit(n_splits=self.n_splits, gap=self.gap)
+        scores = []
+
+        # Helper to index DataFrame/ndarray consistently;
+        def _slice(data, idx):
+            return data.iloc[idx] if hasattr(data, "iloc") else data[idx]
+
+        for train_idx, val_idx in tscv.split(X_source):
+            if len(train_idx) == 0 or len(val_idx) == 0:
+                continue  # Skip degenerate splits;
+
+            X_train_fold = _slice(X_source, train_idx)
+            X_val_fold = _slice(X_source, val_idx)
+            y_train_fold = _slice(y_source, train_idx)
+            y_val_fold = _slice(y_source, val_idx)
+
+            # Fit feature pipeline on the fold to prevent leakage;
+            if self.feature_pipeline is not None:
+                fold_pipeline = clone(self.feature_pipeline)
+                X_train_transformed = fold_pipeline.fit_transform(X_train_fold, y_train_fold)
+                X_val_transformed = fold_pipeline.transform(X_val_fold)
+            else:
+                X_train_transformed = X_train_fold
+                X_val_transformed = X_val_fold
+
+            # Optional postprocessing hook (e.g., calendar features) after pipeline;
+            if self.postprocess_fn is not None:
+                X_train_transformed = self.postprocess_fn(X_train_transformed.copy())
+                X_val_transformed = self.postprocess_fn(X_val_transformed.copy())
+
+            model_fold = clone(model)
+            model_fold.fit(X_train_transformed, y_train_fold)
+            preds = model_fold.predict(X_val_transformed)
+
+            y_true_np = np.asarray(y_val_fold, dtype=float).ravel()
+            preds_np = np.asarray(preds, dtype=float).ravel()
+
+            # Compute KGE for the validation fold; 
+            kge_score = kge(y_true=y_true_np, y_pred=preds_np)
+            scores.append(kge_score)
+        return np.mean(scores) if scores else -float('inf')
 
     def optimize(self) -> dict:
         """
@@ -354,6 +394,10 @@ class BayesianOptimization:
             timeout=600  # 10 minutes timeout;
         )
 
+        completed_trials = [t for t in study.trials if t.state == TrialState.COMPLETE]
+        if not completed_trials:
+            raise ValueError("No trials are completed yet; check preprocessing or model errors during CV.")
+
         # Add model-specific parameters;
         best_params = study.best_params.copy()
         best_params['random_state'] = self.random_state
@@ -368,7 +412,7 @@ class BayesianOptimization:
             pass # LSTM doesn't use n_jobs parameter in this context;
         
         # Log the final best metric and corresponding parameters to the current active MLflow run;
-        mlflow.log_metric(f"{self.model_name}_best_rmse", study.best_value)
+        mlflow.log_metric(f"train_best_kge", study.best_value)
         mlflow.log_params(best_params)
 
         self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
