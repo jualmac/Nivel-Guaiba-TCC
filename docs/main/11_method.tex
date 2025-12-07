@@ -18,17 +18,12 @@ analisadas quanto à disponibilidade, qualidade, lacunas, duração e representa
 finalidades específicas (energéticas, piezométricas etc.), que não apresentam as informações relevantes para este
 estudo. 
 
-\begin{figure}[htb]
-	\caption{\label{funil} Funil de estações selecionadas do SNIRH}
-	\begin{center}
-	    \includegraphics[scale=0.35]{img/funil_estações.png}
-	\end{center}
-	\legend{Fonte: Reprodução própria}
-\end{figure} 
+% \begin{figure}[htb] \caption{\label{funil} Funil de estações selecionadas do SNIRH} \begin{center}
+%   \includegraphics[scale=0.34]{img/funil_estações.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
-Com isto, determinou-se que somente 15 estações na Bacia Hidrográfica desejada apresentavam informações da forma
+Com isto, determinou-se que somente 15 estações na Bacia Hidrográfica do Guaíba apresentavam informações da forma
 desejada. Destas, foram selecionadas pelo menos uma para cada um dos principais rios listados acima. Alguns rios, como o
-Sinos e o Taquari, apresentavam 3-4 estações cujas informações poderiam ser utilizadas, mas por fim, foi determinado que
+Sinos e o Taquari, apresentavam 3 estações cujas informações poderiam ser utilizadas, mas por fim, foi determinado que
 no máximo 2 estações seriam selecionadas de cada rio, a fim de manter um equilíbrio de dados e não introduzir um maior
 peso para estes corpos hídricos, inclusive quando alguns, como o Rio Jacuí, só teriam 1 estação disponível.
 
@@ -72,13 +67,25 @@ Por fim, a lista de estações selecionadas foram:
 \end{table}
 
 Para uniformizar as séries, adotou-se `2018-08-01` como data inicial comum e `2025-12-01` como data final comum,
-totalizando cerca de seis anos de dados telemétricos, com registros a cada 15 minutos. Devido ao limite de 30 dias
-imposto pela API, o processo de coleta foi realizado em chunks mensais posteriormente concatenados.
+totalizando cerca de seis anos de dados telemétricos, totalizando mais de 2 milhões de registros. Devido ao limite de 30
+dias imposto pela API, o processo de coleta foi realizado em chunks mensais posteriormente concatenados.
 
-Para dados de metereológicos, também serão utilizados dados disponibilizados pelo SNIRH e os mesmos serão coletados com
-a mesma frequência e o mesmo período histórico, de forma a complementar os dados do nível da água.
+Foram coletados todos os dados disponíveis para estas estações neste período, incluindo dados do nível da água (e.g.,
+\textit{Cota\_Adotada}), dados meteorológicos (e.g., \textit{Chuva\_Adotada}), dados descritivos da estação (e.g.,
+\textit{Altitude}) e indicadores de controle de qualidade de cada variável, identificados pelo sufixo \textit{\_Status}.
+Estas variáveis de status acompanham as variáveis de medição e seguem um padrão determinado pelo SNIRH que foi expandido
+para utilizar estas variáveis como indicadores não só da qualidade dos dados, mas também como indicadores de variáveis
+faltantes ou preenchidas. Este padrão é dado de tal forma: Status 0=Normal, 1=Suspeito, 2=Ruim, 3=Muito ruim,
+4=Preenchido/Faltante, 5=Valor Atípico (outliers);
 
-% \section{Pré-processamento de dados}
+% Bateria, Chuva_Acumulada, Chuva_Acumulada_Status, Chuva_Adotada, Chuva_Adotada_Status, Cota_Adotada,
+% Cota_Adotada_Status, Cota_Display, Cota_Display_Status, Cota_Manual, Cota_Manual_Status, Cota_Sensor,
+% Cota_Sensor_Status, Data_Atualizacao, Data_Hora_Medicao, Pressao_Atmosferica, Pressao_Atmosferica_Status,
+% Temperatura_Agua, Temperatura_Agua_Status, Temperatura_Interna, Vazao_Adotada, Vazao_Adotada_Status, codigoestacao,
+% Temperatura_Interna_Status
+
+\section{Pré-processamento de dados}
+AAA
 
 \section{Metodologia}
 Este trabalho implementa uma abordagem experimental para avaliação comparativa dos modelos preditivos descritos
@@ -97,8 +104,6 @@ Na fase de avaliação, as predições geradas para o período de teste serão c
 teste mediante métricas hidrologicamente relevantes - coeficiente de Nash-Sutcliffe (NSE), RMSE e erro absoluto médio
 (MAE) - complementadas por análise de sensibilidade a eventos extremos e avaliação de robustez computacional. Esta
 estrutura metodológica visa garantir comparação objetiva do desempenho preditivo.
-
-% quantificando incertezas através de intervalos de confiança derivados de \textit{bootstrapping}.
 
 Os resultados da análise comparativa serão disponibilizados através de um painel interativo (dashboard) desenvolvido
 após a consolidação das avaliações dos modelos. Esta plataforma de visualização, hospedada em acesso aberto, integrará
