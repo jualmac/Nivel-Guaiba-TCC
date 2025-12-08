@@ -153,6 +153,7 @@ class BayesianOptimization:
                 "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 100.0, log=True),
                 "random_state": self.random_state,
                 "num_threads": self.n_jobs if self.n_jobs != -1 else 0,
+                "verbosity": -1,  # suppress LightGBM warnings during optimization;
             }
             
             # Get device config;

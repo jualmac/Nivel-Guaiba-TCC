@@ -132,6 +132,9 @@ class LightGBMModels:
             except (ValueError, TypeError):
                 pass
 
+        # Quiet LightGBM warnings by default unless explicitly overridden;
+        best_params.setdefault("verbosity", -1)
+
         # Add early stopping parameters if validation set is provided;
         if eval_set is not None:
             # Set early stopping parameters if not already in best_params;
