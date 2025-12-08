@@ -10,10 +10,14 @@ processed dataframes to DuckDB;
 # LIBRARIES
 #
 ########################################################################################################################
+import logging
 import pandas as pd
 from typing import Optional
 
 from db_handler import DBConnection
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
@@ -180,4 +184,4 @@ def save_to_database(
     # Save processed feature matrices for model inputs;
     if df_features is not None:
         db.write(df=df_features, table_name='models_features', inplace=True)
-    print("[data_io.py] Data successfully saved to database.")
+    logger.info("Data successfully saved to database.")

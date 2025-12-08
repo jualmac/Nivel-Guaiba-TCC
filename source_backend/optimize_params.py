@@ -28,7 +28,7 @@ from torch.utils.data import Dataset, DataLoader
 import os
 import gc
 import mlflow
-from util import get_device_config
+from util import get_device_config, configure_logging
 from source_backend.metrics import kge
 
 ########################################################################################################################
@@ -83,13 +83,7 @@ class BayesianOptimization:
         mode : str
             Training mode - 'CPU', 'GPU', or 'CUDA'.
         """
-        # Initialize Logger;
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        logger = logging.getLogger(__name__)
+        logger = configure_logging(__name__)
 
         self.model_name = model_name
         self.n_trials = n_trials
@@ -420,5 +414,4 @@ class BayesianOptimization:
             self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
         else:
             self.logger.info(f"MLflow logging disabled. Best parameters found for {self.model_name}.")
-        
         return best_params

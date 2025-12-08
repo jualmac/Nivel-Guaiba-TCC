@@ -29,6 +29,7 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 
+import logging
 import numpy as np
 import pandas as pd
 from numpy import percentile
@@ -39,6 +40,9 @@ from sklearn.decomposition import PCA as sklearn_PCA
 # Import the models used in data_transformation.py;
 from pyod.models.ecod import ECOD
 from pyod.models.pca import PCA
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 
 def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
@@ -80,9 +84,9 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
     if station_code is not None:
         if 'codigoestacao' in df_cpy.columns:
             df_cpy = df_cpy[df_cpy['codigoestacao'] == station_code].copy()
-            print(f"Filtering data for station: {station_code}")
+            logger.info("Filtering data for station: %s", station_code)
         else:
-            print("Warning: 'codigoestacao' column not found, using all data")
+            logger.warning("'codigoestacao' column not found, using all data")
     
     # Identify feature columns (exclude metadata and status columns);
     index_cols = ['Data_Hora_Medicao', 'codigoestacao']
@@ -90,7 +94,7 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
     non_feature_cols = index_cols + status_cols
     feature_cols = [col for col in df_cpy.columns if col not in non_feature_cols]
     
-    print(f"Using {len(feature_cols)} features: {feature_cols}")
+    logger.info("Using %s features: %s", len(feature_cols), feature_cols)
     
     # Extract features and remove rows with any missing values;
     df_features = df_cpy[feature_cols].copy()
@@ -98,11 +102,11 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
     df_complete = df_features[complete_mask].copy()
     
     if len(df_complete) == 0:
-        print("Error: No complete rows found in dataframe")
+        logger.error("No complete rows found in dataframe")
         return None
     
-    print(f"Using {len(df_complete)} complete rows out of {len(df_cpy)} total rows")
-    print(f"Missing data: {len(df_cpy) - len(df_complete)} rows ({100*(len(df_cpy)-len(df_complete))/len(df_cpy):.1f}%)\n")
+    logger.info("Using %s complete rows out of %s total rows", len(df_complete), len(df_cpy))
+    logger.info("Missing data: %s rows (%.1f%%)", len(df_cpy) - len(df_complete), 100*(len(df_cpy)-len(df_complete))/len(df_cpy))
     
     # Convert to numpy array for PyOD;
     X = df_complete.values
@@ -111,7 +115,12 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
     pca_2d = sklearn_PCA(n_components=2, random_state=random_state)
     X_2d = pca_2d.fit_transform(X)
     
-    print(f"PCA projection: {pca_2d.explained_variance_ratio_[0]*100:.1f}% + {pca_2d.explained_variance_ratio_[1]*100:.1f}% = {sum(pca_2d.explained_variance_ratio_)*100:.1f}% variance explained\n")
+    logger.info(
+        "PCA projection: %.1f%% + %.1f%% = %.1f%% variance explained",
+        pca_2d.explained_variance_ratio_[0]*100,
+        pca_2d.explained_variance_ratio_[1]*100,
+        sum(pca_2d.explained_variance_ratio_)*100
+    )
     
     # Define the two detectors;
     detectors = {
@@ -132,7 +141,7 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
     results = {}
     
     for i, (clf_name, clf) in enumerate(detectors.items()):
-        print(f"[{i+1}/{len(detectors)}] Fitting {clf_name}...")
+        logger.info("[%s/%s] Fitting %s...", i+1, len(detectors), clf_name)
         
         # Fit detector on full-dimensional data;
         clf.fit(X)
@@ -154,8 +163,8 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
         n_outliers = predictions.sum()
         outlier_rate = n_outliers / len(predictions) * 100
         
-        print(f"  Threshold: {threshold:.4f}")
-        print(f"  Detected outliers: {n_outliers}/{len(predictions)} ({outlier_rate:.2f}%)\n")
+        logger.info("Threshold: %.4f", threshold)
+        logger.info("Detected outliers: %s/%s (%.2f%%)", n_outliers, len(predictions), outlier_rate)
         
         # Store results;
         results[clf_name] = {
@@ -197,17 +206,17 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
         np.random.seed(random_state)
         if len(outlier_indices) > max_outliers_display:
             outlier_sample_indices = np.random.choice(outlier_indices, max_outliers_display, replace=False)
-            print(f"  Displaying: {max_outliers_display} sampled outliers (of {len(outlier_indices)} total) + ", end='')
+            logger.info("Displaying: %s sampled outliers (of %s total)", max_outliers_display, len(outlier_indices))
         else:
             outlier_sample_indices = outlier_indices
-            print(f"  Displaying: {len(outlier_indices)} outliers + ", end='')
+            logger.info("Displaying: %s outliers", len(outlier_indices))
         
         if len(normal_indices) > max_normal_display:
             normal_sample_indices = np.random.choice(normal_indices, max_normal_display, replace=False)
-            print(f"{max_normal_display} sampled normal points (of {len(normal_indices)} total)")
+            logger.info("%s sampled normal points (of %s total)", max_normal_display, len(normal_indices))
         else:
             normal_sample_indices = normal_indices
-            print(f"{len(normal_indices)} normal points")
+            logger.info("%s normal points", len(normal_indices))
         
         # Plot sampled normal points with reduced visual weight;
         subplot.scatter(
@@ -260,7 +269,7 @@ def compare_outlier_detectors(df: pd.DataFrame = None, station_code: str = None,
         filename = f'outlier_detection_comparison_{"station_" + station_code if station_code else "all"}.png'
         output_file = os.path.join(output_path, filename)
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        print(f"Visualization saved: {output_file}")
+        logger.info("Visualization saved: %s", output_file)
     
     # Display plot if requested;
     if show_plot:
@@ -285,9 +294,9 @@ def compare_outlier_detectors_synthetic(n_samples=200, outliers_fraction=0.25,
     Returns:
         fig (matplotlib.figure.Figure): The generated figure object;
     """
-    print("\n" + "="*80)
-    print("OUTLIER DETECTION ALGORITHM COMPARISON (SYNTHETIC DATA)")
-    print("="*80 + "\n")
+    logger.info("=" * 80)
+    logger.info("OUTLIER DETECTION ALGORITHM COMPARISON (SYNTHETIC DATA)")
+    logger.info("=" * 80)
     
     # Create meshgrid for decision boundary visualization;
     xx, yy = np.meshgrid(np.linspace(-7, 7, 100), np.linspace(-7, 7, 100))
@@ -301,10 +310,10 @@ def compare_outlier_detectors_synthetic(n_samples=200, outliers_fraction=0.25,
     ground_truth[-n_outliers:] = 1
     
     # Display dataset statistics;
-    print(f'Number of inliers: {n_inliers}')
-    print(f'Number of outliers: {n_outliers}')
-    print(f'Outliers fraction: {outliers_fraction:.2%}')
-    print(f'Ground truth shape: {ground_truth.shape}\n')
+    logger.info("Number of inliers: %s", n_inliers)
+    logger.info("Number of outliers: %s", n_outliers)
+    logger.info("Outliers fraction: %.2f%%", outliers_fraction * 100)
+    logger.info("Ground truth shape: %s", ground_truth.shape)
     
     # Define the two detectors used in data_transformation.py;
     classifiers = {
@@ -329,13 +338,13 @@ def compare_outlier_detectors_synthetic(n_samples=200, outliers_fraction=0.25,
     X_outliers = np.random.uniform(low=-6, high=6, size=(n_outliers, 2))
     X = np.r_[X_inliers, X_outliers]
     
-    print("Data generation complete. Fitting models...\n")
+    logger.info("Data generation complete. Fitting models...")
     
     # Create figure with subplots for each detector;
     fig = plt.figure(figsize=(16, 7))
     
     for i, (clf_name, clf) in enumerate(classifiers.items()):
-        print(f"[{i+1}/{len(classifiers)}] Fitting {clf_name}...")
+        logger.info("[%s/%s] Fitting %s...", i+1, len(classifiers), clf_name)
         
         # Fit the detector on the data;
         clf.fit(X)
@@ -353,9 +362,9 @@ def compare_outlier_detectors_synthetic(n_samples=200, outliers_fraction=0.25,
         n_errors = (y_pred != ground_truth).sum()
         error_rate = n_errors / n_samples * 100
         
-        print(f"  Threshold: {threshold:.3f}")
-        print(f"  Errors: {n_errors}/{n_samples} ({error_rate:.1f}%)")
-        print(f"  Detected outliers: {y_pred.sum()}/{n_samples}\n")
+        logger.info("Threshold: %.3f", threshold)
+        logger.info("Errors: %s/%s (%.1f%%)", n_errors, n_samples, error_rate)
+        logger.info("Detected outliers: %s/%s", y_pred.sum(), n_samples)
         
         # Compute decision function on meshgrid for decision boundary visualization;
         Z = clf.decision_function(np.c_[xx.ravel(), yy.ravel()]) * -1
@@ -417,15 +426,15 @@ def compare_outlier_detectors_synthetic(n_samples=200, outliers_fraction=0.25,
         os.makedirs(output_path, exist_ok=True)
         output_file = os.path.join(output_path, 'outlier_detection_comparison_synthetic.png')
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        print(f"\nVisualization saved: {output_file}")
+        logger.info("Visualization saved: %s", output_file)
     
     # Display plot if requested;
     if show_plot:
         plt.show()
     
-    print("\n" + "="*80)
-    print("COMPARISON COMPLETE")
-    print("="*80 + "\n")
+    logger.info("=" * 80)
+    logger.info("COMPARISON COMPLETE")
+    logger.info("=" * 80)
     
     return fig
 
@@ -445,9 +454,9 @@ def compare_multiple_contamination_levels(output_path='/home/juju/Documents/Nive
     Returns:
         fig (matplotlib.figure.Figure): The generated figure object;
     """
-    print("\n" + "="*80)
-    print("MULTI-CONTAMINATION ANALYSIS")
-    print("="*80 + "\n")
+    logger.info("=" * 80)
+    logger.info("MULTI-CONTAMINATION ANALYSIS")
+    logger.info("=" * 80)
     
     contamination_levels = [0.05, 0.10, 0.15, 0.20, 0.25]
     n_samples = 200
@@ -457,7 +466,7 @@ def compare_multiple_contamination_levels(output_path='/home/juju/Documents/Nive
     fig, axes = plt.subplots(len(contamination_levels), 2, figsize=(16, 5 * len(contamination_levels)))
     
     for row_idx, contamination in enumerate(contamination_levels):
-        print(f"\nProcessing contamination level: {contamination:.0%}")
+        logger.info("Processing contamination level: %.0f%%", contamination * 100)
         
         # Calculate sample distribution;
         n_inliers = int((1. - contamination) * n_samples)
@@ -523,15 +532,15 @@ def compare_multiple_contamination_levels(output_path='/home/juju/Documents/Nive
         os.makedirs(output_path, exist_ok=True)
         output_file = os.path.join(output_path, 'outlier_detection_multi_contamination.png')
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        print(f"\nMulti-contamination analysis saved: {output_file}")
+        logger.info("Multi-contamination analysis saved: %s", output_file)
     
     # Display plot if requested;
     if show_plot:
         plt.show()
     
-    print("\n" + "="*80)
-    print("MULTI-CONTAMINATION ANALYSIS COMPLETE")
-    print("="*80 + "\n")
+    logger.info("=" * 80)
+    logger.info("MULTI-CONTAMINATION ANALYSIS COMPLETE")
+    logger.info("=" * 80)
     
     return fig
 

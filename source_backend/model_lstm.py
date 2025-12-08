@@ -9,6 +9,7 @@ and mirrors the structure of the existing XGBoost/LightGBM models.
 # LIBRARIES
 #
 ########################################################################################################################
+import logging
 import numpy as np
 import pandas as pd
 import torch
@@ -17,11 +18,13 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from source_backend.mlflow_utils import MLFlowHandler
-from util import get_device_config
+from util import get_device_config, configure_logging
 from source_backend.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,
 )
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #
@@ -120,14 +123,14 @@ class LSTMModels:
         # Hyperparameter Optmization;
         best_params = {}
         if optimize_hyperparameters:
-            print("[model_lstm.py] Running Bayesian Optimization for LSTM...")
+            logger.info("Running Bayesian Optimization for LSTM...")
             best_params = self._get_best_params()
         else:
-            print("[model_lstm.py] Loading best parameters from MLflow...")
+            logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
             best_params = mlflow_handler.load_best_params(metric_name="lstm_best_rmse", mode="min")
             if not best_params:
-                print("[model_lstm.py] No best params found, using defaults.")
+                logger.info("No best params found, using defaults.")
                 best_params = {
                     "hidden_size": 64, "num_layers": 1, 
                     "dropout": 0.0, "learning_rate": 0.001,
@@ -141,7 +144,7 @@ class LSTMModels:
         # Set sequence_length from optimized/loaded params;
         self.sequence_length = best_params.get('sequence_length', 24)
 
-        print(f"[model_lstm.py] Training LSTM with params: {best_params}")
+        logger.info("Training LSTM with params: %s", best_params)
 
         # Convert inputs to float32 numpy arrays to ensure TensorDataset compatibility
         if isinstance(self.X, pd.DataFrame):
@@ -189,7 +192,7 @@ class LSTMModels:
             if len(X_val_seq) > 0:
                 val_dataset = TensorDataset(torch.FloatTensor(X_val_seq), torch.FloatTensor(y_val_seq))
                 val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
-                print("[model_lstm.py] Using validation set for early stopping.")
+                logger.info("Using validation set for early stopping.")
         
         # Initialize Inner Model;
         self.model = _LSTMRegressor(
@@ -231,7 +234,8 @@ class LSTMModels:
                         val_loss += criterion(outputs, val_y).item()
                 
                 avg_val_loss = val_loss / len(val_loader)
-                print(f"[model_lstm.py][LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; val_loss={avg_val_loss:.4f};")
+                logger.info("[LSTM][Epoch %s/%s] train_loss=%.4f; val_loss=%.4f;",
+                            epoch + 1, epochs, train_loss/len(train_loader), avg_val_loss)
                 
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
@@ -240,11 +244,12 @@ class LSTMModels:
                 else:
                     patience_counter += 1
                     if patience_counter >= early_stopping:
-                        print(f"[model_lstm.py] Early stopping triggered at epoch {epoch}")
+                        logger.info("Early stopping triggered at epoch %s", epoch)
                         break
                 self.model.train() # Switch back to train mode
             else:
-                print(f"[model_lstm.py][LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; (no val loader)")
+                logger.info("[LSTM][Epoch %s/%s] train_loss=%.4f; (no val loader)",
+                            epoch + 1, epochs, train_loss/len(train_loader))
         return self
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:

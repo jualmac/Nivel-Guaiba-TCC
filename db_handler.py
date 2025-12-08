@@ -7,9 +7,13 @@ This file contains a wrapper for the logic of CRUD operations on DuckDB;
 #
 ########################################################################################################################
 import os
+import logging
 import duckdb
 import pandas as pd
 from typing import Tuple
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
@@ -35,12 +39,12 @@ class DBConnection:
             test_connection = self.run(test_query)
 
             if not test_connection.get('result').empty:
-                print(f"Connection successful to database on file {self.path}")
+                logger.info("Connection successful to database on file %s", self.path)
                 return self.connection
             else:
                 raise Exception(f"Connection failed to database on {self.path}, no tables found.")
         except Exception as e:
-            print(f"Error on connect(): {e}")
+            logger.error("Error on connect(): %s", e)
             raise
 
     def run(self, query, params: Tuple = None) -> dict:
@@ -73,7 +77,7 @@ class DBConnection:
                     results["result"] = self.connection.sql(query).df()
             return results
         except Exception as e:
-            print(f"SQL execution failed due to: {e}")
+            logger.error("SQL execution failed due to: %s", e)
             return results
 
     def write(self, df: pd.DataFrame, table_name: str, inplace: bool = False) -> None:
@@ -99,9 +103,9 @@ class DBConnection:
                 self.connection.sql(f"INSERT INTO {table_name} SELECT * FROM tmp_df")
                 self.connection.unregister("tmp_df")
                 self.connection.table(f"{table_name}").show()
-            print(f"Inserted data into {table_name}")
+            logger.info("Inserted data into %s", table_name)
         except Exception as e:
-            print(f"Failed to insert data into {table_name}: {e}")
+            logger.error("Failed to insert data into %s: %s", table_name, e)
             raise
 
     def drop(self, objects: dict) -> None:
@@ -122,12 +126,12 @@ class DBConnection:
                 elif obj_type.lower() == "view":
                     query = f"DROP VIEW IF EXISTS {', '.join(names)}"
                 else:
-                    print(f"Unsupported object type: {obj_type}")
+                    logger.error("Unsupported object type: %s", obj_type)
                     continue
                 self.connection.execute(query)
-            print("Specified tables and views dropped successfully.")
+            logger.info("Specified tables and views dropped successfully.")
         except Exception as e:
-            print(f"Failed to drop objects due to: {e}")
+            logger.error("Failed to drop objects due to: %s", e)
 
     def close(self):
         """Close the DuckDB connection"""

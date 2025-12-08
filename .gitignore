@@ -2,6 +2,9 @@
 test*
 mlruns/
 
+# Logs;
+./logs
+
 # Large data files (#TODO: LFS maybe?)
 ./data
 

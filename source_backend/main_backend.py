@@ -13,6 +13,7 @@ model training, and evaluation;
 import os
 import argparse
 import time
+import logging
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from typing import Optional
@@ -21,6 +22,9 @@ from source_backend.pipe_preparation import data_division, encoding_pipeline
 from source_backend.train_models import training_pipeline
 from source_backend.mlflow_utils import MLFlowHandler
 from source_database.data_io import save_to_database
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
@@ -115,13 +119,13 @@ def main_backend(
         mlflow_handler.end_run()
     
     # Read clean data from database;
-    print("[main_backend.py] Loading data from database...")
+    logger.info("Loading data from database...")
     db = DBConnection()
     df = db.run("SELECT * FROM data_stations")['result']
-    print(f"[main_backend.py] Loaded {len(df)} rows from database")
+    logger.info("Loaded %s rows from database", len(df))
 
     # Split data into train/test sets;
-    print("[main_backend.py] Splitting data into train/test sets...")
+    logger.info("Splitting data into train/test sets...")
     if val_size is not None and val_size > 0:
         X_train, X_val, X_test, y_train, y_val, y_test = data_division(
             df=df,
@@ -130,7 +134,7 @@ def main_backend(
             test_size=test_size,
             val_size=val_size,
             random_state=random_state)
-        print(f"[main_backend.py] Train set: {(X_train.shape)}\n[main_backend.py] Validation set: {(X_val.shape)}\n[main_backend.py] Test set: {(X_test.shape)}")
+        logger.info("Train set: %s | Validation set: %s | Test set: %s", X_train.shape, X_val.shape, X_test.shape)
 
     else:
         X_train, X_test, y_train, y_test = data_division(
@@ -139,17 +143,17 @@ def main_backend(
             test_size=test_size,
             val_size=val_size,
             random_state=random_state)
-        print(f"[main_backend.py] Train set: {(X_train.shape)}\n[main_backend.py] Test set: {(X_test.shape)}")
+        logger.info("Train set: %s | Test set: %s", X_train.shape, X_test.shape)
     
     # Create preprocessing pipeline;
-    print("[main_backend.py] Creating preprocessing pipeline...")
+    logger.info("Creating preprocessing pipeline...")
     preprocessor = encoding_pipeline(target_column=target_column)
     
     # Pre-fit the preprocessor so Validation data can be processed;
     preprocessor.fit(X_train, y_train)
 
     # Create full training pipeline (preprocessing + models);
-    print("[main_backend.py] Building training pipeline...")
+    logger.info("Building training pipeline...")
     pipelines = training_pipeline(
         preprocessor=preprocessor,
         models_to_use=models_to_use,
@@ -167,14 +171,14 @@ def main_backend(
     ) 
     
     # Train each pipeline independently;
-    print("[main_backend.py] Training model...")
+    logger.info("Training model...")
     results = {}
     all_predictions = []
     all_metrics = []
     all_features = []
     
     for name, pipeline in pipelines.items():
-        print(f"[main_backend.py] Training {name}...")
+        logger.info("Training %s...", name)
         model_start_time = time.time()  # Track total runtime per model;
         
         # Start MLFlow run for this model (only if logging is enabled);
@@ -207,7 +211,7 @@ def main_backend(
             })
         
         if val_size is not None and val_size > 0 and name in ['XGBOOST', 'LIGHTGBM']:
-            print(f"[main_backend.py] Preparing validation data for {name} early stopping...")
+            logger.info("Preparing validation data for %s early stopping...", name)
             
             # Split pipeline into feature engineering and model steps;
             model_step_name, model_instance = pipeline.steps[-1]
@@ -276,7 +280,7 @@ def main_backend(
         metrics = model_step.metric(y_true=y_test, y_pred=y_pred)
         if log_mlflow:
             mlflow_handler.log_metrics(metrics)
-        print(f"[main_backend.py] Model performance: {metrics}")
+        logger.info("Model performance for %s: %s", name, metrics)
 
         # Log the model with input example (only if logging is enabled);
         if log_mlflow:
@@ -338,13 +342,13 @@ def main_backend(
         
         # Save ML results to database if flag is set;
         if save_to_db:
-            print("[main_backend.py] Saving ML results to database...")
+            logger.info("Saving ML results to database...")
             save_to_database(
                 df_predictions=df_predictions,
                 df_metrics=df_metrics,
                 df_features=pd.concat(all_features, ignore_index=True) if all_features else None
             )
-    print("[main_backend.py] Backend pipeline completed!")
+    logger.info("Backend pipeline completed!")
 
 ########################################################################################################################
 #
@@ -407,7 +411,7 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    print(f'[main_backend.py] Arguments: {args}')
+    logger.info("Arguments: %s", args)
 
     # Execute main backend pipeline with parsed arguments;
     main_backend(
@@ -432,4 +436,4 @@ if __name__ == "__main__":
         n_features=args.n_features,
         log_mlflow=args.log_mlflow
         )
-    print('[main_backend.py] All Done!')
+    logger.info("All Done!")

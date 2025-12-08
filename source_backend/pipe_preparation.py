@@ -11,6 +11,7 @@ the ETL pipeline in source_database;
 # LIBRARIES
 #
 ########################################################################################################################
+import logging
 import pandas as pd
 from typing import Tuple, Optional, Union
 from sklearn.pipeline import Pipeline
@@ -20,7 +21,9 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from category_encoders import BinaryEncoder
 from sklearn.model_selection import train_test_split
 from db_handler import DBConnection
-from util import STATION_COLS
+from util import STATION_COLS, configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
@@ -146,7 +149,7 @@ def encoding_pipeline(
             - MissingIndicator: Tracks missing values in specified columns;
     """
     # Get list of column names from database (the table should be selectable);
-    print("[pipe_preparation.py] Loading data from database...")
+    logger.info("Loading data from database...")
     db = DBConnection()
     column_names = db.run(
         """

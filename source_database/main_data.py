@@ -9,6 +9,7 @@ Main pipeline orchestrator for data processing, transformation, and model traini
 ########################################################################################################################
 import os
 import argparse
+import logging
 import pandas as pd
 from typing import Tuple, Dict, Any, Optional
 from sklearn.pipeline import Pipeline
@@ -19,6 +20,9 @@ from source_database.data_cleaning import clean_dataframe
 from source_database.data_transformation import fill_gaps, aggregate_data, melt_dataframe
 from source_database.outlier_detection import outlier_removal
 from source_database.data_imputation import feature_imputation
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
@@ -82,7 +86,7 @@ def main_database(
             df_melted=df_melted
         )
     
-    print("[main_data.py] ETL pipeline completed. Clean data ready for model training.")
+    logger.info("ETL pipeline completed. Clean data ready for model training.")
     return None
 
 ########################################################################################################################
@@ -107,7 +111,7 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    print(f'[main_data.py] Arguments: {args}')
+    logger.info("Arguments: %s", args)
     
     # Execute main database pipeline with parsed arguments;
     main_database(
@@ -115,4 +119,4 @@ if __name__ == "__main__":
         frequency=args.frequency, 
         max_fill_steps=args.max_fill_steps
     )
-    print('[main_data.py] All Done!')
+    logger.info("All Done!")

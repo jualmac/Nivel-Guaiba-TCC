@@ -12,6 +12,7 @@ maintaining consistency with the existing model structure.
 ########################################################################################################################
 import json
 import os
+import logging
 import numpy as np
 import pandas as pd
 from typing import Tuple, List, Optional, Any, Dict
@@ -21,7 +22,9 @@ from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from source_backend.optimize_params import BayesianOptimization
 from source_database.transformations import nature_encode
 from source_backend.mlflow_utils import MLFlowHandler
-from util import get_device_config, is_cpu_mode
+from util import get_device_config, is_cpu_mode, configure_logging
+
+logger = configure_logging(__name__)
 from source_backend.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,
@@ -103,21 +106,21 @@ class LightGBMModels:
             # Process validation features (add calendar features);
             X_val_processed = self._add_calendar_features(X=X_val.copy())
             eval_set = [(X_val_processed, y_val)]
-            print("[model_lightgbm.py] Using validation set for early stopping.")
+            logger.info("Using validation set for early stopping.")
             
         # Hyperparameter handling;
         best_params = {}
         if optimize_hyperparameters:
-            print("[model_lightgbm.py] Running Bayesian Optimization...")
+            logger.info("Running Bayesian Optimization...")
             best_params = self._get_best_params()
             
         else:
-            print("[model_lightgbm.py] Loading best parameters from MLflow...")
+            logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
             best_params = mlflow_handler.load_best_params(metric_name="score", mode="max")
             
             if not best_params:
-                print("[model_lightgbm.py] No best params found in MLflow, using defaults.")
+                logger.info("No best params found in MLflow, using defaults.")
         
         # Convert numeric params that might be strings from MLflow;
         for k, v in best_params.items():
@@ -138,7 +141,7 @@ class LightGBMModels:
                 best_params['eval_metric'] = 'rmse'
 
         # Create model with params;
-        print(f"[model_lightgbm.py] Training LightGBM with params: {best_params}")
+        logger.info("Training LightGBM with params: %s", best_params)
         self.model = LGBMRegressor(**best_params)
 
         # Fit model with Training data (and validation set for early stopping if provided);

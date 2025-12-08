@@ -11,11 +11,15 @@ and station-specific imputation performance.
 # LIBRARIES
 #
 ########################################################################################################################
+import logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Dict, List, Optional, Tuple
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 
 ########################################################################################################################
@@ -364,14 +368,14 @@ def create_imputation_report(
     figures = {}
     
     # 1. Summary dashboard;
-    print("Generating imputation summary...")
+    logger.info("Generating imputation summary...")
     fig_summary, _ = plot_imputation_summary(imputer_stats)
     figures['summary'] = fig_summary
     if output_path:
         fig_summary.savefig(f"{output_path}/imputation_summary.png", dpi=150, bbox_inches='tight')
     
     # 2. Initial means comparison;
-    print("Generating initial means comparison...")
+    logger.info("Generating initial means comparison...")
     fig_means, _ = plot_initial_means_comparison(imputer_stats)
     figures['means'] = fig_means
     if output_path:
@@ -380,7 +384,7 @@ def create_imputation_report(
     # 3. Time series comparisons per feature;
     for feature in features:
         if feature in df_before.columns:
-            print(f"Generating time series for {feature}...")
+            logger.info("Generating time series for %s...", feature)
             for station_id in df_before['codigoestacao'].unique()[:3]:  # First 3 stations;
                 try:
                     fig_ts, _ = plot_imputed_vs_original_timeseries(
@@ -393,24 +397,24 @@ def create_imputation_report(
                             dpi=150, bbox_inches='tight'
                         )
                 except Exception as e:
-                    print(f"  Warning: Could not plot {feature} for station {station_id}: {e}")
+                    logger.warning("Could not plot %s for station %s: %s", feature, station_id, e)
     
     # 4. Gap distribution analysis;
     for feature in features:
         if feature in df_before.columns:
-            print(f"Generating gap distribution for {feature}...")
+            logger.info("Generating gap distribution for %s...", feature)
             try:
                 fig_gaps, _ = plot_imputation_gap_distribution(df_before, df_after, feature)
                 figures[f'gaps_{feature}'] = fig_gaps
                 if output_path:
                     fig_gaps.savefig(f"{output_path}/gaps_{feature}.png", dpi=150, bbox_inches='tight')
             except Exception as e:
-                print(f"  Warning: Could not analyze gaps for {feature}: {e}")
+                logger.warning("Could not analyze gaps for %s: %s", feature, e)
     
     # 5. Distribution comparison;
     for feature in features:
         if feature in df_before.columns:
-            print(f"Generating distribution comparison for {feature}...")
+            logger.info("Generating distribution comparison for %s...", feature)
             for station_id in df_before['codigoestacao'].unique()[:3]:  # First 3 stations;
                 try:
                     fig_dist, _ = plot_imputed_values_distribution(
@@ -423,9 +427,9 @@ def create_imputation_report(
                             dpi=150, bbox_inches='tight'
                         )
                 except Exception as e:
-                    print(f"  Warning: Could not plot distribution for {feature} at {station_id}: {e}")
+                    logger.warning("Could not plot distribution for %s at %s: %s", feature, station_id, e)
     
-    print(f"\nGenerated {len(figures)} figures for imputation analysis.")
+    logger.info("Generated %s figures for imputation analysis.", len(figures))
     return figures
 
 
@@ -435,12 +439,12 @@ def create_imputation_report(
 #
 ########################################################################################################################
 if __name__ == "__main__":
-    print("Imputation visualization module loaded.")
-    print("Use the following functions:")
-    print("  - plot_imputation_summary(imputer_stats)")
-    print("  - plot_initial_means_comparison(imputer_stats)")
-    print("  - plot_imputed_vs_original_timeseries(df_before, df_after, station_id, feature)")
-    print("  - plot_imputation_gap_distribution(df_before, df_after, feature)")
-    print("  - plot_imputed_values_distribution(df_before, df_after, feature, station_id)")
-    print("  - create_imputation_report(df_before, df_after, imputer_stats, output_path)")
+    logger.info("Imputation visualization module loaded.")
+    logger.info("Use the following functions:")
+    logger.info("  - plot_imputation_summary(imputer_stats)")
+    logger.info("  - plot_initial_means_comparison(imputer_stats)")
+    logger.info("  - plot_imputed_vs_original_timeseries(df_before, df_after, station_id, feature)")
+    logger.info("  - plot_imputation_gap_distribution(df_before, df_after, feature)")
+    logger.info("  - plot_imputed_values_distribution(df_before, df_after, feature, station_id)")
+    logger.info("  - create_imputation_report(df_before, df_after, imputer_stats, output_path)")
 

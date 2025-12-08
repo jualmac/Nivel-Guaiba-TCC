@@ -1,8 +1,12 @@
 import os
 import json
+import logging
 import pandas as pd
 from dotenv import load_dotenv
 import requests
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 load_dotenv()
 
@@ -23,14 +27,14 @@ def get_auth() -> str:
     }
 
     # Create request;
-    print("[api_auth.py] Atempting connection...")
+    logger.info("Attempting connection...")
     response = requests.get(url, headers=headers)
 
     # Request Reponse:
     if response.status_code == 200:
         data = response.json()
-        print(f"[api_auth.py] Credentials adquired! {data}")
+        logger.info("Credentials acquired: %s", data)
         return(data['items']['tokenautenticacao'])
     else:
-        print(f"[api_auth.py] Request failed with status code {response.status_code}")
+        logger.error("Request failed with status code %s", response.status_code)
         return 0

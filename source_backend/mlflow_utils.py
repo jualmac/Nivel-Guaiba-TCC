@@ -6,11 +6,15 @@ Utility functions for logging experiments with MLflow;
 # LIBRARIES
 #
 ########################################################################################################################
+import logging
 import mlflow
 import mlflow.sklearn
 from typing import Dict, Any, Optional
 import os
 from datetime import datetime
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
@@ -98,5 +102,5 @@ class MLFlowHandler:
             }
             return params
         except Exception as e:
-            print(f"[mlflow_utils.py] Error retrieving best params: {e}")
+            logger.error("Error retrieving best params: %s", e)
             return {}

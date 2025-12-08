@@ -1,9 +1,13 @@
 import os
 import json
+import logging
 import requests
 import pandas as pd
 from source_api.api_auth import get_auth
 from db_handler import DBConnection
+from util import configure_logging
+
+logger = configure_logging(__name__)
 
 # Get proper HidroWeb Token;
 token = get_auth()
@@ -22,7 +26,7 @@ response = requests.get(url, headers=headers)
 # Request Reponse;
 if response.status_code == 200:
     stations = response.json()
-    print('[api_basins.py] Station data colected!')
+    logger.info("Station data collected!")
 
     #Turn station json into a proper dataframe;
     df = pd.DataFrame(stations['items'])
@@ -30,6 +34,6 @@ if response.status_code == 200:
     db_handler = DBConnection()
     db_handler.write(df, 'basins', inplace=True)
 else:
-    print(f"[api_basins.py] Request failed with status code: {response.status_code}")
-    print(f"[api_basins.py] Response text: {response.text}")
-print('[api_basins.py] DONE')
+    logger.error("Request failed with status code: %s", response.status_code)
+    logger.error("Response text: %s", response.text)
+logger.info("DONE")

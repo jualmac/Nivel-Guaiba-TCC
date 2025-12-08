@@ -12,11 +12,14 @@ garantee the reproductability of the data colletion;
 ########################################################################################################################
 import os
 import json
+import logging
 import requests
 import pandas as pd
 from source_api.api_auth import get_auth
 from db_handler import DBConnection
-from util import START_DATE, END_DATE
+from util import START_DATE, END_DATE, configure_logging
+
+logger = configure_logging(__name__)
 
 ########################################################################################################################
 #
@@ -41,17 +44,17 @@ def get_station_data(station_code: str,
     - table_name: Name of the table to save in database (default: "gasometro")
     """
     
-    print(f"\n[api_single_station.py] {'='*60}")
-    print(f"[api_single_station.py] STARTING DATA COLLECTION FOR STATION {station_code}")
-    print(f"[api_single_station.py] Date range: {start_date} to {end_date}")
-    print(f"[api_single_station.py] Table name: {table_name}")
-    print(f"[api_single_station.py] {'='*60}\n")
+    logger.info("%s", "=" * 60)
+    logger.info("STARTING DATA COLLECTION FOR STATION %s", station_code)
+    logger.info("Date range: %s to %s", start_date, end_date)
+    logger.info("Table name: %s", table_name)
+    logger.info("%s", "=" * 60)
     
     # Get proper HidroWeb Token;
     token = get_auth()
     
     if not token:
-        print("[api_single_station.py] Failed to get authentication token")
+        logger.error("Failed to get authentication token")
         return
     
     # Convert dates to datetime objects
@@ -61,16 +64,15 @@ def get_station_data(station_code: str,
     
     # Validate date range
     if start_dt > end_dt:
-        print("[api_single_station.py] Error: start_date cannot be after end_date")
+        logger.error("Error: start_date cannot be after end_date")
         return
     
     # Calculate total days
     total_days = (end_dt - start_dt).days + 1
     
-    print(f"[api_single_station.py] Total date range: {total_days} days")
-    print(f"[api_single_station.py] Will be split into chunks of maximum 30 days each")
-    print(f"[api_single_station.py] Estimated number of API calls: {(total_days + 29) // 30}")
-    print()
+    logger.info("Total date range: %s days", total_days)
+    logger.info("Will be split into chunks of maximum 30 days each")
+    logger.info("Estimated number of API calls: %s", (total_days + 29) // 30)
     
     # Base URL;
     url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaDetalhada/v1"
@@ -99,8 +101,8 @@ def get_station_data(station_code: str,
     auth_retry_count = 0
     max_auth_retries = 5
     
-    print(f"[api_single_station.py] Starting API calls... (Estimated chunks: {estimated_chunks})")
-    print("[api_single_station.py] " + "-" * 40)
+    logger.info("Starting API calls... (Estimated chunks: %s)", estimated_chunks)
+    logger.info("%s", "-" * 40)
     
     while current_date <= end_dt:
         # Calculate remaining days
@@ -143,21 +145,21 @@ def get_station_data(station_code: str,
         }
         
         # Create request for this chunk;
-        print(f"[api_single_station.py] Chunk {chunk_number}: Getting data from {search_date} using {range_days} (actual days: {actual_chunk_days})...")
+        logger.info("Chunk %s: Getting data from %s using %s (actual days: %s)...", chunk_number, search_date, range_days, actual_chunk_days)
         response = requests.get(url, headers=headers, params=params)
         
         # Request Response for this chunk;
         if response.status_code == 200:
             station_data = response.json()
-            print(f'[api_single_station.py] ✓ Chunk {chunk_number} data collected!')
+            logger.info("✓ Chunk %s data collected!", chunk_number)
             
             # Turn station json into a proper dataframe;
             if 'items' in station_data and station_data['items']:
                 df = pd.DataFrame(station_data['items'])
                 all_dataframes.append(df)
-                print(f'[api_single_station.py]   → Chunk {chunk_number}: {len(df)} records collected')
+                logger.info("  → Chunk %s: %s records collected", chunk_number, len(df))
             else:
-                print(f'[api_single_station.py]   → Chunk {chunk_number}: No data items found in the response')
+                logger.info("  → Chunk %s: No data items found in the response", chunk_number)
 
             # Reset auth retry counter on success;
             auth_retry_count = 0
@@ -171,40 +173,40 @@ def get_station_data(station_code: str,
             auth_retry_count += 1
             
             if auth_retry_count > max_auth_retries:
-                print(f'[api_single_station.py] ✗ Max authentication retries ({max_auth_retries}) reached. API may be down.')
-                print(f'[api_single_station.py]   → Stopping data collection at chunk {chunk_number}')
+                logger.error("✗ Max authentication retries (%s) reached. API may be down.", max_auth_retries)
+                logger.error("  → Stopping data collection at chunk %s", chunk_number)
                 break
             
-            print(f'[api_single_station.py] ⚠ Authentication expired. Retrying... (Attempt {auth_retry_count}/{max_auth_retries})')
+            logger.warning("⚠ Authentication expired. Retrying... (Attempt %s/%s)", auth_retry_count, max_auth_retries)
             token = get_auth()
             headers["Authorization"] = f"Bearer {token}"
 
         else:
-            print(f'[api_single_station.py] ✗ Chunk {chunk_number}: Request failed with status code: {response.status_code}')
-            print(f'[api_single_station.py]   → Response text: {response.text}')
+            logger.error("✗ Chunk %s: Request failed with status code: %s", chunk_number, response.status_code)
+            logger.error("  → Response text: %s", response.text)
             # Move to next chunk on other errors to avoid infinite loop;
             current_date = chunk_end_date + timedelta(days=1)
             chunk_number += 1
     
     # Combine all dataframes and save to database
-    print("\n[api_single_station.py] " + "-" * 40)
-    print("[api_single_station.py] PROCESSING COMPLETE")
-    print("[api_single_station.py] " + "-" * 40)
+    logger.info("%s", "-" * 40)
+    logger.info("PROCESSING COMPLETE")
+    logger.info("%s", "-" * 40)
     
     if all_dataframes:
         combined_df = pd.concat(all_dataframes, ignore_index=True)
-        print(f"[api_single_station.py] ✓ Total records collected: {len(combined_df)}")
+        logger.info("✓ Total records collected: %s", len(combined_df))
         
-        print(f"[api_single_station.py] → Saving data to database table '{table_name}'...")
+        logger.info("→ Saving data to database table '%s'...", table_name)
         db_handler = DBConnection()
         db_handler.write(combined_df, table_name, inplace=inplace)
-        print(f"[api_single_station.py] ✓ All data successfully saved to table '{table_name}'")
+        logger.info("✓ All data successfully saved to table '%s'", table_name)
     else:
-        print("[api_single_station.py] ✗ No data was collected from any chunk")
+        logger.warning("✗ No data was collected from any chunk")
     
-    print(f"\n[api_single_station.py] {'='*60}")
-    print(f"[api_single_station.py] SCRIPT EXECUTION COMPLETED")
-    print(f"[api_single_station.py] {'='*60}\n")
+    logger.info("%s", "=" * 60)
+    logger.info("SCRIPT EXECUTION COMPLETED")
+    logger.info("%s", "=" * 60)
 
 # Example usage
 if __name__ == "__main__":
@@ -229,4 +231,4 @@ if __name__ == "__main__":
 
     #================== Estações Jacuí ==================
     get_station_data(station_code="85900000", start_date="2017-10-01", end_date=END_DATE, table_name="station_jacui_1")
-    print('[api_single_station.py] All Done!')
+    logger.info("All Done!")

@@ -7,6 +7,8 @@ This is util package for storing constants, dictionaries and util functions;
 # LIBRARIES
 #
 ########################################################################################################################
+import logging
+import os
 import numpy as np
 import pandas as pd
 import subprocess
@@ -17,6 +19,36 @@ import shutil
 # FUNCTIONS
 #
 ########################################################################################################################
+logger = logging.getLogger(__name__)
+
+
+def configure_logging(logger_name: str | None = None, log_file: str = "logs/pipeline.log", level: int = logging.INFO):
+    """
+    Configure application logging with both console and file handlers.
+
+    Uses root logger to avoid duplicate handler setup across modules. Safe to call multiple
+    times; handlers are only attached once.
+    """
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        formatter = logging.Formatter(
+            fmt="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        root_logger.setLevel(level)
+
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        root_logger.addHandler(stream_handler)
+
+    return logging.getLogger(logger_name or __name__)
+
+
 def is_valid(number):
     if (
         number is None
@@ -80,7 +112,7 @@ def get_device_config(mode: str, model_type: str) -> dict:
     # Check availability if GPU requested
     if mode in ['GPU', 'CUDA']:
         if not is_gpu_available():
-            print(f"Warning: {mode} mode requested but no GPU detected via nvidia-smi. Falling back to CPU.")
+            logger.warning(f"{mode} mode requested but no GPU detected via nvidia-smi. Falling back to CPU.")
             mode = 'CPU'
 
     if mode == 'CPU':
