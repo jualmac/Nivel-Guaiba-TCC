@@ -408,10 +408,12 @@ class BayesianOptimization:
         elif self.model_name == 'lstm':
             pass # LSTM doesn't use n_jobs parameter in this context;
         
-        # Log the final best metric and corresponding parameters to the current active MLflow run (only if logging is enabled);
+        # Log the final best metric and corresponding parameters to the current active MLflow run (only if logging is enabled).
+        # Use prefixed keys to avoid MLflow param conflicts with previously logged parameters in the same run.
         if self.log_mlflow:
-            mlflow.log_metric(f"train_best_kge", study.best_value)
-            mlflow.log_params(best_params)
+            mlflow.log_metric("train_best_kge", study.best_value)
+            prefixed_best_params = {f"opt_{k}": v for k, v in best_params.items()}
+            mlflow.log_params(prefixed_best_params)
             self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
         else:
             self.logger.info(f"MLflow logging disabled. Best parameters found for {self.model_name}.")
