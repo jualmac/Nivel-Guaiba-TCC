@@ -12,6 +12,7 @@ model training, and evaluation;
 ########################################################################################################################
 import os
 import argparse
+import time
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from typing import Optional
@@ -174,6 +175,7 @@ def main_backend(
     
     for name, pipeline in pipelines.items():
         print(f"[main_backend.py] Training {name}...")
+        model_start_time = time.time()  # Track total runtime per model;
         
         # Start MLFlow run for this model (only if logging is enabled);
         if log_mlflow:
@@ -294,6 +296,7 @@ def main_backend(
         all_predictions.append(pred_df)
         
         # Store metrics for this model;
+        model_duration_seconds = time.time() - model_start_time  # End-to-end duration for this model;
         metrics_row = {
             'model_name': name,
             'target_column': target_column,
@@ -305,7 +308,8 @@ def main_backend(
             'train_size': train_size,
             'test_size': test_size,
             'val_size': val_size,
-            'random_state': random_state
+            'random_state': random_state,
+            'duration_seconds': model_duration_seconds
         }
         all_metrics.append(metrics_row)
         
