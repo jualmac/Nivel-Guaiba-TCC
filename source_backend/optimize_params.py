@@ -393,7 +393,7 @@ class BayesianOptimization:
             lambda trial: self.objective(trial),
             n_trials=self.n_trials,
             n_jobs=self.n_jobs,
-            timeout=600  # 10 minutes timeout;
+            # timeout=600  # 10 minutes timeout;
         )
 
         completed_trials = [t for t in study.trials if t.state == TrialState.COMPLETE]
