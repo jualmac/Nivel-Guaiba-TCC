@@ -75,6 +75,7 @@ class LSTMModels:
         self.batch_size = batch
         self.sequence_length = None
         self.mode = mode
+        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility;
         
         # Determine device;
         self.device = torch.device('cuda' if self.mode in ['GPU', 'CUDA'] and torch.cuda.is_available() else 'cpu')
@@ -377,6 +378,7 @@ class LSTMModels:
             feature_pipeline=self.feature_pipeline,
             X_raw=self.X_raw,
             n_splits=self.cv_n_splits,
-            gap=self.cv_gap
+            gap=self.cv_gap,
+            log_mlflow=self.log_mlflow
         )
         return optimizer.optimize()

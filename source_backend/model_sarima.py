@@ -52,6 +52,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         self.mode = mode
         self.max_exog_features = max_exog_features
         self.search_sample_size = search_sample_size
+        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility; SARIMA doesn't use MLFlow but accepts for consistency;
         self.kwargs = kwargs
         
         # Default initialization

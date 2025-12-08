@@ -37,6 +37,7 @@ class DummyModels:
         self.model_name = "dummy"
         self.strategy = strategy
         self.random_state = random_state
+        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility; DUMMY doesn't use MLFlow but accepts for consistency;
 
     def fit(
         self,

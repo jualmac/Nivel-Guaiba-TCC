@@ -45,7 +45,8 @@ def main_backend(
     use_rolling_stats: bool = False,
     use_cumulative: bool = False,
     use_feature_selection: bool = False,
-    n_features: Optional[int] = None
+    n_features: Optional[int] = None,
+    log_mlflow: bool = True
 ) -> None:
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
@@ -76,38 +77,41 @@ def main_backend(
         use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
         n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
             If None, uses default (50) (default: None);
+        log_mlflow (bool): If True, log experiments to MLFlow (default: True);
     
     Returns:
         None: Function performs training and optionally persists results to database;
     """
-    # Initialize MLFlow Handler and log initial parameters;
-    mlflow_handler = MLFlowHandler(experiment_name="river_level_forecasting")
-    mlflow_handler.start_run(run_name="initial_config")
-    
-    # Prepare parameters for logging (convert list to string if needed);
-    log_params = {
-        "target_column": target_column,
-        "models_to_use": str(models_to_use) if models_to_use is not None else "all",
-        "train_size": train_size,
-        "test_size": test_size,
-        "val_size": val_size,
-        "random_state": random_state,
-        "n_trials": n_trials,
-        "batch": batch,
-        "steps": steps,
-        "freq": freq,
-        "mode": mode,
-        "optimize": optimize,
-        "early_stopping": early_stopping,
-        "save_to_db": save_to_db,
-        "use_lags": use_lags,
-        "use_rolling_stats": use_rolling_stats,
-        "use_cumulative": use_cumulative,
-        "use_feature_selection": use_feature_selection,
-        "n_features": n_features if n_features is not None else "None"
-    }
-    mlflow_handler.log_params(log_params)
-    mlflow_handler.end_run()
+    # Initialize MLFlow Handler and log initial parameters (only if logging is enabled);
+    mlflow_handler = None
+    if log_mlflow:
+        mlflow_handler = MLFlowHandler(experiment_name="river_level_forecasting")
+        mlflow_handler.start_run(run_name="initial_config")
+        
+        # Prepare parameters for logging (convert list to string if needed);
+        log_params = {
+            "target_column": target_column,
+            "models_to_use": str(models_to_use) if models_to_use is not None else "all",
+            "train_size": train_size,
+            "test_size": test_size,
+            "val_size": val_size,
+            "random_state": random_state,
+            "n_trials": n_trials,
+            "batch": batch,
+            "steps": steps,
+            "freq": freq,
+            "mode": mode,
+            "optimize": optimize,
+            "early_stopping": early_stopping,
+            "save_to_db": save_to_db,
+            "use_lags": use_lags,
+            "use_rolling_stats": use_rolling_stats,
+            "use_cumulative": use_cumulative,
+            "use_feature_selection": use_feature_selection,
+            "n_features": n_features if n_features is not None else "None"
+        }
+        mlflow_handler.log_params(log_params)
+        mlflow_handler.end_run()
     
     # Read clean data from database;
     print("Loading data from database...")
@@ -171,18 +175,19 @@ def main_backend(
     for name, pipeline in pipelines.items():
         print(f"Training {name}...")
         
-        # Start MLFlow run for this model;
-        mlflow_handler.start_run(run_name=f"train_{name}")
-        
-        # Log general parameters;
-        mlflow_handler.log_params({
-            "target_column": target_column,
-            "train_size": train_size,
-            "test_size": test_size,
-            "val_size": val_size,
-            "random_state": random_state,
-            "model_type": name
-        })
+        # Start MLFlow run for this model (only if logging is enabled);
+        if log_mlflow:
+            mlflow_handler.start_run(run_name=f"train_{name}")
+            
+            # Log general parameters;
+            mlflow_handler.log_params({
+                "target_column": target_column,
+                "train_size": train_size,
+                "test_size": test_size,
+                "val_size": val_size,
+                "random_state": random_state,
+                "model_type": name
+            })
         
         # Build feature pipeline reference (preprocessor + optional steps) for CV leakage-free folds;
         feature_steps = pipeline.steps[:-1]
@@ -267,11 +272,13 @@ def main_backend(
         # Evaluate model;
         model_step = pipeline.named_steps[name] 
         metrics = model_step.metric(y_true=y_test, y_pred=y_pred)
-        mlflow_handler.log_metrics(metrics)
+        if log_mlflow:
+            mlflow_handler.log_metrics(metrics)
         print(f"Model performance: {metrics}")
 
-        # Log the model with input example;
-        mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}", input_example=(X_test.iloc[:1] if hasattr(X_test, 'iloc') else X_test[:1]))
+        # Log the model with input example (only if logging is enabled);
+        if log_mlflow:
+            mlflow_handler.log_model(pipeline, artifact_path=f"model_{name}", input_example=(X_test.iloc[:1] if hasattr(X_test, 'iloc') else X_test[:1]))
         
         # Store predictions and metrics for database saving;
         # Create predictions dataframe for this model;
@@ -302,8 +309,9 @@ def main_backend(
         }
         all_metrics.append(metrics_row)
         
-        # End MLFlow run;
-        mlflow_handler.end_run()
+        # End MLFlow run (only if logging is enabled);
+        if log_mlflow:
+            mlflow_handler.end_run()
     
     # Create combined results dataframe with predictions and metrics;
     if all_predictions:
@@ -379,7 +387,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_cumulative', action='store_true', help='Add cumulative rolling-sum transformer to pipeline')
     parser.add_argument('--no_use_cumulative', dest='use_cumulative', action='store_false', help='Do not add cumulative rolling-sum transformer')
     parser.add_argument('--use_feature_selection', action='store_true', help='Add feature selection based on RandomForest importance')
-    parser.add_argument('--no_use_feature_selection', dest='use_feature_selection', action='store_false', help='Do not add feature selection')   
+    parser.add_argument('--no_use_feature_selection', dest='use_feature_selection', action='store_false', help='Do not add feature selection')
+    parser.add_argument('--log_mlflow', action='store_true', help='Log experiments to MLFlow')
+    parser.add_argument('--no_log_mlflow', dest='log_mlflow', action='store_false', help='Do not log experiments to MLFlow')
 
     # Set default values for booleans;
     parser.set_defaults(
@@ -388,7 +398,8 @@ if __name__ == "__main__":
         use_lags=True,
         use_rolling_stats=True,
         use_cumulative=True,
-        use_feature_selection=True
+        use_feature_selection=True,
+        log_mlflow=True
     )
     
     args = parser.parse_args()
@@ -414,6 +425,7 @@ if __name__ == "__main__":
         use_rolling_stats=args.use_rolling_stats,
         use_cumulative=args.use_cumulative,
         use_feature_selection=args.use_feature_selection,
-        n_features=args.n_features
+        n_features=args.n_features,
+        log_mlflow=args.log_mlflow
         )
     print('All Done!')

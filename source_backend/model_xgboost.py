@@ -56,6 +56,7 @@ class XGBoostModels:
         self.steps = steps
         self.mode = mode
         self.device_config = get_device_config(self.mode, self.model_name)
+        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility;
     
     def fit(self, 
             X: pd.DataFrame = None, 
@@ -283,6 +284,7 @@ class XGBoostModels:
             X_raw=self.X_raw,
             n_splits=self.cv_n_splits,
             gap=self.cv_gap,
-            postprocess_fn=self._add_calendar_features
+            postprocess_fn=self._add_calendar_features,
+            log_mlflow=self.log_mlflow
         )
         return optimizer.optimize()

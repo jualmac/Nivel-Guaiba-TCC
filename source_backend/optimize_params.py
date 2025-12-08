@@ -67,6 +67,7 @@ class BayesianOptimization:
             n_splits: int = 3,
             gap: int = 24,
             postprocess_fn=None,
+            log_mlflow: bool = True,
         ):
         """
         Initializes the BayesianOptimization class with the specified model and parameters.
@@ -103,6 +104,7 @@ class BayesianOptimization:
         self.n_splits = n_splits
         self.gap = gap
         self.postprocess_fn = postprocess_fn
+        self.log_mlflow = log_mlflow
 
     def objective(self, trial: optuna.Trial) -> float:
         """
@@ -411,9 +413,12 @@ class BayesianOptimization:
         elif self.model_name == 'lstm':
             pass # LSTM doesn't use n_jobs parameter in this context;
         
-        # Log the final best metric and corresponding parameters to the current active MLflow run;
-        mlflow.log_metric(f"train_best_kge", study.best_value)
-        mlflow.log_params(best_params)
-
-        self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
+        # Log the final best metric and corresponding parameters to the current active MLflow run (only if logging is enabled);
+        if self.log_mlflow:
+            mlflow.log_metric(f"train_best_kge", study.best_value)
+            mlflow.log_params(best_params)
+            self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
+        else:
+            self.logger.info(f"MLflow logging disabled. Best parameters found for {self.model_name}.")
+        
         return best_params
