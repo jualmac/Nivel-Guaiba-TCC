@@ -1,6 +1,8 @@
 Desastres naturais provocados por eventos climáticos extremos causam impactos profundos e severos de diversas maneiras.
 No aspecto econômico, os recursos alocados para a recuperação de áreas afetadas enfraquecem a microeconomia local,
-tornando a região ainda mais vulnerável a eventos futuros. Sem a devida preparação, tempo e dinheiro investidos em obras e melhorias, sejam elas públicas, comerciais ou até mesmo residencias, podem ser desperdiçados diante de avanços adversos. No entanto, o impacto social é, sem dúvida, o mais significativo. Desde traumas psicológicos até a perda de
+tornando a região ainda mais vulnerável a eventos futuros. Sem a devida preparação, tempo e dinheiro investidos em obras
+e melhorias, sejam elas públicas, comerciais ou até mesmo residencias, podem ser desperdiçados diante de avanços
+adversos. No entanto, o impacto social é, sem dúvida, o mais significativo. Desde traumas psicológicos até a perda de
 vidas, as consequências podem se estender por gerações, perpetuando ciclos de vulnerabilidade e dificultando a
 reconstrução não apenas física, mas também emocional e comunitária. Diferentemente dos prejuízos econômicos e
 estruturais, que podem ser mitigados ao longo do tempo, os danos sociais muitas vezes deixam marcas irreversíveis,
@@ -66,8 +68,6 @@ Estados Unidos e o Canadá, e Güldal et al. (2009) \cite{gudal} que utilizou o 
 ARIMA sem a diferenciação dos valores consecutivos} para a predição do Lago Eğirdir na Túrquia, oferecendo uma base para
 comparações com métodos modernos.
 
-% Se for usar o ETC ou o DOT, aqui é o ponto para mencionar eles;
-
 Esses modelos, eficazes e de baixo custo computacional, apresentam tanto limitações quanto vantagens quando comparados
 com modelos mais recentes desenvolvidos nas áreas de \textit{Machine Learning} (Aprendizado de Máquina) e \textit{Deep
 Learning} (Aprendizado Profundo) \cite{kontopoulou}. No âmbito de \textit{Machine Learning}, modelos baseados em
@@ -88,15 +88,6 @@ em séries temporais, garantindo que informações relevantes de eventos passado
 mantém o contexto de eventos mais recentes. Essa análise é particularmente útil em problemas onde padrões temporais
 complexos e, geralmente, não lineares precisam ser modelados.
 
-% Além dos modelos baseados em RNNs, outra abordagem amplamente utilizada em Aprendizado Profundo são as baseadas em
-% Redes Neurais Perceptron Multicamadas (MLP, \textit{Multilayer Perceptron}). Diferentemente das RNNs, que são
-% projetadas para processar dados sequenciais, as MLPs utilizam camadas conectadas para identificar padrões em conjuntos
-% de dados estruturados. Um exemplo é o modelo NHITS (\textit{Neural Hierarchical Interpolation for Time Series
-% Forecasting}) \cite{challu} que adapta a arquitetura MLP para o contexto de séries temporais. O NHITS emprega uma
-% estratégia hierárquica para interpolar e extrair características relevantes em diferentes escalas temporais,
-% permitindo capturar tanto padrões de curto quanto de longo prazo. Com isso, apresenta uma grande capacidade de lidar
-% com séries temporais irregulares ou com alta variabilidade.
-
 Com todas essas diferentes abordagens em mente, este estudo tem como objetivo principal aplicar essas técnicas no
 contexto específico de predição do nível da água durante as enchentes do Rio Guaíba. O foco está em avaliar a eficácia
 de cada modelo na previsão de séries temporais em um cenário crítico, onde precisão e rapidez são essenciais para a
@@ -104,21 +95,22 @@ tomada de decisões. Para isso, serão utilizados diferentes métodos, abrangend
 SARIMA, até modelos mais recentes como XGBoost, LSTM e outros. A comparação do desempenho desses modelos será realizada
 com base em métricas amplamente reconhecidas na literatura, como o \textit{Root Mean Squared Error} (RMSE), que mede a
 magnitude média dos erros quadráticos; o \textit{Mean Absolute Error} (MAE), que avalia os erros médios absolutos e
-fornece uma visão clara da precisão geral; e o \textit{Nash-Sutcliffe Model Efficiency Coefficient} (NSE), que avalia a
-eficiência preditiva em relação à média observada. 
+fornece uma visão clara da precisão geral; o \textit{Nash-Sutcliffe Model Efficiency Coefficient} (NSE), que avalia a
+eficiência preditiva em relação à média observada e o \textit{Kling–Gupta efficiency} (KGE), uma medida de teste de
+aderência amplamente utilizada em cenários hidrológicos. 
 
 Também será considerada a capacidade dos modelos de lidar com variáveis externas, como precipitação, vento, nível de
-rios afluentes e outros fatores que influenciam diretamente o nível do Rio Guaíba. Este trabalho busca não apenas
-determinar qual análise oferece o menor erro preditivo, mas também compreender como cada técnica responde a diferentes
-dinâmicas do sistema e sua aplicabilidade em situações de gestão de desastres. Essa análise contribuirá para o
-desenvolvimento de estratégias mais robustas e eficazes para a mitigação de impactos de enchentes futuras.
+rios afluentes e outros fatores que influenciam diretamente o nível do Rio Guaíba. Além de também introduzir
+transformações nestes dados com \textit{lag}, estatísticas de janelas temporais e variáveis cumulativas. Este trabalho
+busca não apenas determinar qual análise oferece o menor erro preditivo, mas também compreender como cada técnica
+responde a diferentes dinâmicas do sistema e sua aplicabilidade em situações de gestão de desastres. Essa análise
+contribuirá para o desenvolvimento de estratégias mais robustas e eficazes para a mitigação de impactos de enchentes
+futuras.
 
 Para esta análise, serão utilizados dados  obtidos das estações telemétricas relevantes através do Sistema Nacional de
 Informações sobre Recursos Hídricos (SNIRH), que disponibiliza informações das principais bacias hidrográficas do Brasil
 \cite{snirh}. Esses dados serão a base para as séries históricas do nível das águas do Guaíba, complementados por dados
-externos, como chuva e temperatura também do SNIRH. Dados meteorológicos adicionais serão obtidos a partir de fontes
-públicas, como o Instituto Nacional de Meteorologia (INMET) e o Instituto Brasileiro de Geografia e Estatística (IBGE)
-\cite{inmet, ibge}.
+externos, como precipitação, vazão e temperatura também do SNIRH.
 
 % como os do MERRA-2 (\textit{Modern-Era Retrospective analysis for Research and Applications, Version 2}), um projeto
 % da NASA que integra observações de satélites e estações terrestres para gerar dados meteorológicos globais
