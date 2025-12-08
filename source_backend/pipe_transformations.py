@@ -113,7 +113,8 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
             X_numeric = pd.DataFrame(X, columns=self.feature_names_)
         
         # Transform using the selector;
-        X_transformed = self.selector.transform(X_numeric)
+        X_numeric_array = X_numeric.to_numpy() if isinstance(X_numeric, pd.DataFrame) else X_numeric  # Match fit-time signature to avoid feature-name warning;
+        X_transformed = self.selector.transform(X_numeric_array)
         
         # Return DataFrame if input was DataFrame (or wrapped as such above);
         df_transformed = pd.DataFrame(
