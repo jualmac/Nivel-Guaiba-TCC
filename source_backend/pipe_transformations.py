@@ -122,7 +122,7 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
 
 class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
     """Create lag features for time series"""
-    def __init__(self, lags=[1, 6, 12, 24, 48]):
+    def __init__(self, lags=[6, 12, 24, 48]):
         self.lags = lags
     
     def fit(self, X, y=None):
@@ -135,14 +135,27 @@ class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
         # Identify columns that should not be lagged (date/index-like columns);
         exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
         engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
+        metadata_prefixes = ("altitude", "area_drenagem", "latitude", "longitude", "rio_codigo", "codigoestacao")
         non_lag_cols = {
             col for col in X_copy.columns
             if pd.api.types.is_datetime64_any_dtype(X_copy[col])
-            or (isinstance(col, str) and (col.lower() in exclude_names or col.startswith(engineered_prefixes)))
+            or (
+                isinstance(col, str)
+                and (
+                    col.lower() in exclude_names
+                    or col.startswith(engineered_prefixes)
+                    or ("_status" in col.lower())
+                    or col.lower().startswith(metadata_prefixes)
+                )
+            )
         }
 
         # Add lagged versions for every eligible feature column using concat to avoid fragmentation;
-        feature_cols = [col for col in X_copy.columns if col not in non_lag_cols]
+        feature_cols = [
+            col for col in X_copy.columns
+            if col not in non_lag_cols
+            and pd.api.types.is_numeric_dtype(X_copy[col])
+        ]
         lag_data = {}
         for col in feature_cols:
             for lag in self.lags:
@@ -157,7 +170,7 @@ class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
 
 class RollingStatsTransformer(BaseEstimator, TransformerMixin):
     """Create rolling window statistics"""
-    def __init__(self, windows=[12, 24, 48, 72, 168]):
+    def __init__(self, windows=[24, 48, 72, 168]):
         self.windows = windows
     
     def fit(self, X, y=None):
@@ -170,16 +183,26 @@ class RollingStatsTransformer(BaseEstimator, TransformerMixin):
         # Identify columns that should not be rolled (date/index-like columns);
         exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
         engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
+        metadata_prefixes = ("altitude", "area_drenagem", "latitude", "longitude", "rio_codigo", "codigoestacao")
         non_roll_cols = {
             col for col in X_copy.columns
             if pd.api.types.is_datetime64_any_dtype(X_copy[col])
-            or (isinstance(col, str) and (col.lower() in exclude_names or col.startswith(engineered_prefixes)))
+            or (
+                isinstance(col, str)
+                and (
+                    col.lower() in exclude_names
+                    or col.startswith(engineered_prefixes)
+                    or ("_status" in col.lower())
+                    or col.lower().startswith(metadata_prefixes)
+                )
+            )
         }
 
         # Add rolling statistics for numeric eligible columns using concat to avoid fragmentation;
         feature_cols = [
             col for col in X_copy.columns
-            if col not in non_roll_cols and pd.api.types.is_numeric_dtype(X_copy[col])
+            if col not in non_roll_cols
+            and pd.api.types.is_numeric_dtype(X_copy[col])
         ]
         roll_data = {}
         for col in feature_cols:
@@ -209,16 +232,26 @@ class CumulativeFeaturesTransformer(BaseEstimator, TransformerMixin):
         # Identify columns that should not be accumulated (date/index-like columns);
         exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
         engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
+        metadata_prefixes = ("altitude", "area_drenagem", "latitude", "longitude", "rio_codigo", "codigoestacao")
         non_accum_cols = {
             col for col in X_copy.columns
             if pd.api.types.is_datetime64_any_dtype(X_copy[col])
-            or (isinstance(col, str) and (col.lower() in exclude_names or col.startswith(engineered_prefixes)))
+            or (
+                isinstance(col, str)
+                and (
+                    col.lower() in exclude_names
+                    or col.startswith(engineered_prefixes)
+                    or ("_status" in col.lower())
+                    or col.lower().startswith(metadata_prefixes)
+                )
+            )
         }
 
         # Add rolling-sum cumulative features for numeric eligible columns using concat to avoid fragmentation;
         feature_cols = [
             col for col in X_copy.columns
-            if col not in non_accum_cols and pd.api.types.is_numeric_dtype(X_copy[col])
+            if col not in non_accum_cols
+            and pd.api.types.is_numeric_dtype(X_copy[col])
         ]
         accum_data = {}
         for col in feature_cols:
