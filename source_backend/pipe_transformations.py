@@ -59,7 +59,7 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
 
         # Use RandomForest to compute feature importance;
         rf = RandomForestRegressor(
-            n_estimators=500,
+            n_estimators=100,
             random_state=self.random_state,
             n_jobs=-1,
             max_depth=10
