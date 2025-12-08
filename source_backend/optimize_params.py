@@ -412,7 +412,8 @@ class BayesianOptimization:
         # Use prefixed keys to avoid MLflow param conflicts with previously logged parameters in the same run.
         if self.log_mlflow:
             mlflow.log_metric("train_best_kge", study.best_value)
-            prefixed_best_params = {f"opt_{k}": v for k, v in best_params.items()}
+            model_prefix = f"{self.model_name}"
+            prefixed_best_params = {f"{model_prefix}{k}": v for k, v in best_params.items()}
             mlflow.log_params(prefixed_best_params)
             self.logger.info(f"Best parameters logged to MLflow for {self.model_name}.")
         else:
