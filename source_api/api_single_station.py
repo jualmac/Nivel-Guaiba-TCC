@@ -41,17 +41,17 @@ def get_station_data(station_code: str,
     - table_name: Name of the table to save in database (default: "gasometro")
     """
     
-    print(f"\n{'='*60}")
-    print(f"STARTING DATA COLLECTION FOR STATION {station_code}")
-    print(f"Date range: {start_date} to {end_date}")
-    print(f"Table name: {table_name}")
-    print(f"{'='*60}\n")
+    print(f"\n[api_single_station.py] {'='*60}")
+    print(f"[api_single_station.py] STARTING DATA COLLECTION FOR STATION {station_code}")
+    print(f"[api_single_station.py] Date range: {start_date} to {end_date}")
+    print(f"[api_single_station.py] Table name: {table_name}")
+    print(f"[api_single_station.py] {'='*60}\n")
     
     # Get proper HidroWeb Token;
     token = get_auth()
     
     if not token:
-        print("Failed to get authentication token")
+        print("[api_single_station.py] Failed to get authentication token")
         return
     
     # Convert dates to datetime objects
@@ -61,15 +61,15 @@ def get_station_data(station_code: str,
     
     # Validate date range
     if start_dt > end_dt:
-        print("Error: start_date cannot be after end_date")
+        print("[api_single_station.py] Error: start_date cannot be after end_date")
         return
     
     # Calculate total days
     total_days = (end_dt - start_dt).days + 1
     
-    print(f"Total date range: {total_days} days")
-    print(f"Will be split into chunks of maximum 30 days each")
-    print(f"Estimated number of API calls: {(total_days + 29) // 30}")
+    print(f"[api_single_station.py] Total date range: {total_days} days")
+    print(f"[api_single_station.py] Will be split into chunks of maximum 30 days each")
+    print(f"[api_single_station.py] Estimated number of API calls: {(total_days + 29) // 30}")
     print()
     
     # Base URL;
@@ -99,8 +99,8 @@ def get_station_data(station_code: str,
     auth_retry_count = 0
     max_auth_retries = 5
     
-    print(f"Starting API calls... (Estimated chunks: {estimated_chunks})")
-    print("-" * 40)
+    print(f"[api_single_station.py] Starting API calls... (Estimated chunks: {estimated_chunks})")
+    print("[api_single_station.py] " + "-" * 40)
     
     while current_date <= end_dt:
         # Calculate remaining days
@@ -143,21 +143,21 @@ def get_station_data(station_code: str,
         }
         
         # Create request for this chunk;
-        print(f"Chunk {chunk_number}: Getting data from {search_date} using {range_days} (actual days: {actual_chunk_days})...")
+        print(f"[api_single_station.py] Chunk {chunk_number}: Getting data from {search_date} using {range_days} (actual days: {actual_chunk_days})...")
         response = requests.get(url, headers=headers, params=params)
         
         # Request Response for this chunk;
         if response.status_code == 200:
             station_data = response.json()
-            print(f'✓ Chunk {chunk_number} data collected!')
+            print(f'[api_single_station.py] ✓ Chunk {chunk_number} data collected!')
             
             # Turn station json into a proper dataframe;
             if 'items' in station_data and station_data['items']:
                 df = pd.DataFrame(station_data['items'])
                 all_dataframes.append(df)
-                print(f'  → Chunk {chunk_number}: {len(df)} records collected')
+                print(f'[api_single_station.py]   → Chunk {chunk_number}: {len(df)} records collected')
             else:
-                print(f'  → Chunk {chunk_number}: No data items found in the response')
+                print(f'[api_single_station.py]   → Chunk {chunk_number}: No data items found in the response')
 
             # Reset auth retry counter on success;
             auth_retry_count = 0
@@ -171,40 +171,40 @@ def get_station_data(station_code: str,
             auth_retry_count += 1
             
             if auth_retry_count > max_auth_retries:
-                print(f'✗ Max authentication retries ({max_auth_retries}) reached. API may be down.')
-                print(f'  → Stopping data collection at chunk {chunk_number}')
+                print(f'[api_single_station.py] ✗ Max authentication retries ({max_auth_retries}) reached. API may be down.')
+                print(f'[api_single_station.py]   → Stopping data collection at chunk {chunk_number}')
                 break
             
-            print(f'⚠ Authentication expired. Retrying... (Attempt {auth_retry_count}/{max_auth_retries})')
+            print(f'[api_single_station.py] ⚠ Authentication expired. Retrying... (Attempt {auth_retry_count}/{max_auth_retries})')
             token = get_auth()
             headers["Authorization"] = f"Bearer {token}"
 
         else:
-            print(f'✗ Chunk {chunk_number}: Request failed with status code:', response.status_code)
-            print(f'  → Response text:', response.text)
+            print(f'[api_single_station.py] ✗ Chunk {chunk_number}: Request failed with status code: {response.status_code}')
+            print(f'[api_single_station.py]   → Response text: {response.text}')
             # Move to next chunk on other errors to avoid infinite loop;
             current_date = chunk_end_date + timedelta(days=1)
             chunk_number += 1
     
     # Combine all dataframes and save to database
-    print("\n" + "-" * 40)
-    print("PROCESSING COMPLETE")
-    print("-" * 40)
+    print("\n[api_single_station.py] " + "-" * 40)
+    print("[api_single_station.py] PROCESSING COMPLETE")
+    print("[api_single_station.py] " + "-" * 40)
     
     if all_dataframes:
         combined_df = pd.concat(all_dataframes, ignore_index=True)
-        print(f"✓ Total records collected: {len(combined_df)}")
+        print(f"[api_single_station.py] ✓ Total records collected: {len(combined_df)}")
         
-        print(f"→ Saving data to database table '{table_name}'...")
+        print(f"[api_single_station.py] → Saving data to database table '{table_name}'...")
         db_handler = DBConnection()
         db_handler.write(combined_df, table_name, inplace=inplace)
-        print(f"✓ All data successfully saved to table '{table_name}'")
+        print(f"[api_single_station.py] ✓ All data successfully saved to table '{table_name}'")
     else:
-        print("✗ No data was collected from any chunk")
+        print("[api_single_station.py] ✗ No data was collected from any chunk")
     
-    print(f"\n{'='*60}")
-    print(f"SCRIPT EXECUTION COMPLETED")
-    print(f"{'='*60}\n")
+    print(f"\n[api_single_station.py] {'='*60}")
+    print(f"[api_single_station.py] SCRIPT EXECUTION COMPLETED")
+    print(f"[api_single_station.py] {'='*60}\n")
 
 # Example usage
 if __name__ == "__main__":
@@ -229,4 +229,4 @@ if __name__ == "__main__":
 
     #================== Estações Jacuí ==================
     get_station_data(station_code="85900000", start_date="2017-10-01", end_date=END_DATE, table_name="station_jacui_1")
-    print('All Done!')
+    print('[api_single_station.py] All Done!')

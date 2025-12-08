@@ -114,13 +114,13 @@ def main_backend(
         mlflow_handler.end_run()
     
     # Read clean data from database;
-    print("Loading data from database...")
+    print("[main_backend.py] Loading data from database...")
     db = DBConnection()
     df = db.run("SELECT * FROM data_stations")['result']
-    print(f"Loaded {len(df)} rows from database")
+    print(f"[main_backend.py] Loaded {len(df)} rows from database")
 
     # Split data into train/test sets;
-    print("Splitting data into train/test sets...")
+    print("[main_backend.py] Splitting data into train/test sets...")
     if val_size is not None and val_size > 0:
         X_train, X_val, X_test, y_train, y_val, y_test = data_division(
             df=df,
@@ -129,7 +129,7 @@ def main_backend(
             test_size=test_size,
             val_size=val_size,
             random_state=random_state)
-        print(f"Train set: {(X_train.shape)}\nValidation set: {(X_val.shape)}\nTest set: {(X_test.shape)}")
+        print(f"[main_backend.py] Train set: {(X_train.shape)}\n[main_backend.py] Validation set: {(X_val.shape)}\n[main_backend.py] Test set: {(X_test.shape)}")
 
     else:
         X_train, X_test, y_train, y_test = data_division(
@@ -138,17 +138,17 @@ def main_backend(
             test_size=test_size,
             val_size=val_size,
             random_state=random_state)
-        print(f"Train set: {(X_train.shape)}\nTest set: {(X_test.shape)}")
+        print(f"[main_backend.py] Train set: {(X_train.shape)}\n[main_backend.py] Test set: {(X_test.shape)}")
     
     # Create preprocessing pipeline;
-    print("Creating preprocessing pipeline...")
+    print("[main_backend.py] Creating preprocessing pipeline...")
     preprocessor = encoding_pipeline(target_column=target_column)
     
     # Pre-fit the preprocessor so Validation data can be processed;
     preprocessor.fit(X_train, y_train)
 
     # Create full training pipeline (preprocessing + models);
-    print("Building training pipeline...")
+    print("[main_backend.py] Building training pipeline...")
     pipelines = training_pipeline(
         preprocessor=preprocessor,
         models_to_use=models_to_use,
@@ -166,14 +166,14 @@ def main_backend(
     ) 
     
     # Train each pipeline independently;
-    print("Training model...")
+    print("[main_backend.py] Training model...")
     results = {}
     all_predictions = []
     all_metrics = []
     all_features = []
     
     for name, pipeline in pipelines.items():
-        print(f"Training {name}...")
+        print(f"[main_backend.py] Training {name}...")
         
         # Start MLFlow run for this model (only if logging is enabled);
         if log_mlflow:
@@ -205,7 +205,7 @@ def main_backend(
             })
         
         if val_size is not None and val_size > 0 and name in ['XGBOOST', 'LIGHTGBM']:
-            print(f"Preparing validation data for {name} early stopping...")
+            print(f"[main_backend.py] Preparing validation data for {name} early stopping...")
             
             # Split pipeline into feature engineering and model steps;
             model_step_name, model_instance = pipeline.steps[-1]
@@ -274,7 +274,7 @@ def main_backend(
         metrics = model_step.metric(y_true=y_test, y_pred=y_pred)
         if log_mlflow:
             mlflow_handler.log_metrics(metrics)
-        print(f"Model performance: {metrics}")
+        print(f"[main_backend.py] Model performance: {metrics}")
 
         # Log the model with input example (only if logging is enabled);
         if log_mlflow:
@@ -334,13 +334,13 @@ def main_backend(
         
         # Save ML results to database if flag is set;
         if save_to_db:
-            print("Saving ML results to database...")
+            print("[main_backend.py] Saving ML results to database...")
             save_to_database(
                 df_predictions=df_predictions,
                 df_metrics=df_metrics,
                 df_features=pd.concat(all_features, ignore_index=True) if all_features else None
             )
-    print("Backend pipeline completed!")
+    print("[main_backend.py] Backend pipeline completed!")
 
 ########################################################################################################################
 #
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    print(f'Arguments: {args}')
+    print(f'[main_backend.py] Arguments: {args}')
 
     # Execute main backend pipeline with parsed arguments;
     main_backend(
@@ -428,4 +428,4 @@ if __name__ == "__main__":
         n_features=args.n_features,
         log_mlflow=args.log_mlflow
         )
-    print('All Done!')
+    print('[main_backend.py] All Done!')

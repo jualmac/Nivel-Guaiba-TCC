@@ -146,7 +146,7 @@ def encoding_pipeline(
             - MissingIndicator: Tracks missing values in specified columns;
     """
     # Get list of column names from database (the table should be selectable);
-    print("Loading data from database...")
+    print("[pipe_preparation.py] Loading data from database...")
     db = DBConnection()
     column_names = db.run(
         """

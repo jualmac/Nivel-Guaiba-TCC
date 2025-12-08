@@ -110,21 +110,21 @@ class XGBoostModels:
                 # Process validation features (add calendar features);
                 X_val_processed = self._add_calendar_features(X=X_val.copy())
                 eval_set = [(X_val_processed, y_val)]
-                print("Using validation set for early stopping.")
+                print("[model_xgboost.py] Using validation set for early stopping.")
             
         # Hyperparameter handling;
         best_params = {}
         if optimize_hyperparameters:
-            print("Running Bayesian Optimization...")
+            print("[model_xgboost.py] Running Bayesian Optimization...")
             best_params = self._get_best_params()
             
         else:
-            print("Loading best parameters from MLflow...")
+            print("[model_xgboost.py] Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
             best_params = mlflow_handler.load_best_params(metric_name="score", mode="max")
             
             if not best_params:
-                print("No best params found in MLflow, using defaults.")
+                print("[model_xgboost.py] No best params found in MLflow, using defaults.")
         
         # Convert numeric params that might be strings from MLflow;
         for k, v in best_params.items():
@@ -145,7 +145,7 @@ class XGBoostModels:
                 best_params['eval_metric'] = 'rmse'  # Default evaluation metric;
 
         # Create model with params;
-        print(f"Training XGBoost with params: {best_params}")
+        print(f"[model_xgboost.py] Training XGBoost with params: {best_params}")
         self.model = XGBRegressor(**best_params)
 
         # Fit model with Training data (and validation set for early stopping if provided);

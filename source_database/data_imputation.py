@@ -62,7 +62,7 @@ def feature_imputation(
     imputer_stats = {}
     
     for station in df_cpy['codigoestacao'].unique():
-        print(f"\nImputing station {station}...")
+        print(f"\n[data_imputation.py] Imputing station {station}...")
         df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
@@ -73,7 +73,7 @@ def feature_imputation(
         fully_missing_cols = [col for col in feature_cols if fully_missing[col]]
         
         if fully_missing_cols:
-            print(f"  Skipping fully missing features (cannot impute): {fully_missing_cols}")
+            print(f"[data_imputation.py]   Skipping fully missing features (cannot impute): {fully_missing_cols}")
         
         if cols_to_impute:
             # Track which values were NaN before imputation (to mark status columns later);
@@ -119,7 +119,7 @@ def feature_imputation(
             for col in fully_missing_cols:
                 df_station_imputed[col] = df_station_features[col]
         else:
-            print(f"  Warning: No features to impute for station {station}")
+            print(f"[data_imputation.py]   Warning: No features to impute for station {station}")
             df_station_imputed = df_station_features
             imputer_stats[station] = {'error': 'No features to impute'}
         

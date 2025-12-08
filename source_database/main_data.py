@@ -82,7 +82,7 @@ def main_database(
             df_melted=df_melted
         )
     
-    print("ETL pipeline completed. Clean data ready for model training.")
+    print("[main_data.py] ETL pipeline completed. Clean data ready for model training.")
     return None
 
 ########################################################################################################################
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    print(f'Arguments: {args}')
+    print(f'[main_data.py] Arguments: {args}')
     
     # Execute main database pipeline with parsed arguments;
     main_database(
@@ -115,4 +115,4 @@ if __name__ == "__main__":
         frequency=args.frequency, 
         max_fill_steps=args.max_fill_steps
     )
-    print('All Done!')
+    print('[main_data.py] All Done!')

@@ -98,5 +98,5 @@ class MLFlowHandler:
             }
             return params
         except Exception as e:
-            print(f"Error retrieving best params: {e}")
+            print(f"[mlflow_utils.py] Error retrieving best params: {e}")
             return {}

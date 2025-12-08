@@ -120,14 +120,14 @@ class LSTMModels:
         # Hyperparameter Optmization;
         best_params = {}
         if optimize_hyperparameters:
-            print("Running Bayesian Optimization for LSTM...")
+            print("[model_lstm.py] Running Bayesian Optimization for LSTM...")
             best_params = self._get_best_params()
         else:
-            print("Loading best parameters from MLflow...")
+            print("[model_lstm.py] Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
             best_params = mlflow_handler.load_best_params(metric_name="lstm_best_rmse", mode="min")
             if not best_params:
-                print("No best params found, using defaults.")
+                print("[model_lstm.py] No best params found, using defaults.")
                 best_params = {
                     "hidden_size": 64, "num_layers": 1, 
                     "dropout": 0.0, "learning_rate": 0.001,
@@ -141,7 +141,7 @@ class LSTMModels:
         # Set sequence_length from optimized/loaded params;
         self.sequence_length = best_params.get('sequence_length', 24)
 
-        print(f"Training LSTM with params: {best_params}")
+        print(f"[model_lstm.py] Training LSTM with params: {best_params}")
 
         # Convert inputs to float32 numpy arrays to ensure TensorDataset compatibility
         if isinstance(self.X, pd.DataFrame):
@@ -189,7 +189,7 @@ class LSTMModels:
             if len(X_val_seq) > 0:
                 val_dataset = TensorDataset(torch.FloatTensor(X_val_seq), torch.FloatTensor(y_val_seq))
                 val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
-                print("Using validation set for early stopping.")
+                print("[model_lstm.py] Using validation set for early stopping.")
         
         # Initialize Inner Model;
         self.model = _LSTMRegressor(
@@ -231,7 +231,7 @@ class LSTMModels:
                         val_loss += criterion(outputs, val_y).item()
                 
                 avg_val_loss = val_loss / len(val_loader)
-                print(f"[LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; val_loss={avg_val_loss:.4f};")
+                print(f"[model_lstm.py][LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; val_loss={avg_val_loss:.4f};")
                 
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
@@ -240,11 +240,11 @@ class LSTMModels:
                 else:
                     patience_counter += 1
                     if patience_counter >= early_stopping:
-                        print(f"Early stopping triggered at epoch {epoch}")
+                        print(f"[model_lstm.py] Early stopping triggered at epoch {epoch}")
                         break
                 self.model.train() # Switch back to train mode
             else:
-                print(f"[LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; (no val loader)")
+                print(f"[model_lstm.py][LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; (no val loader)")
         return self
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:

@@ -78,7 +78,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         if training:
             # If we have more columns than allowed, select top K
             if X_clean.shape[1] > self.max_exog_features:
-                print(f"SARIMA: Reducing features from {X_clean.shape[1]} to {self.max_exog_features} for stability.")
+                print(f"[model_sarima.py] SARIMA: Reducing features from {X_clean.shape[1]} to {self.max_exog_features} for stability.")
                 # Use f_regression to select features based on linear correlation with target (y)
                 self.feature_selector = SelectKBest(score_func=f_regression, k=self.max_exog_features)
                 X_reduced = self.feature_selector.fit_transform(X_clean, y)
@@ -119,15 +119,15 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
         self.X_train = self._preprocess_exog(X, training=True, y=y_clean)
         
         # Fit Model;
-        print(f"Fitting SARIMA (AutoARIMA)... Optimization: {optimize_hyperparameters}")
-        print(f"Exogenous features used: {self.X_train.shape[1] if self.X_train is not None else 0}")
+        print(f"[model_sarima.py] Fitting SARIMA (AutoARIMA)... Optimization: {optimize_hyperparameters}")
+        print(f"[model_sarima.py] Exogenous features used: {self.X_train.shape[1] if self.X_train is not None else 0}")
         
         # We use a try-except block because SARIMA is prone to LinAlgErrors with high feature counts
         try:
             if optimize_hyperparameters:
                 # OPTIMIZATION: Use subset for search if data is too large to prevent RAM explosion
                 if len(y_clean) > self.search_sample_size:
-                    print(f"SARIMA: Using last {self.search_sample_size} samples for hyperparameter search to save memory.")
+                    print(f"[model_sarima.py] SARIMA: Using last {self.search_sample_size} samples for hyperparameter search to save memory.")
                     y_search = y_clean[-self.search_sample_size:]
                     X_search = self.X_train[-self.search_sample_size:] if self.X_train is not None else None
                 else:
@@ -157,7 +157,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 )
                 
                 # Refit best model on FULL data
-                print(f"Refitting best order {search_model.order}{search_model.seasonal_order} on full dataset ({len(y_clean)} rows)...")
+                print(f"[model_sarima.py] Refitting best order {search_model.order}{search_model.seasonal_order} on full dataset ({len(y_clean)} rows)...")
                 self.model = pm.ARIMA(
                     order=search_model.order, 
                     seasonal_order=search_model.seasonal_order,
@@ -175,12 +175,12 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 self.model = pm.ARIMA(order=(1, 1, 1), seasonal_order=(1, 1, 1, 12), suppress_warnings=True)
                 self.model.fit(y_clean, X=self.X_train)
                 
-            print(f"SARIMA Best Fit Order: {self.model.order}, Seasonal: {self.model.seasonal_order}")
+            print(f"[model_sarima.py] SARIMA Best Fit Order: {self.model.order}, Seasonal: {self.model.seasonal_order}")
             
         except Exception as e:
-            print(f"SARIMA Auto-Fit Failed: {e}")
+            print(f"[model_sarima.py] SARIMA Auto-Fit Failed: {e}")
             # Fallback to a very simple model to prevent pipeline crash
-            print("Falling back to simple ARIMA(1,0,0) without Exog due to failure.")
+            print("[model_sarima.py] Falling back to simple ARIMA(1,0,0) without Exog due to failure.")
             try:
                 self.model = pm.ARIMA(order=(1, 0, 0), suppress_warnings=True)
                 self.model.fit(y_clean) # Fit without exog as fallback
@@ -212,7 +212,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 self.y_pred = self.model.predict(n_periods=n_steps)
                 
         except Exception as e:
-            print(f"SARIMA Prediction failed: {e}")
+            print(f"[model_sarima.py] SARIMA Prediction failed: {e}")
             self.y_pred = np.zeros(n_steps)
         
         # Handle Series return type;

@@ -23,14 +23,14 @@ def get_auth() -> str:
     }
 
     # Create request;
-    print("Atempting connection...")
+    print("[api_auth.py] Atempting connection...")
     response = requests.get(url, headers=headers)
 
     # Request Reponse:
     if response.status_code == 200:
         data = response.json()
-        print("Credentials adquired!", data)
+        print(f"[api_auth.py] Credentials adquired! {data}")
         return(data['items']['tokenautenticacao'])
     else:
-        print(f"Request failed with status code {response.status_code}")
+        print(f"[api_auth.py] Request failed with status code {response.status_code}")
         return 0

@@ -26,7 +26,7 @@ response = requests.get(url, headers=headers, params=params)
 # Request Reponse;
 if response.status_code == 200:
     stations = response.json()
-    print('Station data colected!')
+    print('[api_all_stations.py] Station data colected!')
 
     #Turn station json into a proper dataframe;
     df = pd.DataFrame(stations['items'])
@@ -34,6 +34,6 @@ if response.status_code == 200:
     db_handler = DBConnection()
     db_handler.write(df, 'stations', inplace=True)
 else:
-    print("Request failed with status code:", response.status_code)
-    print("Response text:", response.text)
-print('DONE')
+    print(f"[api_all_stations.py] Request failed with status code: {response.status_code}")
+    print(f"[api_all_stations.py] Response text: {response.text}")
+print('[api_all_stations.py] DONE')

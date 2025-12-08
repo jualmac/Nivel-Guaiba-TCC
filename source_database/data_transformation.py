@@ -199,7 +199,7 @@ def fill_gaps(
     # Add station metadata;
     stations = df_cpy['codigoestacao'].dropna().unique()
     if len(stations) > 0:
-        print("Loading station metadata from database...")
+        print("[data_transformation.py] Loading station metadata from database...")
         db = DBConnection()
         placeholders = ', '.join(['?'] * len(stations))
         query = f"""
@@ -298,9 +298,9 @@ def melt_dataframe(
     fully_missing_combinations = missing_by_combination[missing_by_combination].index.tolist()
     
     if fully_missing_combinations:
-        print(f"\nExcluding {len(fully_missing_combinations)} fully missing station-metric combinations:")
+        print(f"\n[data_transformation.py] Excluding {len(fully_missing_combinations)} fully missing station-metric combinations:")
         for combo in fully_missing_combinations:
-            print(f"  - {combo}")
+            print(f"[data_transformation.py]   - {combo}")
         melted = melted[~melted['new_col'].isin(fully_missing_combinations)]
     
     # Check for duplicates in Data_Hora_Medicao + codigoestacao + metric combinations;
@@ -308,15 +308,15 @@ def melt_dataframe(
     duplicates_df = melted[duplicate_mask].sort_values(['Data_Hora_Medicao', 'codigoestacao', 'metric'])
     
     if len(duplicates_df) > 0:
-        print(f"Found {len(duplicates_df)} duplicate records (Data_Hora_Medicao + codigoestacao + metric combinations):")
-        print(f"Number of unique duplicate combinations: {len(duplicates_df.drop_duplicates(subset=['Data_Hora_Medicao', 'codigoestacao', 'metric']))}")
-        print("\nFirst 20 duplicate records:")
+        print(f"[data_transformation.py] Found {len(duplicates_df)} duplicate records (Data_Hora_Medicao + codigoestacao + metric combinations):")
+        print(f"[data_transformation.py] Number of unique duplicate combinations: {len(duplicates_df.drop_duplicates(subset=['Data_Hora_Medicao', 'codigoestacao', 'metric']))}")
+        print("\n[data_transformation.py] First 20 duplicate records:")
         print(duplicates_df.head(20))
-        print("\nDuplicate summary by combination:")
+        print("\n[data_transformation.py] Duplicate summary by combination:")
         duplicate_counts = melted.groupby(['Data_Hora_Medicao', 'codigoestacao', 'metric']).size()
         print(duplicate_counts[duplicate_counts > 1].head(10))
     else:
-        print("No duplicates found in Data_Hora_Medicao + codigoestacao + metric combinations")
+        print("[data_transformation.py] No duplicates found in Data_Hora_Medicao + codigoestacao + metric combinations")
     
     # Pivot to wide format using pivot_table to handle duplicates;
     df_pivoted = melted.pivot_table(index='Data_Hora_Medicao', columns='new_col', values='value', aggfunc='first')

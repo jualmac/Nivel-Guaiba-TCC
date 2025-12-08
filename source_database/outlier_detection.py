@@ -51,7 +51,7 @@ def outlier_removal(
     
     processed_stations = []
     for station in df_cpy['codigoestacao'].unique():
-        print(f"\nProcessing station {station}...")
+        print(f"\n[outlier_detection.py] Processing station {station}...")
         df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
@@ -62,11 +62,11 @@ def outlier_removal(
         fully_missing_cols = [col for col in feature_cols if fully_missing[col]]
         
         if fully_missing_cols:
-            print(f"  Skipping fully missing features for outlier detection: {fully_missing_cols}")
+            print(f"[outlier_detection.py]   Skipping fully missing features for outlier detection: {fully_missing_cols}")
         
         # If no features available, skip outlier detection for this station;
         if not available_feature_cols:
-            print(f"  Warning: No available features for station {station}. Skipping outlier detection.")
+            print(f"[outlier_detection.py]   Warning: No available features for station {station}. Skipping outlier detection.")
             processed_stations.append(df_station)
             continue
         
@@ -77,21 +77,21 @@ def outlier_removal(
         
         # If no complete rows, skip outlier detection;
         if len(df_complete) == 0:
-            print(f"  Warning: No complete rows for station {station}. Skipping outlier detection.")
+            print(f"[outlier_detection.py]   Warning: No complete rows for station {station}. Skipping outlier detection.")
             processed_stations.append(df_station)
             continue
         
-        print(f"  Using {len(available_feature_cols)} features and {len(df_complete)} complete rows for outlier detection")
+        print(f"[outlier_detection.py]   Using {len(available_feature_cols)} features and {len(df_complete)} complete rows for outlier detection")
         
         # ECOD Detection;
-        print("[ECOD DETECTOR]")
+        print("[outlier_detection.py] [ECOD DETECTOR]")
         # Fit model with minimal contamination to extract decision scores (Actual threshold is determined dynamically via IQR/percentile method below);
         ecod_detector = ECOD(contamination=0.001)
         ecod_detector.fit(df_complete)
         ecod_scores = ecod_detector.decision_scores_
         
         # PCA Detection;
-        print("[PCA DETECTOR]")
+        print("[outlier_detection.py] [PCA DETECTOR]")
         # Fit model with minimal contamination to extract decision scores (Actual threshold is determined dynamically via IQR/percentile method below);
         pca_detector = PCA(contamination=0.001)
         pca_detector.fit(df_complete)
@@ -110,8 +110,8 @@ def outlier_removal(
             pca_threshold = pca_q3 + 1.5 * pca_iqr
             pca_predictions = (pca_scores > pca_threshold).astype(int)
             
-            print(f"  ECOD: threshold={ecod_threshold:.4f}, outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
-            print(f"  PCA: threshold={pca_threshold:.4f}, outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
+            print(f"[outlier_detection.py]   ECOD: threshold={ecod_threshold:.4f}, outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
+            print(f"[outlier_detection.py]   PCA: threshold={pca_threshold:.4f}, outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
         
         # Fixed ammount of outliers; 
         elif threshold_method == 'percentile':
@@ -122,14 +122,14 @@ def outlier_removal(
             pca_threshold = np.percentile(pca_scores, 95)
             pca_predictions = (pca_scores > pca_threshold).astype(int)
             
-            print(f"  ECOD: threshold={ecod_threshold:.4f} (95th percentile), outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
-            print(f"  PCA: threshold={pca_threshold:.4f} (95th percentile), outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
+            print(f"[outlier_detection.py]   ECOD: threshold={ecod_threshold:.4f} (95th percentile), outliers={ecod_predictions.sum()}/{len(ecod_predictions)} ({100*ecod_predictions.sum()/len(ecod_predictions):.2f}%)")
+            print(f"[outlier_detection.py]   PCA: threshold={pca_threshold:.4f} (95th percentile), outliers={pca_predictions.sum()}/{len(pca_predictions)} ({100*pca_predictions.sum()/len(pca_predictions):.2f}%)")
         else:
             raise ValueError(f"Unknown threshold_method: {threshold_method}. Use 'iqr' or 'percentile'")
 
         # Combined outliers (intersection of both detectors - only flag if both agree -> Imply consensus);
         combined_outliers = (ecod_predictions & pca_predictions).astype(bool)
-        print(f"  Consensus: {combined_outliers.sum()}/{len(combined_outliers)} outliers ({100*combined_outliers.sum()/len(combined_outliers):.2f}%)")
+        print(f"[outlier_detection.py]   Consensus: {combined_outliers.sum()}/{len(combined_outliers)} outliers ({100*combined_outliers.sum()/len(combined_outliers):.2f}%)")
         
         # Map outliers back to original dataframe (only for available features);
         complete_indices = df_station_available[complete_mask].index
@@ -140,7 +140,7 @@ def outlier_removal(
             original_count = df_station[feature].isna().sum()
             df_station.loc[outlier_indices, feature] = np.nan
             new_count = df_station[feature].isna().sum()
-            print(f"  {feature}: {original_count} → {new_count} missing values")
+            print(f"[outlier_detection.py]   {feature}: {original_count} → {new_count} missing values")
             
             # Update status to track outlier replacement;
             status_col = feature + '_Status'
