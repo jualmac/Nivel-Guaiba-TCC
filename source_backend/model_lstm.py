@@ -230,6 +230,7 @@ class LSTMModels:
                         val_loss += criterion(outputs, val_y).item()
                 
                 avg_val_loss = val_loss / len(val_loader)
+                print(f"[LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; val_loss={avg_val_loss:.4f};")
                 
                 if avg_val_loss < best_val_loss:
                     best_val_loss = avg_val_loss
@@ -241,6 +242,8 @@ class LSTMModels:
                         print(f"Early stopping triggered at epoch {epoch}")
                         break
                 self.model.train() # Switch back to train mode
+            else:
+                print(f"[LSTM][Epoch {epoch+1}/{epochs}] train_loss={train_loss/len(train_loader):.4f}; (no val loader)")
         return self
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
