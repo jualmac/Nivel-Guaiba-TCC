@@ -37,7 +37,8 @@ def create_model_pipeline(
     use_rolling_stats: bool = False,
     use_cumulative: bool = False,
     use_feature_selection: bool = False, 
-    n_features: Optional[int] = None
+    n_features: Optional[int] = None,
+    mode: str = 'CPU'
     ):
     """
     Create a pipeline for a single model with optional lag features and feature selection.
@@ -52,6 +53,7 @@ def create_model_pipeline(
         use_feature_selection (bool): If True, add feature selection step (default: False).
         n_features (Optional[int]): Number of features to select if use_feature_selection=True.
             If None, uses default (50) (default: None).
+        mode (str): Device mode for feature selection GPU acceleration ('CPU', 'GPU', 'CUDA') (default: 'CPU').
     
     Returns:
         Pipeline: sklearn Pipeline with preprocessing, optional lags, optional feature selection, and model.
@@ -74,7 +76,7 @@ def create_model_pipeline(
     # Add feature selection if requested;
     if use_feature_selection:
         n_feat = n_features if n_features is not None else 50
-        steps.append(("feature_selection", FeatureImportanceSelector(n_features=n_feat)))
+        steps.append(("feature_selection", FeatureImportanceSelector(n_features=n_feat, mode=mode)))
     
     # Add model as final step;
     steps.append((model_name, model))
@@ -135,7 +137,8 @@ def training_pipeline(
             use_rolling_stats=use_rolling_stats,
             use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
-            n_features=20 #Harcoded due to slowness of SARIMA;
+            n_features=20, #Harcoded due to slowness of SARIMA;
+            mode=mode
         ),
         'LSTM': create_model_pipeline(
             LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
@@ -145,7 +148,8 @@ def training_pipeline(
             use_rolling_stats=use_rolling_stats,
             use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
-            n_features=n_features
+            n_features=n_features,
+            mode=mode
         ),
         'XGBOOST': create_model_pipeline(
             XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
@@ -155,7 +159,8 @@ def training_pipeline(
             use_rolling_stats=use_rolling_stats,
             use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
-            n_features=n_features
+            n_features=n_features,
+            mode=mode
         ),
         'LIGHTGBM': create_model_pipeline(
             LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
@@ -165,7 +170,8 @@ def training_pipeline(
             use_rolling_stats=use_rolling_stats,
             use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
-            n_features=n_features
+            n_features=n_features,
+            mode=mode
         ),
         'DUMMY': create_model_pipeline(
             DummyModels(strategy='mean', random_state=random_state, log_mlflow=log_mlflow, **kwargs),
@@ -175,7 +181,8 @@ def training_pipeline(
             use_rolling_stats=use_rolling_stats,
             use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
-            n_features=n_features
+            n_features=n_features,
+            mode=mode
         )
     }
 

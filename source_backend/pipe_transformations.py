@@ -10,7 +10,8 @@ import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import SelectKBest, f_regression, SelectFromModel
-from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from util import get_device_config
 
 ########################################################################################################################
 #
@@ -24,16 +25,18 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
     Selects top k features based on RandomForestRegressor importance scores.
     Useful for tree-based models and provides interpretable feature selection.
     """
-    def __init__(self, n_features: int = 50, random_state: int = 42):
+    def __init__(self, n_features: int = 50, random_state: int = 42, mode: str = 'GPU'):
         """
         Initialize feature importance selector.
         
         Parameters:
             n_features (int): Number of top features to select (default: 50).
             random_state (int): Random seed for RandomForest (default: 42).
+            mode (str): Device mode for GPU acceleration ('CPU', 'GPU', 'CUDA') (default: 'GPU').
         """
         self.n_features = n_features
         self.random_state = random_state
+        self.mode = mode
         self.selector = None
         self.selected_features_ = None
         self.numeric_indices_ = None
@@ -57,20 +60,27 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
         # Track feature names for reuse in transform;
         self.feature_names_ = X_numeric.columns.tolist()
 
-        # Use RandomForest to compute feature importance;
-        rf = RandomForestRegressor(
-            n_estimators=500,
-            random_state=self.random_state,
-            n_jobs=-1,
-            max_depth=10
-        )
+        # Configure XGBoost for feature importance (uses GPU when available);
+        device_cfg = get_device_config(self.mode, "xgboost")
+        xgb_params = {
+            "n_estimators": 300,
+            "max_depth": 8,
+            "learning_rate": 0.05,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "random_state": self.random_state,
+            "objective": "reg:squarederror",
+            "n_jobs": -1,
+            **device_cfg
+        }
+        model = XGBRegressor(**xgb_params)
         
         # Fit only on numeric data
-        rf.fit(X_numeric, y)
+        model.fit(X_numeric, y)
         
         # Select top n_features based on importance;
         self.selector = SelectFromModel(
-            rf,
+            model,
             prefit=True,
             max_features=self.n_features,
             threshold=-np.inf
