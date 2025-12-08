@@ -1,3 +1,27 @@
+\section{Metodologia}
+Este trabalho implementou uma abordagem experimental para avaliação comparativa dos modelos preditivos descritos
+anteriormente. Inicialmente, os dados do SNIRH foram submetidos a um pré-processamento abrangente, incluindo tratamento de
+valores faltantes mediante técnicas de interpolação temporal, detecção de \textit{outliers} via análise por PCA e ECOD, e
+normalização. Os dados foram particionados cronologicamente em conjuntos de treino (70\%), validação (15\%) e
+teste (15\%), assegurando-se a preservação da sequência temporal para prevenir vazamento de informação.
+
+Cada categoria de modelo exigiu transformações específicas dos dados, visto que cada um conta com um algoritmo
+diferente de implementação e uma lógica interna distinta. Para o SARIMA, foi aplicada diferenciação e decomposição
+sazonal. Modelos baseados em árvores requeriram codificação de variáveis temporais. Já redes LSTM demandaram janelamento
+sequencial. O treinamento foi conduzido em \textit{pipelines} isolados, incorporando validação cruzada temporal e
+otimização Bayesiana de hiperparâmetros para minimizar o KGE no conjunto de validação.
+
+Na fase de avaliação, as predições geradas para o período de teste foram confrontadas com dados observados reservados de
+teste mediante métricas hidrologicamente relevantes - coeficiente de Nash-Sutcliffe (NSE), RMSE e erro absoluto médio
+(MAE) - complementadas por análise de sensibilidade a eventos extremos e avaliação de robustez computacional. Esta
+estrutura metodológica visou garantir comparação objetiva do desempenho preditivo.
+
+% Os resultados da análise comparativa serão disponibilizados através de um painel interativo (dashboard) desenvolvido
+% após a consolidação das avaliações dos modelos. Esta plataforma de visualização, hospedada em acesso aberto, integrará
+% dados históricos do nível do Rio Guaíba com as predições geradas pelos diferentes modelos, apresentando múltiplos
+% cenários hidrológicos contextualizados por análises explicativas. Os usuários poderão explorar dinamicamente os dados
+% mediante filtros temporais personalizáveis, permitindo focalizar períodos de interesse específico como eventos extremos
+% ou fases sazonais críticas.
 
 \section{Fonte de Dados}
 Este trabalho empregou dados primários do Portal Hidroweb, integrante do Sistema Nacional de Informações sobre Recursos
@@ -18,8 +42,8 @@ analisadas quanto à disponibilidade, qualidade, lacunas, duração e representa
 finalidades específicas (energéticas, piezométricas etc.), que não apresentam as informações relevantes para este
 estudo. 
 
-% \begin{figure}[htb] \caption{\label{funil} Funil de estações selecionadas do SNIRH} \begin{center}
-%   \includegraphics[scale=0.34]{img/funil_estações.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
+\begin{figure}[htb] \caption{\label{funil} Funil de estações selecionadas do SNIRH} \begin{center}
+  \includegraphics[scale=0.34]{img/funil_estações.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
 Com isto, determinou-se que somente 15 estações na Bacia Hidrográfica do Guaíba apresentavam informações da forma
 desejada. Destas, foram selecionadas pelo menos uma para cada um dos principais rios listados acima. Alguns rios, como o
@@ -84,33 +108,55 @@ faltantes ou preenchidas. Este padrão é dado de tal forma: Status 0=Normal, 1=
 % Temperatura_Agua, Temperatura_Agua_Status, Temperatura_Interna, Vazao_Adotada, Vazao_Adotada_Status, codigoestacao,
 % Temperatura_Interna_Status
 
-\section{Pré-processamento de dados}
-AAA
+\section{Processamento de dados}
+O primeiro e maior desafio enfrentado nos dados coletados foram os valores faltantes. Certos atributos estão
+consistentemente faltando do dataset, como valores de 'Pressao\_Atmosferica' e 'Temperatura\_Agua' infelizmente
+apresentam muitos valores faltantes para serem de qualquer uso nessa análise e logo serão desconsiderados daqui pra
+frente.
 
-\section{Metodologia}
-Este trabalho implementa uma abordagem experimental para avaliação comparativa dos modelos preditivos descritos
-anteriormente. Inicialmente, os dados do SNIRH serão submetidos a pré-processamento abrangente, incluindo tratamento de
-valores faltantes mediante técnicas de interpolação temporal, detecção de \textit{outliers} via análise por PCA, e
-normalização. Os dados serão então particionados cronologicamente em conjuntos de treino (70\%), validação (15\%) e
-teste (15\%), assegurando-se a preservação da sequência temporal para prevenir vazamento de informação.
+\begin{figure}[htb] \caption{\label{faltantes} Valores faltantes} \begin{center}
+  \includegraphics[scale=0.53]{img/faltantes.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
-Cada categoria de modelo exigirá transformações específicas dos dados, visto que cada um conta com um algoritmo
-diferente de implementação e uma lógica interna distinta. Para o SARIMA, será aplicada diferenciação e decomposição
-sazonal. Modelos baseados em árvores requerem codificação de variáveis temporais. Já redes LSTM demandam janelamento
-sequencial. O treinamento será conduzido em \textit{pipelines} isolados, incorporando validação cruzada temporal e
-otimização bayesiana de hiperparâmetros para minimizar o RMSE no conjunto de validação.
+Também vale considerar todos aqueles relacionados à Cota. Estes, em especial, são formas de medir o nível da água.
+'Cota\_Manual', por exemplo, representa medidas feitas com uma régua ao invés das medidas automatizadas do sensor. Dado
+isto, usaremos valores de 'Cota\_Manual' e 'Cota\_Sensor' para preencher valores faltantes de 'Cota\_Adotada';
 
-Na fase de avaliação, as predições geradas para o período de teste serão confrontadas com dados observados reservados de
-teste mediante métricas hidrologicamente relevantes - coeficiente de Nash-Sutcliffe (NSE), RMSE e erro absoluto médio
-(MAE) - complementadas por análise de sensibilidade a eventos extremos e avaliação de robustez computacional. Esta
-estrutura metodológica visa garantir comparação objetiva do desempenho preditivo.
+Para escolher quais dados seriam utilizados nos modelos de predição, também foi realizada uma análise da correlação dos
+valores, presente na \autoref{correlacao}.
 
-Os resultados da análise comparativa serão disponibilizados através de um painel interativo (dashboard) desenvolvido
-após a consolidação das avaliações dos modelos. Esta plataforma de visualização, hospedada em acesso aberto, integrará
-dados históricos do nível do Rio Guaíba com as predições geradas pelos diferentes modelos, apresentando múltiplos
-cenários hidrológicos contextualizados por análises explicativas. Os usuários poderão explorar dinamicamente os dados
-mediante filtros temporais personalizáveis, permitindo focalizar períodos de interesse específico como eventos extremos
-ou fases sazonais críticas.
+\begin{figure}[htb] \caption{\label{correlacao} Correlação entre os dados das estações} \begin{center}
+  \includegraphics[scale=0.275]{img/correlacao.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
+
+A análise de correlação evidencia que as variáveis 'Cota\_Manual', 'Cota\_Sensor' e 'Cota\_Display' apresentam forte
+correlação linear com o alvo 'Cota\_Adotada'. Observa-se que 'Cota\_Manual' possui mais de 99\% de valores ausentes, e
+os registros válidos restantes concentram-se majoritariamente em pontos nos quais 'Cota\_Adotada' não está disponível.
+Esse padrão sugere que as medições manuais são utilizadas como mecanismo de contingência em situações de manutenção ou
+falha dos sensores automáticos. Adicionalmente, 'Cota\_Sensor' e 'Cota\_Display' mostram-se, na maior parte do tempo,
+virtualmente idênticas a 'Cota\_Adotada', o que é consistente com o fluxo operacional da estação, no qual as leituras
+oficiais derivam predominantemente dos sensores automáticos.
+
+A variável 'Vazao\_Adotada' apresenta elevada correlação com 'Cota\_Adotada', o que é consistente com o comportamento
+hidrodinâmico esperado: incrementos de vazão (m\textsuperscript{3}/s) em um canal de geometria aproximadamente fixa
+tendem a elevar o nível d'água até o ponto em que o escoamento interage áreas de várzea adjacentes. Essa variável
+constitui um preditor importante devido à sua forte associação com a variável alvo e à sua baixa correlação com o
+restante dos atributos, indicando aporte de informação complementar ao modelo. No entanto, há uma alta taxa de valores
+ausentes (>15\%), cuja magnitude varia entre estações. A estação alvo (Guaíba) não possui registros de vazão, o que
+inviabiliza seu uso direto nessa localidade. Ainda assim, dada a elevada dependência física entre vazão e nível,
+optou-se por manter essa variável no processo de modelagem, mesmo que as mesmas impliquem um maior processamento dos
+dados.
+
+Com base na análise de correlação e na avaliação de valores faltantes, foram selecionadas as seguintes variáveis para os
+modelos de \textit{Machine Learning}: 'Cota\_Adotada', correspondente ao nível do rio em centímetros, cujos valores
+ausentes serão imputados a partir de 'Cota\_Manual' e 'Cota\_Sensor' sempre que disponíveis; 'Chuva\_Adotada',
+representando a precipitação acumulada desde a última leitura, em milímetros; 'Temperatura\_Interna', Correspondente à
+temperatura atmosférica medida no equipamento, em °C; e 'Vazao\_Adotada', que indica o fluxo de água registrado pelo
+sensor em $\frac{m^{3}}{s}$.
+
+A variável 'Chuva\_Acumulada' também foi inicialmente escolhida e trabalhada junto das outras variáveis por um bom
+tempo. Contudo, depois de análises mais aprofundadas, a parte "Acumulada" da mesma se mostrou inconsistênte, dado que
+deveria representar a precipitação acumulada na estação por mês, mas o mesmo não se mostrou consistênte através das
+diferentes estações. Logo, junto de outras transformações, a mesma foi recriada a partir da variável 'Chuva\_Adotada',
+em um processo que será explicado melhor mais a frente.
 
 \section{Ferramentas e recursos utilizados}
 O desenvolvimento da parte escrita deste trabalho será feita em \LaTeX, utilizando o modelo \abnTeX, desenvolvido por
@@ -129,7 +175,8 @@ garantindo integração nativa com bibliotecas científicas (\textit{Pandas}, \t
 hospedagem no \textit{Streamlit Community Cloud} assegurará disponibilidade pública contínua e atualizações automáticas
 conforme novos dados ou modelos forem incorporados.
 
-% \section{Setup Experimental para treinamento de modelos} The training process was conducted in a machine with the
-% following specifica- tions: 12th Gen Intel(R) Core(TM) i5-12500H, 16GB RAM and a NVIDIA GeForce RTX 3050 Laptop 4GB
-% VRAM. The LSTM model takes in training around 1.5 seconds per epoch, which led to around 2.5 to 4 minutes per
-% experiment. Additionally, the feature importance calculation for each prediction takes around 1 second per prediction.
+\section{Setup Experimental para treinamento de modelos} 
+The training process was conducted in a machine with the following specifica- tions: 12th Gen Intel(R) Core(TM)
+i5-12500H, 16GB RAM and a NVIDIA GeForce RTX 3050 Laptop 4GB VRAM. The LSTM model takes in training around 1.5 seconds
+per epoch, which led to around 2.5 to 4 minutes per experiment. Additionally, the feature importance calculation for
+each prediction takes around 1 second per prediction.
