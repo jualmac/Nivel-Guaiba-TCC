@@ -62,7 +62,7 @@ def main_database(
     df_filled, missing = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Identify and remove Outliers (dynamic threshold per station);
-    df_out = outlier_removal(df=df_filled, threshold_method='iqr')
+    df_out = outlier_removal(df=df_filled, threshold_method='percentile')
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_out, frequency=frequency)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     
     # Main database parameters;
     parser.add_argument('--frequency', type=str, default='h', help='Pandas frequency string for time aggregation (e.g., 15min, h, D, W)')
-    parser.add_argument('--max_fill_steps', type=int, default=96, help='Max 15-minute intervals to interpolate gaps (default: 96 = 24 hours)')
+    parser.add_argument('--max_fill_steps', type=int, default=672, help='Max 15-minute intervals to interpolate gaps (default: 96 = 24 hours)')
     
     # Bool arguments;
     parser.add_argument('--save_to_db', action='store_true', help='Save all intermediate dataframes to DuckDB')

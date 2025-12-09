@@ -120,10 +120,10 @@ def outlier_removal(
         # Fixed ammount of outliers; 
         elif threshold_method == 'percentile':
             # Percentile method: use 95th percentile as threshold (top 5% are outliers);
-            ecod_threshold = np.percentile(ecod_scores, 95)
+            ecod_threshold = np.percentile(ecod_scores, 99)
             ecod_predictions = (ecod_scores > ecod_threshold).astype(int)
             
-            pca_threshold = np.percentile(pca_scores, 95)
+            pca_threshold = np.percentile(pca_scores, 99)
             pca_predictions = (pca_scores > pca_threshold).astype(int)
             
             logger.info("ECOD: threshold=%.4f (95th percentile), outliers=%s/%s (%.2f%%)", ecod_threshold, ecod_predictions.sum(), len(ecod_predictions), 100*ecod_predictions.sum()/len(ecod_predictions))
