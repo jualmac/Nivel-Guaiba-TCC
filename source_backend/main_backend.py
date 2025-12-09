@@ -384,7 +384,7 @@ if __name__ == "__main__":
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=20, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=100, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, 

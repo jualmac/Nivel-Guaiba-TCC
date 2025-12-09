@@ -63,7 +63,7 @@ def main_database(
     df_filled, missing = fill_gaps(df=df_cleaned, max_fill_steps=max_fill_steps)
 
     # Identify and remove Outliers (dynamic threshold per station);
-    df_out = outlier_removal(df=df_filled, threshold_method='percentile')
+    df_out = outlier_removal(df=df_filled, threshold_method='iqr')
 
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_out, frequency=frequency)

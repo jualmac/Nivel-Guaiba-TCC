@@ -156,7 +156,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     stepwise=False,                         # Impacts performance -> Controls full grid search;
                     approximation=True,                     # Uses CSS instead of MLE for search;
                     maxiter=25,                             # Stop solver if not converging quickly;
-                    n_jobs=1,                               # Set to 1 for stability with exog variables
+                    n_jobs=1,                               # Set to 1 for stability with exog variables -> Maybe change to -1 (does it even matter with CPU only?);
                     random_state=self.random_state,
                 )
                 
