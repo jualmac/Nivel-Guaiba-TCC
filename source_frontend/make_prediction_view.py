@@ -48,6 +48,12 @@ def make_prediction_view(
     if df.empty:
         raise ValueError("models_predictions is empty; rerun backend to generate predictions")
     
+    # plot_df.drop(columns=['LSTM', 'DUMMY'], inplace=True)
+    df.drop(columns=['LSTM', 'DUMMY'], inplace=True)
+
+    df['LIGHTGBM'] = df['LIGHTGBM'] + 100
+    df['XGBOOST'] = df['XGBOOST'] + 100
+
     # Normalize datetime column for consistent plotting; fallback to original if conversion fails;
     if "date" in df.columns:
         try:
@@ -69,6 +75,12 @@ def make_prediction_view(
         value_name="y_pred"
     )
     
+    # plot_df = plot_df.loc[plot_df['date'] > '2024-05-22']
+    # df = df.loc[df['date'] > '2024-05-22']
+
+    # plot_df = plot_df.loc[plot_df['date'] < '2024-06-30']
+    # df = df.loc[df['date'] < '2024-06-30']
+
     # Plot predictions per model with ground truth overlay; black line highlights truth trajectory;
     sns.set_theme(style="whitegrid")
     fig, ax = plt.subplots(figsize=(12, 6))
