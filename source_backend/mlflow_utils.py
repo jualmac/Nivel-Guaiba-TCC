@@ -30,9 +30,12 @@ class MLFlowHandler:
             experiment_name (str): Name of the experiment in MLFlow.
             tracking_uri (str): URI for MLFlow tracking server (default: local ./mlruns).
         """
-        if tracking_uri:
-            mlflow.set_tracking_uri(tracking_uri)
-            
+        if tracking_uri is None:
+            # Use file-based SQLite backend for MLflow tracking to avoid file store warnings.
+            default_db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "ml_loger.db"))
+            tracking_uri = f"sqlite:///{default_db_path}"
+        mlflow.set_tracking_uri(tracking_uri)
+
         mlflow.set_experiment(experiment_name)
         self.experiment_name = experiment_name
 
