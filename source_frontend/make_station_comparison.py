@@ -1,5 +1,4 @@
 """
-Create station comparison plot and persist to PNG;
 """
 ########################################################################################################################
 #                                                                  
@@ -21,12 +20,8 @@ from util import convert_to_float, STATION_COLS, AGG_DICT, START_DATE, END_DATE,
 # FUNCTION
 #
 ########################################################################################################################
-def make_station_comparison(df: pd.DataFrame = None, output_path: str = "data/comparação_nível_estações.png") -> str:
-    # Validate input to avoid silent failures;
-    if df is None:
-        raise ValueError("DataFrame df must be provided")
-
-    # Copy to avoid mutating caller data;
+def make_station_comparison(df: pd.DataFrame == None):
+    # Rename;
     df_cpy = df.copy()
     
     if "Data_Hora_Medicao" in df_cpy.columns:
@@ -78,17 +73,4 @@ def make_station_comparison(df: pd.DataFrame = None, output_path: str = "data/co
     # Update x-axes labels for bottom row;
     for i in range(7, 10):
         fig.update_xaxes(title_text="Data_Hora_Medicao", row=3, col=i-6)
-
-    # Ensure output directory exists before saving;
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    # Persist plot to PNG; requires kaleido backend for static export;
-    try:
-        fig.write_image(output_path)
-    except Exception as exc:
-        raise RuntimeError(
-            "Failed to write PNG. Install kaleido (pip install -U kaleido)."
-        ) from exc
-
     fig.show()
-    return os.path.abspath(output_path)
