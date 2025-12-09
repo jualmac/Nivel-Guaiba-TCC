@@ -63,7 +63,7 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
         # Configure XGBoost for feature importance (uses GPU when available);
         device_cfg = get_device_config(self.mode, "xgboost")
         xgb_params = {
-            "n_estimators": 200,
+            "n_estimators": 100,
             "max_depth": 6,
             "learning_rate": 0.05,
             "subsample": 0.8,

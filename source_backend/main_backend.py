@@ -360,9 +360,9 @@ if __name__ == "__main__":
     
     # Main backend parameters;
     parser.add_argument('--target_column', type=str, default='Cota_Adotada_87450004', help='Name of target column to predict')
-    parser.add_argument('--train_size', type=float, default=0.8, help='Proportion of data for training set (0.0 to 1.0)')
+    parser.add_argument('--train_size', type=float, default=0.7, help='Proportion of data for training set (0.0 to 1.0)')
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
-    parser.add_argument('--val_size', type=float, default=0.0, help='Proportion of data for validation set (0.0 to 1.0)')
+    parser.add_argument('--val_size', type=float, default=0.1, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
@@ -374,7 +374,7 @@ if __name__ == "__main__":
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=20, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=100, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, 
@@ -401,13 +401,13 @@ if __name__ == "__main__":
 
     # Set default values for booleans;
     parser.set_defaults(
-        save_to_db=False,
+        save_to_db=True,
         optimize=True,
         use_lags=True,
         use_rolling_stats=True,
         use_cumulative=True,
         use_feature_selection=True,
-        log_mlflow=False
+        log_mlflow=True
     )
     
     args = parser.parse_args()

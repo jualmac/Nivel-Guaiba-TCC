@@ -145,7 +145,7 @@ class XGBoostModels:
             if 'early_stopping_rounds' not in best_params:
                 best_params['early_stopping_rounds'] = early_stopping
             if 'eval_metric' not in best_params:
-                best_params['eval_metric'] = 'rmse'  # Default evaluation metric;
+                best_params['eval_metric'] = 'rmse'  #TODO: Change to KGE;
 
         # Create model with params;
         logger.info("Training XGBoost with params: %s", best_params)
