@@ -1,7 +1,7 @@
 """
 Feature imputation operations;
 
-Handles missing value imputation using multivariate iterative imputation with RandomForest;
+Handles missing value imputation using station-wise CubicSpline interpolation;
 """
 
 ########################################################################################################################
@@ -9,12 +9,10 @@ Handles missing value imputation using multivariate iterative imputation with Ra
 # LIBRARIES
 #
 ########################################################################################################################
-import logging
+import numpy as np
 import pandas as pd
 from typing import Tuple
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
-from sklearn.ensemble import RandomForestRegressor
+from scipy.interpolate import CubicSpline
 from util import configure_logging
 
 logger = configure_logging(__name__)
@@ -25,25 +23,25 @@ logger = configure_logging(__name__)
 #
 ########################################################################################################################
 def feature_imputation(
-    df: pd.DataFrame, 
-    n_estimators: int = 50
+    df: pd.DataFrame,
+    max_gap_steps: int = 96
 ) -> Tuple[pd.DataFrame, dict]:
     """
-    Impute missing values using IterativeImputer with RandomForestRegressor;
+    Impute missing values using CubicSpline interpolation per station;
     
-    Applies multivariate imputation per station to preserve within-station feature correlations.
-    Uses IterativeImputer with RandomForestRegressor (max_depth=12, min_samples_leaf=10) for
-    non-linear relationships. Skips fully missing columns. Excludes status columns and non-numeric
-    features from imputation;
+    Applies station-wise temporal interpolation with natural boundary conditions, mirroring the
+    fill_gaps approach. Uses only observed (valid) values to build the spline and fills gaps left
+    by outlier_detection. Skips columns with fewer than 4 valid points or entirely missing values.
+    Excludes status/meta columns from interpolation;
     
     Parameters:
         df (pd.DataFrame): Input dataframe with missing values to impute;
-        n_estimators (int): Number of trees in RandomForestRegressor (default: 50);
+        max_gap_steps (int): Maximum consecutive rows to interpolate per gap (default: 96);
     
     Returns:
         Tuple[pd.DataFrame, dict]: Tuple containing:
             - pd.DataFrame: Imputed dataframe with missing values filled;
-            - dict: Per-station imputation statistics (initial_means, imputation_sequence, n_iter, cols_imputed, cols_skipped);
+            - dict: Per-station interpolation statistics (initial_means, filled_counts, cols_imputed, cols_skipped);
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -66,69 +64,112 @@ def feature_imputation(
     imputer_stats = {}
     
     for station in df_cpy['codigoestacao'].unique():
-        logger.info("Imputing station %s...", station)
+        logger.info("Interpolating station %s with CubicSpline...", station)
         df_station = df_cpy[df_cpy['codigoestacao'] == station].copy()
+        df_station = df_station.sort_values('Data_Hora_Medicao').reset_index(drop=True)
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
+        station_stats = {
+            'cols_imputed': [],
+            'cols_skipped': [],
+            'initial_means': {},
+            'filled_counts': {},
+            'imputation_sequence': [],
+            'n_iter': 1  # Single-pass spline interpolation;
+        }
         
-        # Identify fully missing columns for this station and exclude from imputation (Imputing 100% missing data would create synthetic values with no basis in reality);
+        # Identify fully missing columns for this station and exclude from interpolation (Interpolating 100% missing data would create synthetic values with no basis in reality);
         fully_missing = df_station_features.isna().all()
         cols_to_impute = [col for col in feature_cols if not fully_missing[col]]
         fully_missing_cols = [col for col in feature_cols if fully_missing[col]]
         
         if fully_missing_cols:
-            logger.warning("Skipping fully missing features (cannot impute): %s", fully_missing_cols)
+            logger.warning("Skipping fully missing features (cannot interpolate): %s", fully_missing_cols)
+            station_stats['cols_skipped'].extend(fully_missing_cols)
         
         if cols_to_impute:
-            # Track which values were NaN before imputation (to mark status columns later);
-            was_nan_before = df_station_features[cols_to_impute].isna()
-            
-            # RandomForestRegressor with deeper trees for better non-linear relationships (No max_depth restriction allows deep splits; min_samples_leaf=1 for fine-grained predictions);
-            imputer = IterativeImputer(
-                estimator=RandomForestRegressor(
-                    n_estimators=n_estimators,
-                    max_depth=12,
-                    min_samples_leaf=10,
-                    max_features='sqrt',
-                    random_state=42,
-                    n_jobs=-1
-                ),
-                random_state=42,
-                max_iter=10,
-                imputation_order='roman',
-                verbose=1
-            )
-            
-            # Impute only columns with partial data;
-            imputed = imputer.fit_transform(df_station_features[cols_to_impute])
-            df_station_imputed = pd.DataFrame(imputed, columns=cols_to_impute, index=df_station_features.index)
-            
-            # Mark status columns with code 4 (Filled/Missing) for imputed values;
             for col in cols_to_impute:
+                # Track NaN positions before interpolation (for status updates);
+                was_nan = df_station_features[col].isna()
+                
+                # Gather valid points for spline fit; only non-NaN values participate;
+                valid_mask = df_station_features[col].notna()
+                valid_indices = np.where(valid_mask)[0]
+                valid_values = df_station_features[col].iloc[valid_indices].values
+                station_stats['initial_means'][col] = float(np.nanmean(valid_values)) if len(valid_values) > 0 else np.nan
+                
+                # CubicSpline needs at least 4 points to operate reliably;
+                if len(valid_indices) < 4:
+                    station_stats['cols_skipped'].append(col)
+                    continue
+                
+                # Identify contiguous NaN gap blocks and their lengths;
+                nan_array = was_nan.values
+                gap_starts = np.where(~nan_array[:-1] & nan_array[1:])[0] + 1
+                gap_ends = np.where(nan_array[:-1] & ~nan_array[1:])[0] + 1
+                
+                # Handle edge gaps; ensures start/end gaps are captured;
+                if nan_array[0]:
+                    gap_starts = np.concatenate([[0], gap_starts])
+                if nan_array[-1]:
+                    gap_ends = np.concatenate([gap_ends, [len(nan_array)]])
+                
+                # Build spline with natural boundary conditions using only valid observations;
+                cs = CubicSpline(valid_indices, valid_values, bc_type='natural')
+                first_valid_idx = valid_indices[0]
+                last_valid_idx = valid_indices[-1]
+                
+                filled_points = 0
+                for gap_start, gap_end in zip(gap_starts, gap_ends):
+                    gap_length = gap_end - gap_start
+                    
+                    # Only interpolate gaps bounded by observed data and within max_gap_steps;
+                    if gap_length > 0 and gap_length <= max_gap_steps and gap_start >= first_valid_idx and gap_end <= last_valid_idx:
+                        gap_indices = np.arange(gap_start, gap_end)
+                        interpolated_vals = cs(gap_indices)
+                        
+                        # Clip to ±50% beyond observed range; keep hydrological features non-negative;
+                        value_min = valid_values.min()
+                        value_max = valid_values.max()
+                        value_range = value_max - value_min
+                        lower_bound = value_min - 0.5 * value_range
+                        upper_bound = value_max + 0.5 * value_range
+                        if col != 'Temperatura_Interna':
+                            lower_bound = max(0, lower_bound)
+                        interpolated_vals = np.clip(interpolated_vals, lower_bound, upper_bound)
+                        
+                        # Apply interpolated values; keep order by using positional index;
+                        df_station_features.iloc[gap_indices, df_station_features.columns.get_loc(col)] = interpolated_vals
+                        filled_points += gap_length
+                
+                if filled_points > 0:
+                    station_stats['cols_imputed'].append(col)
+                    station_stats['filled_counts'][col] = filled_points
+                    logger.info("Station %s - %s: filled %s points via CubicSpline", station, col, filled_points)
+                else:
+                    station_stats['cols_skipped'].append(col)
+                
+                # Mark status columns with code 4 (Filled/Missing) for interpolated values;
                 status_col = col + '_Status'
                 if status_col in df_station_non_features.columns:
-                    is_now_filled = was_nan_before[col] & df_station_imputed[col].notna()
+                    is_now_filled = was_nan & df_station_features[col].notna()
                     df_station_non_features.loc[is_now_filled, status_col] = 4
             
-            # Store imputer statistics for diagnostics;
-            imputer_stats[station] = {
-                'initial_means': dict(zip(cols_to_impute, imputer.initial_imputer_.statistics_)),
-                'imputation_sequence': imputer.imputation_sequence_,
-                'n_iter': imputer.n_iter_,
-                'cols_imputed': cols_to_impute,
-                'cols_skipped': fully_missing_cols
-            }
-            
-            # Keep fully missing columns as NaN (they will be excluded later in melt);
-            for col in fully_missing_cols:
-                df_station_imputed[col] = df_station_features[col]
-        else:
-            logger.warning("No features to impute for station %s", station)
             df_station_imputed = df_station_features
-            imputer_stats[station] = {'error': 'No features to impute'}
+        else:
+            logger.warning("No features to interpolate for station %s", station)
+            df_station_imputed = df_station_features
+            station_stats['cols_skipped'] = feature_cols
         
         df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
         imputed_stations.append(df_station_result)
+        imputer_stats[station] = station_stats
+        logger.info(
+            "Station %s interpolation done. Imputed: %s | Skipped: %s",
+            station,
+            len(station_stats['cols_imputed']),
+            len(station_stats['cols_skipped'])
+        )
     df_result = pd.concat(imputed_stations, ignore_index=True)
     
     # Convert status columns to integers to ensure they remain categorical;

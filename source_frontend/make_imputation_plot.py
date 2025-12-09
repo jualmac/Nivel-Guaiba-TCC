@@ -1,9 +1,9 @@
 """
 Imputation Visualization Module
 
-Provides diagnostic plots to analyze the quality and behavior of feature imputation
-performed by IterativeImputer. Helps identify mean-fill issues, temporal patterns,
-and station-specific imputation performance.
+Provides diagnostic plots to analyze the quality and behavior of feature interpolation
+performed by the CubicSpline-based imputer. Helps identify fill patterns, temporal
+behavior, and station-specific interpolation performance.
 """
 
 ########################################################################################################################

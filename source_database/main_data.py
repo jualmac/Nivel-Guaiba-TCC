@@ -39,7 +39,8 @@ def main_database(
     
     Orchestrates the full data processing pipeline: retrieves raw station data, applies cleaning,
     gap filling (CubicSpline interpolation), outlier removal (ECOD+PCA consensus), time aggregation,
-    feature imputation (IterativeImputer), and reshaping. Can persist all intermediate results to database.
+    feature imputation (CubicSpline interpolation on remaining gaps), and reshaping. Can persist all
+    intermediate results to database.
     This pipeline stops at producing clean, analysis-ready data. Model training is handled separately
     in source_backend;
     
@@ -67,8 +68,8 @@ def main_database(
     # Aggregate the data to the desired frequency;
     df_agg = aggregate_data(df=df_out, frequency=frequency)
 
-    # Feature Imputation - IterativeImputer with RandomForest;
-    df_imp, imputer_stats = feature_imputation(df=df_agg, n_estimators=20)
+    # Feature Imputation - CubicSpline on remaining gaps;
+    df_imp, imputer_stats = feature_imputation(df=df_agg, max_gap_steps=max_fill_steps)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_imp)
