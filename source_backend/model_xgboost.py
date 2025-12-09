@@ -20,6 +20,7 @@ import logging
 import numpy as np
 import pandas as pd
 from typing import Tuple, List, Optional, Any, Dict
+import xgboost as xgb
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
@@ -140,12 +141,26 @@ class XGBoostModels:
                 pass
 
         # Add early stopping parameters if validation set is provided;
+        callbacks = None
         if eval_set is not None:
             # Set early stopping parameters if not already in best_params;
             if 'early_stopping_rounds' not in best_params:
                 best_params['early_stopping_rounds'] = early_stopping
-            if 'eval_metric' not in best_params:
-                best_params['eval_metric'] = 'rmse'  #TODO: Change to KGE;
+
+            # Use KGE as validation metric and keep early stopping aligned to maximization;
+            def _xgb_kge_eval(preds: np.ndarray, dtrain) -> tuple[str, float]:
+                labels = dtrain.get_label()
+                score = kling_gupta_efficiency(y_true=labels, y_pred=preds)
+                return 'kge', score
+
+            best_params['eval_metric'] = _xgb_kge_eval
+            callbacks = [
+                xgb.callback.EarlyStopping(
+                    rounds=best_params['early_stopping_rounds'],
+                    save_best=True,
+                    maximize=True
+                )
+            ]
 
         # Create model with params;
         logger.info("Training XGBoost with params: %s", best_params)
@@ -153,7 +168,7 @@ class XGBoostModels:
 
         # Fit model with Training data (and validation set for early stopping if provided);
         if eval_set is not None:
-            self.model.fit(self.X, self.y, eval_set=eval_set)
+            self.model.fit(self.X, self.y, eval_set=eval_set, callbacks=callbacks)
         else:
             self.model.fit(self.X, self.y)
         return self

@@ -45,7 +45,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 steps: int = 12,
                 mode: str = 'CPU',
                 max_exog_features: int = 20, # SAFETY BRAKE: Hard limit on features to prevent crash
-                search_sample_size: int = 10000, # Optimization: Limit samples for stepwise search
+                search_sample_size: int = 5000, # Optimization: Limit samples for stepwise search
                 **kwargs
                 ):
         self.model_name = 'sarima'
@@ -143,7 +143,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     y=y_search,
                     X=X_search,
                     start_p=1, start_q=1, start_d=1,
-                    max_p=3, max_q=3, max_d=2,
+                    max_p=3, max_q=3, max_d=1,
                     max_order=None,
                     m=12,                                   # Seasonality (Monthly) - Adjust if needed;
                     start_P=0, seasonal=True,

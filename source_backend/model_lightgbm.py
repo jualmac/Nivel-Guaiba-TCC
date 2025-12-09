@@ -140,8 +140,13 @@ class LightGBMModels:
             # Set early stopping parameters if not already in best_params;
             if 'early_stopping_rounds' not in best_params:
                 best_params['early_stopping_rounds'] = early_stopping
-            if 'eval_metric' not in best_params:
-                best_params['eval_metric'] = 'rmse' #TODO: Change to KGE;
+
+            # Use KGE as validation metric and keep LightGBM aware it should maximize;
+            def _lightgbm_kge_eval(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[str, float, bool]:
+                score = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
+                return 'kge', score, True
+
+            best_params['eval_metric'] = _lightgbm_kge_eval
 
         # Create model with params;
         logger.info("Training LightGBM with params: %s", best_params)
