@@ -11,7 +11,6 @@ Handles missing value imputation using station-wise CubicSpline interpolation;
 ########################################################################################################################
 import numpy as np
 import pandas as pd
-from typing import Tuple
 from scipy.interpolate import CubicSpline
 from util import configure_logging
 
@@ -25,7 +24,7 @@ logger = configure_logging(__name__)
 def feature_imputation(
     df: pd.DataFrame,
     max_gap_steps: int = 96
-) -> Tuple[pd.DataFrame, dict]:
+) -> pd.DataFrame:
     """
     Impute missing values using CubicSpline interpolation per station;
     
@@ -39,9 +38,7 @@ def feature_imputation(
         max_gap_steps (int): Maximum consecutive rows to interpolate per gap (default: 96);
     
     Returns:
-        Tuple[pd.DataFrame, dict]: Tuple containing:
-            - pd.DataFrame: Imputed dataframe with missing values filled;
-            - dict: Per-station interpolation statistics (initial_means, filled_counts, cols_imputed, cols_skipped);
+        pd.DataFrame: Imputed dataframe with missing values filled;
     """
     # Copy dataframe to not propagate changes;
     df_cpy = df.copy() 
@@ -61,7 +58,6 @@ def feature_imputation(
     
     # Impute per station to preserve within-station correlations;
     imputed_stations = []
-    imputer_stats = {}
     
     for station in df_cpy['codigoestacao'].unique():
         logger.info("Interpolating station %s with CubicSpline...", station)
@@ -69,14 +65,6 @@ def feature_imputation(
         df_station = df_station.sort_values('Data_Hora_Medicao').reset_index(drop=True)
         df_station_non_features = df_station[non_feature_cols].copy()
         df_station_features = df_station[feature_cols].copy()
-        station_stats = {
-            'cols_imputed': [],
-            'cols_skipped': [],
-            'initial_means': {},
-            'filled_counts': {},
-            'imputation_sequence': [],
-            'n_iter': 1  # Single-pass spline interpolation;
-        }
         
         # Identify fully missing columns for this station and exclude from interpolation (Interpolating 100% missing data would create synthetic values with no basis in reality);
         fully_missing = df_station_features.isna().all()
@@ -85,7 +73,6 @@ def feature_imputation(
         
         if fully_missing_cols:
             logger.warning("Skipping fully missing features (cannot interpolate): %s", fully_missing_cols)
-            station_stats['cols_skipped'].extend(fully_missing_cols)
         
         if cols_to_impute:
             for col in cols_to_impute:
@@ -96,11 +83,9 @@ def feature_imputation(
                 valid_mask = df_station_features[col].notna()
                 valid_indices = np.where(valid_mask)[0]
                 valid_values = df_station_features[col].iloc[valid_indices].values
-                station_stats['initial_means'][col] = float(np.nanmean(valid_values)) if len(valid_values) > 0 else np.nan
                 
                 # CubicSpline needs at least 4 points to operate reliably;
                 if len(valid_indices) < 4:
-                    station_stats['cols_skipped'].append(col)
                     continue
                 
                 # Identify contiguous NaN gap blocks and their lengths;
@@ -143,11 +128,7 @@ def feature_imputation(
                         filled_points += gap_length
                 
                 if filled_points > 0:
-                    station_stats['cols_imputed'].append(col)
-                    station_stats['filled_counts'][col] = filled_points
                     logger.info("Station %s - %s: filled %s points via CubicSpline", station, col, filled_points)
-                else:
-                    station_stats['cols_skipped'].append(col)
                 
                 # Mark status columns with code 4 (Filled/Missing) for interpolated values;
                 status_col = col + '_Status'
@@ -155,21 +136,25 @@ def feature_imputation(
                     is_now_filled = was_nan & df_station_features[col].notna()
                     df_station_non_features.loc[is_now_filled, status_col] = 4
             
-            df_station_imputed = df_station_features
         else:
             logger.warning("No features to interpolate for station %s", station)
-            df_station_imputed = df_station_features
-            station_stats['cols_skipped'] = feature_cols
+
+        # Final safeguard: fill remaining NaN with station-wise mean to avoid pipeline breaks;
+        for col in feature_cols:
+            col_mean = df_station_features[col].mean(skipna=True)
+            if pd.isna(col_mean):
+                continue  # Skip if still all NaN;
+            still_nan = df_station_features[col].isna()
+            if still_nan.any():
+                df_station_features.loc[still_nan, col] = col_mean
+                logger.info("Station %s - %s: filled %s points with column mean", station, col, int(still_nan.sum()))
+                status_col = col + '_Status'
+                if status_col in df_station_non_features.columns:
+                    df_station_non_features.loc[still_nan, status_col] = 4
         
-        df_station_result = pd.concat([df_station_non_features, df_station_imputed], axis=1)
+        df_station_result = pd.concat([df_station_non_features, df_station_features], axis=1)
         imputed_stations.append(df_station_result)
-        imputer_stats[station] = station_stats
-        logger.info(
-            "Station %s interpolation done. Imputed: %s | Skipped: %s",
-            station,
-            len(station_stats['cols_imputed']),
-            len(station_stats['cols_skipped'])
-        )
+        logger.info("Station %s interpolation done.", station)
     df_result = pd.concat(imputed_stations, ignore_index=True)
     
     # Convert status columns to integers to ensure they remain categorical;
@@ -182,4 +167,4 @@ def feature_imputation(
     feature_cols = [col for col in df_result.columns if not col.endswith('_Status') and col not in ['Data_Hora_Medicao', 'codigoestacao'] + meta_cols]
     for col in feature_cols:
         df_result[col] = df_result[col].round(3)
-    return df_result, imputer_stats
+    return df_result

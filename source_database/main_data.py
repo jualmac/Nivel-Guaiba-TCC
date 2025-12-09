@@ -69,7 +69,7 @@ def main_database(
     df_agg = aggregate_data(df=df_out, frequency=frequency)
 
     # Feature Imputation - CubicSpline on remaining gaps;
-    df_imp, imputer_stats = feature_imputation(df=df_agg, max_gap_steps=max_fill_steps)
+    df_imp = feature_imputation(df=df_agg, max_gap_steps=max_fill_steps)
 
     # Melt the dataframe;
     df_melted = melt_dataframe(df=df_imp)
