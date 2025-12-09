@@ -270,6 +270,13 @@ def main_backend(
         # Predict with fitted Pipeline;
         y_pred = pipeline.predict(X_test)
 
+        # Capture original datetime before any pivoting to keep human-readable dates;
+        date_col = None
+        if hasattr(X_test, "columns") and "Data_Hora_Medicao" in X_test.columns:
+            date_col = X_test["Data_Hora_Medicao"].copy()
+        elif hasattr(X_test, "index"):
+            date_col = X_test.index
+
         results[name] = {
             'pipeline': pipeline,
             'predictions': y_pred
@@ -294,9 +301,11 @@ def main_backend(
             'y_pred': y_pred,
             'target_column': target_column
         })
-        # Add index if available from X_test;
+        # Add index if available from X_test; align datetime column when present;
         if hasattr(X_test, 'index'):
             pred_df.index = X_test.index
+        if date_col is not None:
+            pred_df['date'] = date_col
         all_predictions.append(pred_df)
         
         # Store metrics for this model;
@@ -326,16 +335,17 @@ def main_backend(
         # Concatenate all predictions;
         full_preds = pd.concat(all_predictions, ignore_index=False)
         
-        # Pivot to have columns per model (index is date);
-        df_predictions = full_preds.pivot_table(index=full_preds.index, columns='model_name', values='y_pred')
-        
-        # Add y_true (should be same for all models for same index);
-        # Group by index and take the first value of y_true;
-        y_true = full_preds.groupby(level=0)['y_true'].first()
-        df_predictions['y_true'] = y_true
-        
-        # Reset index to make date a column;
-        df_predictions = df_predictions.reset_index().rename(columns={'index': 'date', 'Data_Hora_Medicao': 'date'})
+        # Pivot to have columns per model, preferring real datetime over integer index;
+        if 'date' in full_preds.columns:
+            df_predictions = full_preds.pivot(index='date', columns='model_name', values='y_pred')
+            y_true = full_preds.groupby('date')['y_true'].first()
+            df_predictions['y_true'] = y_true
+            df_predictions = df_predictions.reset_index()
+        else:
+            df_predictions = full_preds.pivot_table(index=full_preds.index, columns='model_name', values='y_pred')
+            y_true = full_preds.groupby(level=0)['y_true'].first()
+            df_predictions['y_true'] = y_true
+            df_predictions = df_predictions.reset_index().rename(columns={'index': 'date'})
         
         # Metrics DataFrame;
         df_metrics = pd.DataFrame(all_metrics)
@@ -360,21 +370,21 @@ if __name__ == "__main__":
     
     # Main backend parameters;
     parser.add_argument('--target_column', type=str, default='Cota_Adotada_87450004', help='Name of target column to predict')
-    parser.add_argument('--train_size', type=float, default=0.7, help='Proportion of data for training set (0.0 to 1.0)')
+    parser.add_argument('--train_size', type=float, default=0.8, help='Proportion of data for training set (0.0 to 1.0)')
     parser.add_argument('--test_size', type=float, default=0.2, help='Proportion of data for test set (0.0 to 1.0)')
-    parser.add_argument('--val_size', type=float, default=0.1, help='Proportion of data for validation set (0.0 to 1.0)')
+    parser.add_argument('--val_size', type=float, default=0.0, help='Proportion of data for validation set (0.0 to 1.0)')
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
-    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
+    parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='CPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--models_to_use', type=str, nargs='+',
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY'],
-                        default=['LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY'],
+                        default=['XGBOOST', 'DUMMY'],
                         help='List of models to train (e.g., --models_to_use XGBOOST LIGHTGBM). If None, trains all models'
                         )
     
     # Additional pipeline parameters;
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
     parser.add_argument('--steps', type=int, default=12, help='The amount of forward steps to be predicted')
-    parser.add_argument('--trials', type=int, default=20, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
+    parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization') # Testing=10, Initial=100, Deep=500;
     parser.add_argument('--early_stopping', type=int, default=50, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=100, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, 
