@@ -3,7 +3,11 @@ anterior. Cada métrica foi escolhida a fim de avaliar qualidades diferentes que
 avaliado não só o desempenho individual de cada modelo em uma métrica específica, mas também o seu desempenho no geral
 em todas as métricas, buscando assim o modelo mais equilibrado entre os avaliados. 
 
-\subsection{Root Mean Squared Error (RMSE)}
+\subsection{Eficiência de Kling–Gupta (KGE)}
+\label{kge}
+\lipsum[1]
+
+\subsection{Raíz do erro quadrado médio (RMSE)}
 A Raíz do erro quadrado médio, ou \textit{Root Mean Squared Error} (RMSE) é uma métrica amplamente utilizada para
 avaliar a precisão de modelos de previsão. Ele mede a diferença entre os valores reais e os valores previstos por um
 modelo, sendo calculado pela fórmula:
@@ -19,8 +23,7 @@ O RMSE calcula a média dos erros ao quadrado e, em seguida, aplica a raiz quadr
 penaliza com mais intensidade os desvios maiores (outliers), sendo sensível a erros extremos. Quanto menor o RMSE,
 melhor o desempenho do modelo, indicando previsões mais próximas dos valores observados.
 
-\subsection{Mean Absolute Error (MAE)}
-
+\subsection{Erro Absoluto Médio (MAE)}
 O \textit{Mean Absolute Error} (MAE), ou Erro Absoluto Médio, é uma métrica que quantifica a média das diferenças
 absolutas entre os valores previstos por um modelo e os valores observados. Ele fornece uma medida direta da magnitude
 média do erro, sendo dado por:
@@ -37,8 +40,7 @@ Por tratar os erros de forma linear (sem elevar ao quadrado, como no RMSE), o MA
 mais representativo em cenários onde grandes desvios são raros ou indesejáveis. Valores mais próximos de zero indicam
 maior precisão nas predições do modelo.
 
-\subsection{Nash-Sutcliffe Model Efficiency Coefficient (NSE)}
-
+\subsection{Coeficiente de eficiência de Nash-Sutcliffe (NSE)}
 O \textit{Nash-Sutcliffe Efficiency} (NSE) é uma métrica estatística usada para avaliar o desempenho de modelos de
 predição, comparando os valores simulados com os dados observados. Ele expressa a razão entre o erro da predição do
 modelo e a variabilidade dos dados reais, sendo definido por:
