@@ -1,5 +1,24 @@
 \section{Comparação entre modelos}
-\lipsum[1]
+Grande parte do treinamento foi acelerada com o uso de GPU, explorando paralelismo massivo via \textit{CUDA}, já que
+bibliotecas como \textit{XGBoost}, \textit{LightGBM} e \textit{PyTorch} possuem implementações otimizadas para esse tipo
+de hardware. Isso permitiu ampliar significativamente o espaço de busca de hiperparâmetros e reduzir o tempo total de
+treinamento dos modelos baseados em árvores e redes neurais.
+
+O modelo \textit{SARIMA}, contudo, não se beneficia de paralelismo em GPU, dado que sua estimação é intrinsecamente
+sequencial e inteiramente executada em CPU. Como consequência, tanto a busca de hiperparâmetros quanto o ajuste final
+tornam-se substancialmente mais lentos, o que exigiu restringir o espaço de pesquisa para manter o custo computacional
+viável. Também foi necessário restringir o quantidade de variáveis exôgenas fornecidas ao modelo puramente por
+estabilidade computacional. Sem esta limitação, o treinamento de cada combinação era muito demorado e propenso a travar.
+
+Já o modelo \textit{LSTM}, embora compatível com GPU, apresentou desempenho inferior aos modelos baseados em árvores
+devido ao custo elevado de construção e retropropagação das camadas no \textit{PyTorch}, além da necessidade de
+processamento sequencial inerente a redes recorrentes. Assim, seu tempo de treinamento foi maior, ainda que menor do que
+o observado para o \textit{SARIMA}.
+
+No geral, o treinamento e observações dos modelos \textit{XGBoost} e \textit{LightGBM} se mostraram muito semelhantes,
+dado que os mesmos compartilham muito da mesma arquitetura de \textit{Gradient Boosting}.
+
+% -> Tempo de treinamento: -> Resultados:
 
 \section{Análise de Métricas}
 \lipsum[1]
