@@ -124,6 +124,12 @@ def main_backend(
     df = db.run("SELECT * FROM data_stations")['result']
     logger.info("Loaded %s rows from database", len(df))
 
+    # Enforce chronological order to avoid temporal leakage before splitting;
+    if "Data_Hora_Medicao" in df.columns:
+        df = df.sort_values("Data_Hora_Medicao").reset_index(drop=True)
+    else:
+        logger.warning("Column 'Data_Hora_Medicao' not found; skipping chronological sort;");
+
     # Split data into train/test sets;
     logger.info("Splitting data into train/test sets...")
     if val_size is not None and val_size > 0:

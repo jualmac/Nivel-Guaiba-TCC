@@ -1,55 +1,59 @@
 \section{Metodologia}
 Este trabalho implementou uma abordagem experimental para avaliação comparativa dos modelos preditivos descritos
-anteriormente. Inicialmente, os dados do SNIRH foram submetidos a um pré-processamento abrangente, incluindo tratamento de
-valores faltantes mediante técnicas de interpolação temporal, detecção de \textit{outliers} via análise por PCA e ECOD, e
-normalização. Os dados foram particionados cronologicamente em conjuntos de treino (70\%), validação (15\%) e
-teste (15\%), assegurando-se a preservação da sequência temporal para prevenir vazamento de informação.
+anteriormente. Inicialmente, os dados do SNIRH foram submetidos a um pré-processamento abrangente, incluindo tratamento
+de valores faltantes mediante técnicas de imputação temporal, detecção de \textit{outliers} via análise por PCA e ECOD,
+e agregação de dados em diferentes frequências e transformações a fim de inserir mais informações nos modelos, como
+inserção de valores com \textit{lags}, criação de medidas estatísticas por janelamento e adoção de variáveis
+cumulativas. Os dados foram particionados cronologicamente em conjuntos de treino (70\%), validação (10\%) e teste
+(20\%), assegurando-se a preservação da sequência temporal para prevenir vazamento de informação.
 
-Cada categoria de modelo exigiu transformações específicas dos dados, visto que cada um conta com um algoritmo
+Cada categoria de modelo exigiu certas transformações específicas nos dados, visto que cada um conta com um algoritmo
 diferente de implementação e uma lógica interna distinta. Para o SARIMA, foi aplicada diferenciação e decomposição
 sazonal. Modelos baseados em árvores requeriram codificação de variáveis temporais. Já redes LSTM demandaram janelamento
-sequencial. O treinamento foi conduzido em \textit{pipelines} isolados, incorporando validação cruzada temporal e
-otimização Bayesiana de hiperparâmetros para minimizar o KGE no conjunto de validação.
+sequencial das Séries Temporais. O treinamento foi conduzido em \textit{pipelines} isolados, incorporando validação
+cruzada temporal e otimização Bayesiana de hiperparâmetros para maximizar a Eficiência de Kling-Gupta (\autoref{kge}) no
+conjunto de validação.
 
 Na fase de avaliação, as predições geradas para o período de teste foram confrontadas com dados observados reservados de
-teste mediante métricas hidrologicamente relevantes - coeficiente de Nash-Sutcliffe (NSE), RMSE e erro absoluto médio
-(MAE) - complementadas por análise de sensibilidade a eventos extremos e avaliação de robustez computacional. Esta
-estrutura metodológica visou garantir comparação objetiva do desempenho preditivo.
+teste mediante métricas hidrologicamente relevantes, com a Eficiência de Kling-Gupta servindo como principal medida e os
+coeficiente de Nash-Sutcliffe (NSE), RMSE e MAE como métricas complementares. Esta estrutura metodológica visou garantir
+comparação objetiva do desempenho preditivo.
+
+Todos os códigos utilizados neste projeto, além deste próprio texto em \LaTeX, se encontram disponíveis abertamente
+(Licensa MIT), no repositório do projeto \cite{machado}. Um notebook com mais visualizações também se encontra
+disponível no Google Colab \cite{colab}.
 
 % Os resultados da análise comparativa serão disponibilizados através de um painel interativo (dashboard) desenvolvido
 % após a consolidação das avaliações dos modelos. Esta plataforma de visualização, hospedada em acesso aberto, integrará
 % dados históricos do nível do Rio Guaíba com as predições geradas pelos diferentes modelos, apresentando múltiplos
 % cenários hidrológicos contextualizados por análises explicativas. Os usuários poderão explorar dinamicamente os dados
-% mediante filtros temporais personalizáveis, permitindo focalizar períodos de interesse específico como eventos extremos
-% ou fases sazonais críticas.
+% mediante filtros temporais personalizáveis, permitindo focalizar períodos de interesse específico como eventos
+% extremos ou fases sazonais críticas.
 
 \section{Fonte de Dados}
 Este trabalho empregou dados primários do Portal Hidroweb, integrante do Sistema Nacional de Informações sobre Recursos
 Hídricos (SNIRH) da Agência Nacional de Águas (ANA) \cite{snirh}. Este sistema consolida informações de estações
 hidrometeorológicas, incluindo níveis fluviais, vazões, precipitação, entre outros. A coleta automatizada dos dados foi
-viabilizada mediante acesso à API do Hidroweb, concedido pela ANA ao autor.
-
-As possíveis estações foram obtidas do endpoint \textit{HidroInventarioEstacoes} \cite{HidroInventarioEstacoes},
-enquanto as séries detalhadas foram obtidas do endpoint \textit{HidroinfoanaSerieTelemetricaDetalhada}
-\cite{HidroinfoanaSerieTelemetricaDetalhada}.
+viabilizada mediante acesso à API do Hidroweb, concedido pela ANA ao autor. As possíveis estações foram obtidas do
+endpoint \textit{HidroInventarioEstacoes} \cite{HidroInventarioEstacoes}, já as séries temporais vem do endpoint
+\textit{HidroinfoanaSerieTelemetricaDetalhada} \cite{HidroinfoanaSerieTelemetricaDetalhada}.
 
 As estações analisadas pertencem à Bacia Hidrográfica do Guaíba, no Rio Grande do Sul, abrangendo em especial o Rio
 Guaíba ('87200000') e os principais rios afluentes — Taquari ('86001000'), Caí ('87220000'), Gravataí ('87240000'),
 Sinos ('87230000') e Jacuí ('85001000')— a fim de garantir ampla cobertura espacial e boa qualidade dos dados. Para
 isto, foi necessário investigar todas as possíveis estações para estes rios. O total inicial era de 258 estações. Após
-filtrar por estações em operação e estações telemétricas, restaram apenas 43 estações. As séries históricas destas foram
-analisadas quanto à disponibilidade, qualidade, lacunas, duração e representatividade. Também excluíram-se estações com
-finalidades específicas (energéticas, piezométricas etc.), que não apresentam as informações relevantes para este
-estudo. 
+filtrar por estações em operação e estações telemétricas, restaram apenas 43. As séries históricas destas foram
+analisadas quanto à disponibilidade, qualidade, tamanho de lacunas, duração total e representatividade. Também
+excluíram-se estações com finalidades específicas, como energéticas e piezométricas.
 
 \begin{figure}[htb] \caption{\label{funil} Funil de estações selecionadas do SNIRH} \begin{center}
   \includegraphics[scale=0.34]{img/funil_estações.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
-Com isto, determinou-se que somente 15 estações na Bacia Hidrográfica do Guaíba apresentavam informações da forma
-desejada. Destas, foram selecionadas pelo menos uma para cada um dos principais rios listados acima. Alguns rios, como o
-Sinos e o Taquari, apresentavam 3 estações cujas informações poderiam ser utilizadas, mas por fim, foi determinado que
-no máximo 2 estações seriam selecionadas de cada rio, a fim de manter um equilíbrio de dados e não introduzir um maior
-peso para estes corpos hídricos, inclusive quando alguns, como o Rio Jacuí, só teriam 1 estação disponível.
+Com isso, identificou-se que apenas 15 estações na Bacia do Guaíba atendiam ao formato desejado. Para garantir
+representatividade, selecionou-se ao menos uma estação por rio principal, limitando a no máximo duas por rio mesmo
+quando mais opções estavam disponíveis (como nos rios Sinos e Taquari). Essa restrição evita dar mais importância à
+certos corpos hídricos, especialmente considerando casos em que apenas uma estação existia, como no Rio Jacuí. Ao final,
+foram escolhidas 9 estações hidrometeorológicas, listadas na \autoref{tab:estacoes_hidro}.
 
 Estas foram coletadas com dados à cada 15 minutos para um período histórico de 5 anos. Para o próprio Guaíba, adotou-se
 como alvo, a estação CAIS MAUÁ C6 ('87450004') e complementarmente a estação do USINA DO GASÔMETRO - CHEIA 2024
@@ -57,7 +61,6 @@ como alvo, a estação CAIS MAUÁ C6 ('87450004') e complementarmente a estaçã
 Conforme atestado pela SEMA \cite{informativo_sema}, este hiato decorreu de danos nos equipamentos de medição durante as
 enchentes.
 
-Por fim, a lista de estações selecionadas foram:
 \begin{table}[h!]
     \centering
     \caption{Estações Hidrometeorológicas por Bacia}
@@ -91,16 +94,15 @@ Por fim, a lista de estações selecionadas foram:
 \end{table}
 
 Para uniformizar as séries, adotou-se `2018-08-01` como data inicial comum e `2025-12-01` como data final comum,
-totalizando cerca de seis anos de dados telemétricos, totalizando mais de 2 milhões de registros. Devido ao limite de 30
-dias imposto pela API, o processo de coleta foi realizado em chunks mensais posteriormente concatenados.
+totalizando cerca de seis anos de dados telemétricos com mais de 2 milhões de registros. Devido ao limite de 30 dias
+imposto pela API, o processo de coleta foi realizado em \textit{chunks} mensais posteriormente concatenados.
 
-Foram coletados todos os dados disponíveis para estas estações neste período, incluindo dados do nível da água (e.g.,
-\textit{Cota\_Adotada}), dados meteorológicos (e.g., \textit{Chuva\_Adotada}), dados descritivos da estação (e.g.,
-\textit{Altitude}) e indicadores de controle de qualidade de cada variável, identificados pelo sufixo \textit{\_Status}.
-Estas variáveis de status acompanham as variáveis de medição e seguem um padrão determinado pelo SNIRH que foi expandido
-para utilizar estas variáveis como indicadores não só da qualidade dos dados, mas também como indicadores de variáveis
-faltantes ou preenchidas. Este padrão é dado de tal forma: Status 0=Normal, 1=Suspeito, 2=Ruim, 3=Muito ruim,
-4=Preenchido/Faltante, 5=Valor Atípico (outliers);
+Foram coletados todos os dados disponíveis para essas estações no período, incluindo nível da água
+(\textit{Cota\_Adotada}), variáveis meteorológicas (\textit{Chuva\_Adotada}), atributos descritivos (\textit{Altitude})
+e indicadores de qualidade associados a cada medição, identificados pelo sufixo \textit{\_Status}. Esses status,
+definidos pelo SNIRH, foram incorporados ao conjunto como variáveis categóricas capazes de sinalizar tanto a qualidade
+quanto a eventual ausência ou preenchimento de valores. A codificação segue o padrão: 0=Normal, 1=Suspeito, 2=Ruim,
+3=Muito ruim, 4=Preenchido/Faltante, 5=Valor atípico.
 
 % Bateria, Chuva_Acumulada, Chuva_Acumulada_Status, Chuva_Adotada, Chuva_Adotada_Status, Cota_Adotada,
 % Cota_Adotada_Status, Cota_Display, Cota_Display_Status, Cota_Manual, Cota_Manual_Status, Cota_Sensor,
@@ -109,41 +111,38 @@ faltantes ou preenchidas. Este padrão é dado de tal forma: Status 0=Normal, 1=
 % Temperatura_Interna_Status
 
 \section{Processamento de dados}
-O primeiro e maior desafio enfrentado nos dados coletados foram os valores faltantes. Certos atributos estão
-consistentemente faltando do dataset, como valores de 'Pressao\_Atmosferica' e 'Temperatura\_Agua' infelizmente
-apresentam muitos valores faltantes para serem de qualquer uso nessa análise e logo serão desconsiderados daqui pra
-frente.
+O primeiro e maior desafio enfrentado no tratamento dos dados coletados foram os valores faltantes. Certos atributos
+estão consistentemente faltando do conjunto de dados. Valores como 'Pressao\_Atmosferica' e 'Temperatura\_Agua'
+infelizmente apresentam muitos valores faltantes para serem de qualquer uso nessa análise e logo serão desconsiderados
+daqui pra frente.
 
-\begin{figure}[htb] \caption{\label{faltantes} Valores faltantes} \begin{center}
-  \includegraphics[scale=0.53]{img/faltantes.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
+\begin{figure}[htb] \caption{\label{faltantes} Valores faltantes por variável coletada} \begin{center}
+  \includegraphics[scale=0.50]{img/faltantes.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
-Também vale considerar todos aqueles relacionados à Cota. Estes, em especial, são formas de medir o nível da água.
-'Cota\_Manual', por exemplo, representa medidas feitas com uma régua ao invés das medidas automatizadas do sensor. Dado
-isto, usaremos valores de 'Cota\_Manual' e 'Cota\_Sensor' para preencher valores faltantes de 'Cota\_Adotada';
+Também foram consideradas as variáveis associadas à medição de nível d'água. Essas variáveis representam diferentes
+mecanismos de aquisição da cota. 'Cota\_Manual', por exemplo, corresponde a leituras realizadas por meio de régua
+hidrométrica, em contraste com as medições automatizadas obtidas pelos sensores. Diante disso, 'Cota\_Manual' e
+'Cota\_Sensor' serão utilizadas para imputar valores ausentes de 'Cota\_Adotada' sempre que estiverem disponíveis.
 
-Para escolher quais dados seriam utilizados nos modelos de predição, também foi realizada uma análise da correlação dos
+Para escolher quais dados seriam utilizados nos modelos de predição, foi realizada uma análise da correlação dos
 valores, presente na \autoref{correlacao}.
 
 \begin{figure}[htb] \caption{\label{correlacao} Correlação entre os dados das estações} \begin{center}
-  \includegraphics[scale=0.275]{img/correlacao.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
+  \includegraphics[scale=0.25]{img/correlacao.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
-A análise de correlação evidencia que as variáveis 'Cota\_Manual', 'Cota\_Sensor' e 'Cota\_Display' apresentam forte
-correlação linear com o alvo 'Cota\_Adotada'. Observa-se que 'Cota\_Manual' possui mais de 99\% de valores ausentes, e
-os registros válidos restantes concentram-se majoritariamente em pontos nos quais 'Cota\_Adotada' não está disponível.
-Esse padrão sugere que as medições manuais são utilizadas como mecanismo de contingência em situações de manutenção ou
-falha dos sensores automáticos. Adicionalmente, 'Cota\_Sensor' e 'Cota\_Display' mostram-se, na maior parte do tempo,
-virtualmente idênticas a 'Cota\_Adotada', o que é consistente com o fluxo operacional da estação, no qual as leituras
-oficiais derivam predominantemente dos sensores automáticos.
+A análise de correlação mostra que `Cota\_Manual`, `Cota\_Sensor` e `Cota\_Display` possuem forte relação linear com o
+alvo `Cota\_Adotada`. Observa-se que `Cota\_Manual` apresenta mais de 99\% de valores ausentes, concentrados justamente
+em momentos em que `Cota\_Adotada` não está disponível, indicando seu uso como contingência em falhas de sensores. Já
+`Cota\_Sensor` e `Cota\_Display` tendem a replicar `Cota\_Adotada`, refletindo o funcionamento padrão das estações, nas
+quais as leituras oficiais derivam majoritariamente dos sensores automáticos.
 
-A variável 'Vazao\_Adotada' apresenta elevada correlação com 'Cota\_Adotada', o que é consistente com o comportamento
-hidrodinâmico esperado: incrementos de vazão (m\textsuperscript{3}/s) em um canal de geometria aproximadamente fixa
-tendem a elevar o nível d'água até o ponto em que o escoamento interage áreas de várzea adjacentes. Essa variável
-constitui um preditor importante devido à sua forte associação com a variável alvo e à sua baixa correlação com o
-restante dos atributos, indicando aporte de informação complementar ao modelo. No entanto, há uma alta taxa de valores
-ausentes (>15\%), cuja magnitude varia entre estações. A estação alvo (Guaíba) não possui registros de vazão, o que
-inviabiliza seu uso direto nessa localidade. Ainda assim, dada a elevada dependência física entre vazão e nível,
-optou-se por manter essa variável no processo de modelagem, mesmo que as mesmas impliquem um maior processamento dos
-dados.
+A variável `Vazao\_Adotada` apresenta forte correlação com `Cota\_Adotada`, em linha com o comportamento hidrodinâmico
+esperado: aumentos de vazão (m\textsuperscript{3}/s) tendem a elevar o nível d'água em canais de geometria relativamente
+fixa. Ela se mostra um preditora relevante pela alta associação com o alvo e pela baixa correlação com os demais
+atributos, fornecendo informação adicional ao modelo. Contudo, há uma proporção significativa de valores ausentes
+(>15\%), variável entre estações, e a estação alvo (Guaíba) não possui dados de vazão, impossibilitando seu uso direto
+nesse ponto. Ainda assim, dada a relação física entre nível e vazão, optou-se por manter essa variável no processo de
+modelagem.
 
 Com base na análise de correlação e na avaliação de valores faltantes, foram selecionadas as seguintes variáveis para os
 modelos de \textit{Machine Learning}: 'Cota\_Adotada', correspondente ao nível do rio em centímetros, cujos valores
@@ -152,31 +151,123 @@ representando a precipitação acumulada desde a última leitura, em milímetros
 temperatura atmosférica medida no equipamento, em °C; e 'Vazao\_Adotada', que indica o fluxo de água registrado pelo
 sensor em $\frac{m^{3}}{s}$.
 
-A variável 'Chuva\_Acumulada' também foi inicialmente escolhida e trabalhada junto das outras variáveis por um bom
-tempo. Contudo, depois de análises mais aprofundadas, a parte "Acumulada" da mesma se mostrou inconsistênte, dado que
-deveria representar a precipitação acumulada na estação por mês, mas o mesmo não se mostrou consistênte através das
-diferentes estações. Logo, junto de outras transformações, a mesma foi recriada a partir da variável 'Chuva\_Adotada',
-em um processo que será explicado melhor mais a frente.
+A variável 'Chuva\_Acumulada' também foi inicialmente selecionada e incorporada ao conjunto de atributos durante as
+primeiras etapas da análise. Entretanto, verificou-se posteriormente que a componente cumulativa apresentava
+inconsistências significativas. Embora devesse representar a precipitação mensal acumulada na estação, seu comportamento
+não era homogêneo entre diferentes estações nem coerente ao longo do tempo. Diante disso, e em conjunto com outras
+transformações, essa variável foi reconstruída a partir de 'Chuva\_Adotada', em um procedimento que será detalhado mais
+adiante.
+
+\subsection{Lacunas nos dados}
+A análise detalhada da série temporal evidenciou lacunas decorrentes da ausência de medições em diversos intervalos.
+Apesar de a API do Hidroweb fornecer dados, em princípio, a cada 15 minutos, todas as estações apresentam falhas nessa
+frequência. A \autoref{comp_nivel_estacoes} destaca essa descontinuidade para 'Cota\_Adotada' na estação RIO PARDO
+('85900000'), observa-se uma lacuna particularmente longa entre nov/2020 e jul/2021, composto apenas por registros
+esporádicos. Em outros períodos, a ausência é completa, sem quaisquer medições intermediárias.
+
+\begin{figure}[htb] \caption{\label{comp_nivel_estacoes} Correlação entre os dados das estações selecionadas}
+  \begin{center} \includegraphics[scale=0.313]{img/newplot.png} \end{center} \legend{Fonte: Reprodução própria}
+  \end{figure} 
+
+Para mitigar as falhas de amostragem, foram empregadas duas estratégias de imputação. Inicialmente, valores ausentes de
+'Cota\_Adotada' foram preenchidos utilizando 'Cota\_Manual' e 'Cota\_Sensor' sempre que disponíveis, reduzindo
+substancialmente o volume de lacunas para esta variável. Na estação Jacuí (RIO PARDO), por exemplo, aproximadamente 40\%
+destes registros estavam ausentes antes do tratamento. Após essa etapa, o percentual de faltantes caiu para cerca de
+20\%, tornando a série muito mais viável para modelagem.
+
+Para os demais valores ausentes, aplicou-se interpolação por \textit{CubicSpline} da biblioteca \textit{SciPy}
+\cite{SciPy}, garantindo preenchimento suave e condições de contorno naturais, de modo a evitar a introdução de ruído
+excessivamente artificial no conjunto de dados.
+
+\subsection{Detecção e tratamento de valores atípicos}
+O processo de imputação manual de 'Cota\_Adotada' introduziu, como efeito colateral, a presença de valores atípicos
+(\textit{outliers}) perceptíveis nas séries das estações. Esses valores estão associados, em geral, a erros de escala
+nos sensores ou a em medições manuais incorretas. Ainda assim, o aumento de cobertura, especialmente em estações com
+menor densidade de dados, justifica a estratégia, dado que tais \textit{outliers} podem ser identificados e corrigidos
+posteriormente com relativa facilidade.
+
+Para identificar os \textit{outliers} foi utilizada a biblioteca \textit{PyOD} \cite{pyod}, especializada em deteção de
+\textit{outliers} em dados com multiplas variáveis com os algoritmos ECOD e PCA, sendo o primeiro um algoritmo focado na
+análise de eventos extremos nas caudas de distribuições cumulativas e o segundo um algoritmo que busca \textit{outliers}
+em dados reconstruídos a partir de projeções de menor dimensionalidade dos mesmos.
+
+Estes dois algoritmos criam um score de outlier para cada valor. A combinação de ambos os scores é utilizada para
+determinar se um valor é um outlier ou não usando IQR, o intervalo interquartil. Este método é utilizado em combinação
+com o método "Tukey Fence", que trata pontos acima de Q3 + 1.5*(Q3-Q1) ou abaixo de Q3 + 1.5*(Q3-Q1) como um outlier.
+Este método foi escolhido por conseguir escolher dinamicamente os \textit{outliers} de cada estação, ou seja, sem
+utilizar um valor fixo, dada a diferença na quantidade de \textit{outliers} entre cada estação.
+
+Os valores determinados como \textit{outliers} foram removidos, deixando somente valores nulos no seu lugar, que foram
+imputados usando a mesma estratégia de interpolação com \textit{CubicSpline} utilizada anteriormente.
+
+\begin{figure}[htb] \caption{\label{outlierad} Exemplo da estação Jacuí antes e depois do processo de imputação de
+\textit{outliers}}
+  \begin{center} \includegraphics[scale=0.65]{img/outlier_ad.png} \end{center} \legend{Fonte: Reprodução própria}
+  \end{figure} 
+
+\subsection{Transformações de dados}
+Com os dados já tratados, realizou-se inicialmente o reagrupamento para a frequência de interesse. Optou-se por uma
+resolução horária, de modo que a frequência original de 15 minutos fosse condensada em intervalos de 1 hora,
+aplicando-se funções de agregação adequadas a cada variável. Em seguida, os dados foram transformados do formato longo,
+onde cada linha indica um registro para uma estação com os seus atributos (várias linhas para o mesmo instante de
+tempo), para o formato comprido, no qual cada registro temporal contém todas as variáveis de todas as estações
+simultaneamente. Essa reorganização permite que cada observação represente um estado completo do sistema hidrológico em
+um dado momento, simplificando o uso posterior pelos modelos. Destas forma aplicaram-se transformações customizadas como
+um passo na \textit{Pipeline} do \textit{scikit-learn} logo após o pré-processamento, com o objetivo de criar
+informações relevantes que os modelos possam utilizar no treinamento.
+
+Primeiramente, aplicou-se um processo de escalonamento de variáveis para eliminar diferenças de escala que poderiam
+induzir relações artificiais entre variáveis, preservando ao mesmo tempo o sinal das medições. Para as variáveis
+numéricas, utilizou-se um escalonamento padronizado (\textit{StandardScaler}), que centraliza os dados na média e os
+normaliza pela variância, aproximando-os de uma distribuição gaussiana. Já para as variáveis categóricas, empregou-se um
+\textit{OneHotEncoder}, que converte cada categoria em um indicador binário independente, evitando qualquer
+interpretação ordinal.
+
+A transformação de dados com \textit{lag} introduz dependência temporal ao criar versões defasadas de cada variável
+numérica, deslocando observações passadas por defasagens fixas (neste caso, 6, 12, 24 e 48 passos). Campos de data,
+metadados e colunas não numéricas são excluídos para manter coerência temporal e evitar vazamento. O resultado é uma
+expansão causal que expõe memória de curto e médio prazo, permitindo que o modelo capture comportamento autorregressivo
+sem especificações manuais de dinâmica temporal.
+
+A transformação de estatística por janela calcula métricas para cada coluna numérica, produzindo médias e desvios-padrão
+em múltiplas janelas (neste caso, 24, 48, 72 e 168 passos). O objetivo é representar tendências locais e variabilidade
+instantânea, oferecendo ao modelo sinais suavizados e medidas de volatilidade de curto prazo fundamentais em séries
+hidrometeorológicas ruidosas.
+
+Por fim, também foi inserido um transformador que acumula informação via somas móveis em janelas extensas (neste caso,
+96, 672 e 2880 passos). As métricas cumulativas revelam respostas lentas da bacia, efeitos de memória e acúmulos
+sazonais, componentes difíceis de capturar apenas com valores instantâneos e particularmente úteis em rotinas
+operacionais de hidrologia e previsão de médio prazo.
+
+Com estas transformações, a quantidade de atributos cresceu substancialmente, e nem todos contribuem de forma relevante
+para o sistema. Para reduzir a dimensionalidade e acelerar o treinamento, aplicou-se uma seleção de atributos baseada em
+um modelo de árvores (\textit{XGBoost}) simples, que estima a importância de cada variável numérica e retém apenas um
+subconjunto das mais informativas. Esse procedimento elimina redundâncias introduzidas pela engenharia de atributos,
+reduz o risco de sobreajuste em espaços de alta dimensionalidade e preserva apenas sinais com contribuição efetiva para
+a variância explicada, tirando proveito da capacidade do modelo de capturar relações não lineares e interações entre
+preditores.
+
+% COLOCAR IMAGEM COM A FEATURE IMPORTANCE;
 
 \section{Ferramentas e recursos utilizados}
-O desenvolvimento da parte escrita deste trabalho será feita em \LaTeX, utilizando o modelo \abnTeX, desenvolvido por
+O desenvolvimento da parte escrita deste trabalho foi feita em \LaTeX, utilizando o modelo \abnTeX, desenvolvido por
 Araujo et al (2015) \cite{abntex2classe} de acordo com as regras da ABNT NBR 14724:2011, ABNT NBR 6024:2012 e outras.
 
-A implementação dos modelos será desenvolvida em Python, selecionado por seu ecossistema robusto para análise de dados e
-aprendizado de máquina. A biblioteca \textit{statsmodels} será empregada para modelagem SARIMA, enquanto redes LSTM
-serão construídas utilizando a API de baixo nível do \textit{TensorFlow}. Para os modelos baseados em árvores, serão
-adotadas as bibliotecas nativas do XGBoost e LightGBM. Uma arquitetura modular será implementada mediante classes
-especializadas para cada modelo, integrando \textit{pipelines} do \textit{scikit-learn} para garantir fluxos
-reprodutíveis de pré-processamento. O processamento numérico e manipulação de séries temporais serão realizados com
-\textit{NumPy} e \textit{Pandas}, respectivamente, assegurando eficiência computacional e tratamento dos dados.
+Desenvolveu-se a implementação dos modelos em Python, selecionado por seu ecossistema robusto para análise de dados e
+aprendizado de máquina. A biblioteca \textit{pmdarima} \cite{pmdarima} foi empregada para modelagem SARIMA, devido a sua
+implementação automatizada do mecanismo de busca de parâmetros, o \textit{auto\_arima}, enquanto redes LSTM foram
+construídas utilizando a API de baixo nível do \textit{PyTorch} \cite{pytoch}. Para os modelos baseados em árvores,
+foram adotadas as bibliotecas nativas do XGBoost \cite{chen_xgboost} e LightGBM \cite{lightgbm}. 
 
-O painel interativo utilizará \textit{Streamlit} para conversão ágil de scripts Python em aplicações web visuais,
-garantindo integração nativa com bibliotecas científicas (\textit{Pandas}, \textit{Matplotlib}, \textit{Plotly}). A
-hospedagem no \textit{Streamlit Community Cloud} assegurará disponibilidade pública contínua e atualizações automáticas
-conforme novos dados ou modelos forem incorporados.
+A arquitetura modular foi implementada mediante classes especializadas para cada modelo, integrando \textit{pipelines}
+do \textit{scikit-learn} a fim de garantir fluxos reprodutíveis de pré-processamento. O processamento numérico e
+manipulação de séries temporais foram realizados com \textit{NumPy} e \textit{Pandas} assegurando eficiência
+computacional e tratamento dos dados.
 
-\section{Setup Experimental para treinamento de modelos} 
-The training process was conducted in a machine with the following specifica- tions: 12th Gen Intel(R) Core(TM)
-i5-12500H, 16GB RAM and a NVIDIA GeForce RTX 3050 Laptop 4GB VRAM. The LSTM model takes in training around 1.5 seconds
-per epoch, which led to around 2.5 to 4 minutes per experiment. Additionally, the feature importance calculation for
-each prediction takes around 1 second per prediction.
+% O painel interativo utilizará \textit{Streamlit} para conversão ágil de scripts Python em aplicações web visuais,
+% garantindo integração nativa com bibliotecas científicas (\textit{Pandas}, \textit{Matplotlib}, \textit{Plotly}). A
+% hospedagem no \textit{Streamlit Community Cloud} assegurará disponibilidade pública contínua e atualizações
+% automáticas conforme novos dados ou modelos forem incorporados.
+
+O processo de treinamento dos modelos foi conduzido em uma máquina com as seguintes específicações: Processador Intel(R)
+Core(TM) de 12ª geração i5-12400F (2.50 GHZ base), 64GB de memória RAM e placa de vídeo NVIDIA RTX 4060 com 8GB de vRAM.

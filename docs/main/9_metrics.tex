@@ -3,42 +3,51 @@ anterior. Cada métrica foi escolhida a fim de avaliar qualidades diferentes que
 avaliado não só o desempenho individual de cada modelo em uma métrica específica, mas também o seu desempenho no geral
 em todas as métricas, buscando assim o modelo mais equilibrado entre os avaliados. 
 
-\subsection{Root Mean Squared Error (RMSE)}
-A Raíz do erro quadrado médio, ou \textit{Root Mean Squared Error} (RMSE) é uma métrica amplamente utilizada para
-avaliar a precisão de modelos de previsão. Ele mede a diferença entre os valores reais e os valores previstos por um
-modelo, sendo calculado pela fórmula:
+\subsection{Eficiência de Kling–Gupta (KGE)}
+\label{kge}
+A Kling–Gupta efficiency (KGE) \cite{kge} é um índice de bondade de ajuste amplamente utilizado em hidrologia para
+avaliar o grau de concordância entre séries simuladas e observadas, combinando três componentes relevantes: correlação,
+viés e variabilidade. A fórmula clássica é:  
 
-\begin{equation}
-RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (Y_i - Y_i')^2}
-\end{equation}
+\[
+\mathrm{KGE} \;=\; 1 \;-\; \sqrt{\,(r - 1)^{2} \;+\; (\alpha - 1)^{2} \;+\; (\beta - 1)^{2}\,}
+\]
 
-Em que: $Y_i$ representa os valores reais, $Y_i'$ os valores previstos pelo modelo, e $n$ é o número total de
-observações.
+\noindent onde \(r\) é o coeficiente de correlação de Pearson,
 
-O RMSE calcula a média dos erros ao quadrado e, em seguida, aplica a raiz quadrada. Por elevar os erros ao quadrado, ele
-penaliza com mais intensidade os desvios maiores (outliers), sendo sensível a erros extremos. Quanto menor o RMSE,
-melhor o desempenho do modelo, indicando previsões mais próximas dos valores observados.
+\[
+r \;=\; 
+\frac{
+\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})
+}{
+\sqrt{
+\sum_{i=1}^{n} (x_i - \bar{x})^{2}
+\;\;
+\sum_{i=1}^{n} (y_i - \bar{y})^{2}
+}
+}
+\]
 
-\subsection{Mean Absolute Error (MAE)}
+\noindent e $\alpha$ e $\beta$,
 
-O \textit{Mean Absolute Error} (MAE), ou Erro Absoluto Médio, é uma métrica que quantifica a média das diferenças
-absolutas entre os valores previstos por um modelo e os valores observados. Ele fornece uma medida direta da magnitude
-média do erro, sendo dado por:
+\[
+\alpha = \frac{\sigma_{\text{sim}}}{\sigma_{\text{obs}}}\,, 
+\qquad 
+\beta = \frac{\mu_{\text{sim}}}{\mu_{\text{obs}}}
+\]
 
-\begin{equation}
-MAE = \frac{1}{n} \sum_{i=1}^{n} \left| Y_i - Y'_i \right|
-\end{equation}
+\noindent sendo \(\sigma_{\text{sim}}, \sigma_{\text{obs}}\) as desvios-padrão e \(\mu_{\text{sim}}, \mu_{\text{obs}}\)
+as médias das séries simuladas e observadas, respectivamente.
 
-Onde $Y_i$ são os valores observados (reais), $Y'_i$ são os valores previstos (modelados) e $n$ é o número total de
-observações.
+A importância da KGE em contextos hidrológicos deriva de sua capacidade de capturar simultaneamente o alinhamento
+temporal (via correlação), a correspondência de escala e magnitude média (viés via \(\beta\)) e a representatividade da
+variabilidade hidrológica (via \(\alpha\)). Isso permite uma avaliação mais equilibrada do desempenho de modelos de
+vazão ou de nível d’água do que métricas que consideram apenas erro quadrático ou correlação — sendo especialmente útil
+em bacias com forte variabilidade temporal ou regimes de cheia e seca acentuados. Por causa deste contexto multimodal da
+métrica e seu uso prominente em contextos hidrológicos, a mesma será a métrica alvo das otimizações de hiperparâmetros
+(parâmetros internos dos modelos), enquanto as métricas a seguir serão utilizadas como complementares na análise. 
 
-O MAE é sempre um valor não negativo e expressa, em média, o quanto os valores previstos se afastam dos valores reais.
-Por tratar os erros de forma linear (sem elevar ao quadrado, como no RMSE), o MAE é menos sensível a outliers, sendo
-mais representativo em cenários onde grandes desvios são raros ou indesejáveis. Valores mais próximos de zero indicam
-maior precisão nas predições do modelo.
-
-\subsection{Nash-Sutcliffe Model Efficiency Coefficient (NSE)}
-
+\subsection{Coeficiente de eficiência de Nash-Sutcliffe (NSE)}
 O \textit{Nash-Sutcliffe Efficiency} (NSE) é uma métrica estatística usada para avaliar o desempenho de modelos de
 predição, comparando os valores simulados com os dados observados. Ele expressa a razão entre o erro da predição do
 modelo e a variabilidade dos dados reais, sendo definido por:
@@ -56,5 +65,35 @@ e, por isso, é comum utilizar a normalização do NSE dada por $NNSE = \frac{1}
 modelo não apresenta melhor desempenho do que simplesmente usar a média dos dados observados como preditor. $NNSE
 \approx 0$ indica que a média dos dados observados é mais eficiente que o modelo na previsão.
 
-Essa métrica é especialmente útil para avaliar o quão bem um modelo captura a dinâmica temporal dos dados, sendo
-amplamente utilizada em estudos hidrológicos e ambientais.
+\subsection{Raíz do erro quadrado médio (RMSE)}
+A Raíz do erro quadrado médio, ou \textit{Root Mean Squared Error} (RMSE) é uma métrica amplamente utilizada para
+avaliar a precisão de modelos de previsão. Ele mede a diferença entre os valores reais e os valores previstos por um
+modelo, sendo calculado pela fórmula:
+
+\begin{equation}
+RMSE = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (Y_i - Y_i')^2}
+\end{equation}
+
+Em que: $Y_i$ representa os valores reais, $Y_i'$ os valores previstos pelo modelo, e $n$ é o número total de
+observações.
+
+O RMSE calcula a média dos erros ao quadrado e, em seguida, aplica a raiz quadrada. Por elevar os erros ao quadrado, ele
+penaliza com mais intensidade os desvios maiores (outliers), sendo sensível a erros extremos. Quanto menor o RMSE,
+melhor o desempenho do modelo, indicando previsões mais próximas dos valores observados.
+
+\subsection{Erro Absoluto Médio (MAE)}
+O \textit{Mean Absolute Error} (MAE), ou Erro Absoluto Médio, é uma métrica que quantifica a média das diferenças
+absolutas entre os valores previstos por um modelo e os valores observados. Ele fornece uma medida direta da magnitude
+média do erro, sendo dado por:
+
+\begin{equation}
+MAE = \frac{1}{n} \sum_{i=1}^{n} \left| Y_i - Y'_i \right|
+\end{equation}
+
+Onde $Y_i$ são os valores observados (reais), $Y'_i$ são os valores previstos (modelados) e $n$ é o número total de
+observações.
+
+O MAE é sempre um valor não negativo e expressa, em média, o quanto os valores previstos se afastam dos valores reais.
+Por tratar os erros de forma linear (sem elevar ao quadrado, como no RMSE), o MAE é menos sensível a outliers, sendo
+mais representativo em cenários onde grandes desvios são raros ou indesejáveis. Valores mais próximos de zero indicam
+maior precisão nas predições do modelo.
