@@ -122,7 +122,7 @@ infelizmente apresentam muitos valores faltantes para serem de qualquer uso ness
 daqui pra frente.
 
 \begin{figure}[htb] \caption{\label{faltantes} Valores faltantes por variável coletada} \begin{center}
-  \includegraphics[scale=0.53]{img/faltantes.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
+  \includegraphics[scale=0.50]{img/faltantes.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
 Também foram consideradas as variáveis associadas à medição de nível d'água. Essas variáveis representam diferentes
 mecanismos de aquisição da cota. 'Cota\_Manual', por exemplo, corresponde a leituras realizadas por meio de régua
@@ -133,7 +133,7 @@ Para escolher quais dados seriam utilizados nos modelos de predição, foi reali
 valores, presente na \autoref{correlacao}.
 
 \begin{figure}[htb] \caption{\label{correlacao} Correlação entre os dados das estações} \begin{center}
-  \includegraphics[scale=0.275]{img/correlacao.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
+  \includegraphics[scale=0.25]{img/correlacao.png} \end{center} \legend{Fonte: Reprodução própria} \end{figure} 
 
 A análise de correlação evidencia que as variáveis 'Cota\_Manual', 'Cota\_Sensor' e 'Cota\_Display' apresentam forte
 correlação linear com o alvo 'Cota\_Adotada'. Observa-s também que 'Cota\_Manual' possui mais de 99\% de valores
@@ -168,9 +168,95 @@ transformações, essa variável foi reconstruída a partir de 'Chuva\_Adotada',
 adiante.
 
 \subsection{Lacunas nos dados}
-Após uma análise mais profunda dos dados, notou-se a presença de certas lacunas nas informações, isto é, certos pontos
-nos dados são pulados devido a falta de coleta. Mesmo que a API do Hidroweb forneça informações com uma frequência de 15
-minutos, 
+A análise detalhada da série temporal evidenciou lacunas decorrentes da ausência de medições em diversos intervalos.
+Apesar de a API do Hidroweb fornecer dados, em princípio, a cada 15 minutos, todas as estações apresentam falhas nessa
+frequência. A \autoref{comp_nivel_estacoes} destaca essa descontinuidade para 'Cota\_Adotada' na estação RIO PARDO
+('85900000'), observa-se um gap particularmente longo entre nov/2020 e jul/2021, composto apenas por registros
+esporádicos. Em outros períodos, a ausência é completa, sem quaisquer medições intermediárias.
+
+\begin{figure}[htb] \caption{\label{comp_nivel_estacoes} Correlação entre os dados das estações selecionadas}
+  \begin{center} \includegraphics[scale=0.313]{img/newplot.png} \end{center} \legend{Fonte: Reprodução própria}
+  \end{figure} 
+
+Para mitigar as falhas de amostragem, foram empregadas duas estratégias de imputação. Inicialmente, valores ausentes de
+'Cota\_Adotada' foram preenchidos utilizando 'Cota\_Manual' e 'Cota\_Sensor' sempre que disponíveis, reduzindo
+substancialmente o volume de lacunas. Na estação Jacuí (RIO PARDO), por exemplo, aproximadamente 40\% dos registros
+estavam ausentes antes do tratamento, principalmente devido à descontinuidade na frequência nominal de 15 minutos. Após
+essa etapa, o percentual de faltantes caiu para cerca de 20\%, tornando a série muito mais viável para modelagem.
+
+Para os demais valores ausentes, aplicou-se interpolação por \textit{CubicSpline} da biblioteca \textit{SciPy}
+\cite{SciPy}, garantindo preenchimento suave e condições de contorno naturais, de modo a evitar a introdução de ruído
+excessivamente artificial no conjunto de dados.
+
+\subsection{Detecção e tratamento de Outliers}
+O processo de imputação manual de 'Cota\_Adotada' introduziu, como efeito colateral, a presença de outliers perceptíveis
+nas séries das estações. Esses valores anômalos estão associados, em geral, a erros de escala nos sensores ou a
+incorreções em medições manuais. Ainda assim, o aumento de cobertura, especialmente em estações com menor densidade de
+dados, justifica a estratégia, dado que tais outliers podem ser identificados e corrigidos posteriormente com relativa
+facilidade.
+
+Para identificar os Outliers foi utilizada a biblioteca \textit{PyOD} \cite{pyod}, especializada em deteção de Outliers
+em dados com multiplas variáveis com os algoritmos ECOD e PCA, sendo o primeiro um algoritmo focado na análise de
+eventos extremos nas caudas de distribuições cumulativas e o segundo um algoritmo que busca outliers em dados
+reconstruídos a partir de projeções de menor dimensionalidade dos mesmos.
+
+Estes dois algoritmos criam um score de outlier para cada valor. A combinação de ambos os scores é utilizada para
+determinar se um valor é um outlier ou não usando IQR, o intervalo interquartil. Este método é utilizado em combinação
+com o método "Tukey Fence", que trata qualquer ponto acima de Q3 + 1.5*(Q3-Q1) ou abaixo de Q3 + 1.5*(Q3-Q1) como um
+outlier. Este método foi escolhido por conseguir escolher dinamicamente os outliers de cada estação, ou seja, sem
+utilizar um valor fixo, dada a diferença na quantidade de outliers entre cada estação.
+
+Os valores determinados como outliers foram removidos, deixando somente valores nulos no seu lugar, que foram imputados
+usando a mesma estratégia de interpolação com \textit{CubicSpline} utilizada anteriormente.
+
+\begin{figure}[htb] \caption{\label{outlierad} Exemplo da estação Jacuí antes e depois do processo de imputação de
+outliers}
+  \begin{center} \includegraphics[scale=0.65]{img/outlier_ad.png} \end{center} \legend{Fonte: Reprodução própria}
+  \end{figure} 
+
+\subsection{Transformações de dados}
+Com os dados já tratados, realizou-se inicialmente o reagrupamento para a frequência de interesse. Optou-se por uma
+resolução horária, de modo que a frequência original de 15 minutos foi condensada em intervalos de 1 hora, aplicando-se
+as funções de agregação adequadas a cada variável. Em seguida, os dados foram transformados do formato longo, onde cada
+linha indica um registro para uma estação com os seus atributos e, logo, temos várias linhas para o mesmo instante de
+tempo, para o formato comprido, no qual cada registro temporal contém todas as variáveis de todas as estações
+simultaneamente. Essa reorganização permite que cada observação represente um estado completo do sistema hidrológico em
+um dado momento, simplificando o uso posterior pelos modelos. Destas forma aplicaram-se transformações customizadas como
+um passo na Pipeline do \textit{scikit-learn} logo após o pré-processamento, com o objetivo de criar informações
+relevantes que os modelos possam utilizar no treinamento.
+
+Primeiramente, aplicou-se um processo de \textit{feature scaling} para eliminar diferenças de escala que poderiam
+induzir relações artificiais entre variáveis, preservando ao mesmo tempo o sinal das medições. Para as variáveis
+numéricas, utilizou-se um escalonamento padronizado (\textit{StandardScaler}), que centraliza os dados na média e os
+normaliza pela variância, aproximando-os de uma distribuição gaussiana. Já para as variáveis categóricas, empregou-se um
+\textit{OneHotEncoder}, que converte cada categoria em um indicador binário independente, evitando qualquer
+interpretação ordinal.
+
+A transformação de dados com \textit{lag} introduz dependência temporal ao criar versões defasadas de cada variável
+numérica, deslocando observações passadas por defasagens fixas (neste caso, 6, 12, 24 e 48 passos). Campos de data,
+metadados e colunas não numéricas são excluídos para manter coerência temporal e evitar vazamento. O resultado é uma
+expansão causal que expõe memória de curto e médio prazo, permitindo que o modelo capture comportamento autorregressivo
+sem especificações manuais de dinâmica temporal.
+
+A transformação de estatística por janela calcula métricas para cada coluna numérica, produzindo médias e desvios-padrão
+em múltiplas janelas (neste caso, 24, 48, 72 e 168 passos). O objetivo é representar tendências locais e variabilidade
+instantânea, oferecendo ao modelo sinais suavizados e medidas de volatilidade de curto prazo fundamentais em séries
+hidrometeorológicas ruidosas.
+
+Por fim, também foi inserido um transformador que acumula informação via somas móveis em janelas extensas (neste caso,
+96, 672 e 2880 passos). As métricas cumulativas revelam respostas lentas da bacia, efeitos de memória e acúmulos
+sazonais, componentes difíceis de capturar apenas com valores instantâneos e particularmente úteis em rotinas
+operacionais de hidrologia e previsão de médio prazo.
+
+Com estas transformações, a quantidade de atributos cresceu substancialmente, e nem todos contribuem de forma relevante
+para o sistema. Para reduzir a dimensionalidade e acelerar o treinamento, aplicou-se uma seleção de atributos baseada em
+um modelo de árvores (\textit{XGBoost}) simples, que estima a importância de cada variável numérica e retém apenas um
+subconjunto das mais informativas. Esse procedimento elimina redundâncias introduzidas pela engenharia de atributos,
+reduz o risco de sobreajuste em espaços de alta dimensionalidade e preserva apenas sinais com contribuição efetiva para
+a variância explicada, tirando proveito da capacidade do modelo de capturar relações não lineares e interações entre
+preditores.
+
+% COLOCAR IMAGEM COM A FEATURE IMPORTANCE
 
 \section{Ferramentas e recursos utilizados}
 O desenvolvimento da parte escrita deste trabalho foi feita em \LaTeX, utilizando o modelo \abnTeX, desenvolvido por
@@ -192,9 +278,8 @@ computacional e tratamento dos dados.
 % hospedagem no \textit{Streamlit Community Cloud} assegurará disponibilidade pública contínua e atualizações
 % automáticas conforme novos dados ou modelos forem incorporados.
 
-\section{Setup Experimental para treinamento de modelos} 
 O processo de treinamento dos modelos foi conduzido em uma máquina com as seguintes específicações: Processador Intel(R)
-Core(TM) de 12ª geração i5-12400F (2.50 GHZ), 64GB de memória RAM e placa de vídeo RTX 4060 com 8GB VRAM.
+Core(TM) de 12ª geração i5-12400F (2.50 GHZ base), 64GB de memória RAM e placa de vídeo Nvidia RTX 4060 com 8GB de vRAM. 
 
 % The LSTM model takes in training around 1.5 seconds per epoch, which led to around 2.5 to 4 minutes per experiment.
 % Additionally, the feature importance calculation for each prediction takes around 1 second per prediction.
