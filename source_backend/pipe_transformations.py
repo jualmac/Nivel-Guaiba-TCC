@@ -64,7 +64,7 @@ class FeatureImportanceSelector(BaseEstimator, TransformerMixin):
         device_cfg = get_device_config(self.mode, "xgboost")
         xgb_params = {
             "n_estimators": 100,
-            "max_depth": 6,
+            "max_depth": 5,
             "learning_rate": 0.05,
             "subsample": 0.8,
             "colsample_bytree": 0.8,

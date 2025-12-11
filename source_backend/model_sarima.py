@@ -44,8 +44,8 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 batch: int = 128,
                 steps: int = 12,
                 mode: str = 'CPU',
-                max_exog_features: int = 20, # SAFETY BRAKE: Hard limit on features to prevent crash
-                search_sample_size: int = 5000, # Optimization: Limit samples for stepwise search
+                max_exog_features: int = 10, # SAFETY BRAKE: Hard limit on features to prevent crash
+                search_sample_size: int = 3000, # Optimization: Limit samples for stepwise search
                 **kwargs
                 ):
         self.model_name = 'sarima'
@@ -153,7 +153,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     trace=True,                             # Prints progress;
                     error_action='ignore',      
                     suppress_warnings=True,     
-                    stepwise=False,                         # Impacts performance -> Controls full grid search;
+                    stepwise=True,                         # Impacts performance -> Controls full grid search;
                     approximation=True,                     # Uses CSS instead of MLE for search;
                     maxiter=25,                             # Stop solver if not converging quickly;
                     n_jobs=1,                               # Set to 1 for stability with exog variables -> Maybe change to -1 (does it even matter with CPU only?);
