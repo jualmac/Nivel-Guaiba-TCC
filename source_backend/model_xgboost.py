@@ -163,6 +163,8 @@ class XGBoostModels:
             ]
 
         # Create model with params;
+        # Anchor baseline to target mean to reduce bias toward zero;
+        best_params.setdefault("base_score", float(np.mean(self.y)))
         logger.info("Training XGBoost with params: %s", best_params)
         self.model = XGBRegressor(**best_params)
 

@@ -153,10 +153,19 @@ class LightGBMModels:
         self.model = LGBMRegressor(**best_params)
 
         # Fit model with Training data (and validation set for early stopping if provided);
+        # Provide init_score anchored at target mean to supply baseline level;
+        train_init_score = np.full(len(self.y), float(np.mean(self.y)))
         if eval_set is not None:
-            self.model.fit(self.X, self.y, eval_set=eval_set)
+            eval_init_scores = [np.full(len(y_val), float(np.mean(self.y)))]
+            self.model.fit(
+                self.X,
+                self.y,
+                eval_set=eval_set,
+                init_score=train_init_score,
+                eval_set_init_score=eval_init_scores
+            )
         else:
-            self.model.fit(self.X, self.y)
+            self.model.fit(self.X, self.y, init_score=train_init_score)
         return self
     
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
