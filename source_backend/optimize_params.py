@@ -324,6 +324,12 @@ class BayesianOptimization:
         X_source = self.X_raw if self.X_raw is not None else self.X_train
         y_source = self.y_train
 
+        # Sort by timestamp to keep folds strictly time-ordered and avoid leakage;
+        if isinstance(X_source, pd.DataFrame) and "Data_Hora_Medicao" in X_source.columns:
+            X_source = X_source.sort_values("Data_Hora_Medicao")
+            if isinstance(y_source, (pd.Series, pd.DataFrame)):
+                y_source = y_source.loc[X_source.index]
+
         tscv = TimeSeriesSplit(n_splits=self.n_splits, gap=self.gap)
         scores = []
 
