@@ -17,7 +17,9 @@ conjunto de validação.
 Na fase de avaliação, as predições geradas para o período de teste foram confrontadas com dados observados reservados de
 teste mediante métricas hidrologicamente relevantes, com a Eficiência de Kling-Gupta servindo como principal medida e os
 coeficiente de Nash-Sutcliffe (NSE), RMSE e MAE como métricas complementares. Esta estrutura metodológica visou garantir
-comparação objetiva do desempenho preditivo.
+comparação objetiva do desempenho preditivo. Como base para a comparação, também foi treinado um modelo
+\textit{DummyRegressor} da biblioteca \textit{scikit-learn}. Este é um modelo simples que realiza predições atraveś e
+estratégias simples, neste caso, a média da variável alvo. 
 
 Todos os códigos utilizados neste projeto, além deste próprio texto em \LaTeX, se encontram disponíveis abertamente
 (Licensa MIT), no repositório do projeto \cite{machado}. Um notebook com mais visualizações também se encontra

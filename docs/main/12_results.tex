@@ -21,4 +21,47 @@ dado que os mesmos compartilham muito da mesma arquitetura de \textit{Gradient B
 % -> Tempo de treinamento: -> Resultados:
 
 \section{Análise de Métricas}
-\lipsum[1]
+Na figura \autoref{pred}, encontra-se uma comparação das predições realizadas por cada modelo no conjunto de testes,
+além do observado para o mesmo período.
+
+\begin{figure}[htb] \caption{\label{pred} Resultado da predição dos modelos}
+  \begin{center} \includegraphics[scale=0.6]{img/predictions_comparison.png} \end{center} \legend{Fonte: Reprodução
+  própria}
+  \end{figure} 
+
+Observou-se durante o treinamento que XGBoost e LightGBM apresentavam desempenho muito semelhante. Ambos capturavam bem
+a forma geral dos sinais, mas produziam predições sistematicamente deslocadas para baixo, sugerindo a presença de uma
+constante negativa introduzida. Esse comportamento é conhecido em modelos de \textit{Gradient Boosting} quando o
+treinamento é iniciado com parâmetros padrão inadequados para regressão \cite{xgbase}. Em particular, o parâmetro
+\textit{base\_score} do XGBoost — inicializado por padrão em $0.5$ — foi originalmente definido para tarefas de
+classificação binária, e não para problemas de regressão.
+
+Como o \textit{base\_score} atua como valor inicial das folhas antes das atualizações de gradiente, um ponto de partida
+mal calibrado tende a introduzir um deslocamento constante nas predições. A prática recomendada é ajustar esse parâmetro
+para a média da variável alvo, garantindo que o modelo inicie o treinamento em um ponto mais coerente com a escala dos
+dados. De fato, a constante observada no deslocamento das predições foi próxima à média do alvo (cerca de $100.0$),
+coerente com o valor indicado pelo \textit{DummyRegressor}. Para o XGBoost, isso ajudou a deslocar as predições de forma
+mais coerente com o desejado. A mesma estratégia foi testada no \textit{LightGBM} com o parâmetro \textit{init\_score},
+mas os resultados obtidos não foram satisfatórios.
+
+% SARIMA e padrão ondulatório
+
+Na \autoref{tab:comparacao_modelos}, encontram-se as métricas calculadas para os modelos. Como pode-se observar, o 
+
+\begin{table}[h!]
+    \centering
+    \caption{Resultados Comparativos de Desempenho dos Modelos}
+    \label{tab:comparacao_modelos}
+    \begin{tabular}{|l|r|r|r|r|r|r|}
+        \hline
+        \textbf{Modelo} & \textbf{RMSE} & \textbf{MAE} & \textbf{NSE} & \textbf{KGE} & \textbf{Duração (s)} \\
+        \hline \hline
+        SARIMA & 56.815 & 47.161 & 0.685 & 0.725 & 642.92 \\ \hline
+        LSTM & 108.044 & 94.280 & 0.376 & 0.471 & 1289.39 \\ \hline
+        XGBoost & 97.719 & 85.203 & 0.424 & 0.542 & 1748.95 \\ \hline
+        LightGBM & 93.707 & 83.600 & 0.445 & 0.568 & 3537.56 \\ \hline
+        Dummy & 130.242 & 99.657 & 0.293 & -0.499 & 9.37 \\ \hline
+    \end{tabular}
+\end{table}
+
+
