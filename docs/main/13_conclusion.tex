@@ -1,1 +1,26 @@
-\lipsum[1]
+O escopo deste trabalho revelou-se seu maior desafio. Embora a base do SNIRH seja ampla, apresentou diversos problemas
+de qualidade, inconsistências e falhas nas séries temporais. O esforço necessário para corrigir e padronizar esses dados
+consumiu uma parcela significativa do tempo, que poderia ter sido direcionada para etapas centrais da modelagem, como
+engenharia de atributos mais profunda, testes adicionais de arquiteturas, refinamento sistemático das predições, ou a
+inclusão de outras fontes de dados.
+
+A adoção de uma arquitetura em paralelo também se mostrou complexa. Essa escolha foi motivada por um cenário realista,
+no qual um sistema operacional de previsão de cheias não pode depender de um único modelo, mas deve integrar diferentes
+arquiteturas e comparar múltiplos cenários, potencialmente por meio de um \textit{ensemble}. Contudo, treinar
+simultaneamente modelos distintos com entradas idênticas e configurações otimizadas, excedeu as capacidades de uma
+máquina comercial. Um ambiente computacional mais robusto certamente produziria resultados superiores. Mais memória RAM
+permitiria ampliar o conjunto de atributos selecionados; uma GPU de maior capacidade proporcionaria paralelismo mais
+efetivo e tempos de treinamento substancialmente menores. Ainda assim, por tratar-se de um estudo de caso, foi
+necessário trabalhar com os recursos disponíveis.
+
+Os resultados obtidos foram satisfatórios, já que todos os modelos superaram a baseline e apresentaram capacidade
+preditiva consistente. A reprodução dos padrões gerais de variação do nível d'água também foi robusta. Embora nenhum
+modelo tenha capturado adequadamente os picos extremos das enchentes, isso era esperado, visto que tal evento foi
+extraordinário e não possuia análogos nas séries históricas utilizadas para o treinamento. Ainda assim, a habilidade dos
+modelos em identificar aumentos e quedas repentinas mostrou-se notável.
+
+Entre as abordagens avaliadas, os modelos baseados em \textit{Gradient Boosting} demonstraram maior potencial,
+especialmente pela combinação de desempenho e velocidade de treinamento. Além disso, esses modelos oferecem margem para
+aperfeiçoamentos adicionais, notadamente no tratamento do escalonamento das variáveis, cuja aplicação pode interagir de
+forma indesejada com métodos baseados em árvores, uma vez que seus mecanismos internos podem ser capazes de lidar com
+este problema.

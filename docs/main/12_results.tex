@@ -29,24 +29,25 @@ além do observado para o mesmo período.
   própria}
   \end{figure} 
 
-Observou-se durante o treinamento que XGBoost e LightGBM apresentavam desempenho muito semelhante. Ambos capturavam bem
-a forma geral dos sinais, mas produziam predições sistematicamente deslocadas para baixo, sugerindo a presença de uma
-constante negativa introduzida. Esse comportamento é conhecido em modelos de \textit{Gradient Boosting} quando o
-treinamento é iniciado com parâmetros padrão inadequados para regressão \cite{xgbase}. Em particular, o parâmetro
-\textit{base\_score} do XGBoost — inicializado por padrão em $0.5$ — foi originalmente definido para tarefas de
-classificação binária, e não para problemas de regressão.
+Observou-se durante o treinamento que XGBoost e LightGBM apresentaram desempenho muito semelhante. Ambos capturaram bem
+a forma geral dos sinais, mas produziram predições sistematicamente deslocadas para baixo, indicando a influência de uma
+constante negativa. Esse efeito é conhecido em modelos de \textit{Gradient Boosting} quando se utilizam parâmetros
+iniciais inadequados para regressão \cite{xgbase}. Em particular, o parâmetro \textit{base\_score} do XGBoost — definido
+como $0.5$ por padrão — foi projetado para classificação binária e pode introduzir um deslocamento quando aplicado a
+regressão.
 
-Como o \textit{base\_score} atua como valor inicial das folhas antes das atualizações de gradiente, um ponto de partida
-mal calibrado tende a introduzir um deslocamento constante nas predições. A prática recomendada é ajustar esse parâmetro
-para a média da variável alvo, garantindo que o modelo inicie o treinamento em um ponto mais coerente com a escala dos
-dados. De fato, a constante observada no deslocamento das predições foi próxima à média do alvo (cerca de $100.0$),
-coerente com o valor indicado pelo \textit{DummyRegressor}. Para o XGBoost, isso ajudou a deslocar as predições de forma
-mais coerente com o desejado. A mesma estratégia foi testada no \textit{LightGBM} com o parâmetro \textit{init\_score},
-mas os resultados obtidos não foram satisfatórios.
+Como o \textit{base\_score} define o valor inicial das folhas, um ponto de partida mal calibrado tende a gerar esse
+deslocamento constante. A prática recomendada é ajustá-lo para a média do alvo, o que de fato corresponde ao valor
+observado nas predições (cerca de $100.0$, coerente com o \textit{DummyRegressor}). Contudo, essa estratégia não trouxe
+melhora significativa no XGBoost nem no \textit{LightGBM}.
 
-% SARIMA e padrão ondulatório
-
-Na \autoref{tab:comparacao_modelos}, encontram-se as métricas calculadas para os modelos. Como pode-se observar, o 
+Na \autoref{tab:comparacao_modelos} são apresentadas as métricas de desempenho. XGBoost e LightGBM exibiram resultados
+quase idênticos, com leve vantagem para o \textit{LightGBM}, embora com tempo de treinamento muito maior — tornando o
+XGBoost mais competitivo na prática. O \textit{LSTM} obteve erros menores que o \textit{SARIMA}, mas desempenho inferior
+nas métricas de ajuste. Já o \textit{SARIMA} mostrou maior sensibilidade ao conjunto de dados, dado que embora tenha
+apresentado boas performances em outros cenários, para este conjunto específico seus resultados ficaram inferiores ao
+esperado. Além disso, o tempo de treinamento, embora menor que o dos demais modelos, é fortemente influenciado pela
+redução dos atributos utilizados, necessária para manter a estabilidade computacional.
 
 \begin{table}[h!]
     \centering
@@ -56,12 +57,10 @@ Na \autoref{tab:comparacao_modelos}, encontram-se as métricas calculadas para o
         \hline
         \textbf{Modelo} & \textbf{RMSE} & \textbf{MAE} & \textbf{NSE} & \textbf{KGE} & \textbf{Duração (s)} \\
         \hline \hline
-        SARIMA & 56.815 & 47.161 & 0.685 & 0.725 & 642.92 \\ \hline
-        LSTM & 108.044 & 94.280 & 0.376 & 0.471 & 1289.39 \\ \hline
+        SARIMA & 126.313 & 113.221 & 0.327 & 0.422 & 1095.92 \\ \hline
+        LSTM & 120.929 & 103.302 & 0.347 & 0.393 & 2028.40 \\ \hline
         XGBoost & 97.719 & 85.203 & 0.424 & 0.542 & 1748.95 \\ \hline
         LightGBM & 93.707 & 83.600 & 0.445 & 0.568 & 3537.56 \\ \hline
-        Dummy & 130.242 & 99.657 & 0.293 & -0.499 & 9.37 \\ \hline
+        Dummy & 131.615 & 101.751 & 0.310 & 0.0 & 9.37 \\ \hline
     \end{tabular}
 \end{table}
-
-

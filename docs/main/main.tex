@@ -352,15 +352,15 @@ análise comparativa de modelos de predição do nível da água do Rio Guaíba,
 precoce para gestão de crises. Foram avaliados quatro modelos baseados em dados: SARIMA (estatístico), LSTM (rede
 neural recorrente), XGBoost e LightGBM (baseados em Gradient Boosting), utilizando séries temporais horárias de nível
 d'água e variáveis meteorológicas (2018-2025) do Sistema Nacional de Informações sobre Recursos Hídricos (SNIRH). Os
-dados foram pré-processados com interpolação de falhas e normalização, e os modelos otimizados via optimização
+dados foram pré-processados com interpolação de falhas e normalização, e os modelos otimizados via otimização
 Bayesiana. O desempenho foi quantificado por métricas hidrologicamente relevantes: Eficiência de Kling-Gupta, NSE
 (coeficiente de eficiência de Nash-Sutcliffe), RMSE (raiz do erro quadrático médio) e MAE (erro absoluto médio).
 
-% O estudo indicou que o LightGBM obteve o melhor equilíbrio entre acurácia (RMSE = 8,3 cm; NSE = 0,96) e
-% eficiência computacional (< 2 segundos para previsões em tempo real), superando modelos tradicionais em cenários de
-% variação abrupta. Conclui-se que modelos baseados em boosting são alternativas viáveis para sistemas de alerta
-% integrados, reduzindo a dependência de simulações hidrodinâmicas complexas e democratizando o acesso a informações
-% críticas para tomada de decisão em eventos extremos.
+O estudo mostrou que o LightGBM apresentou o melhor desempenho geral (RMSE = 93 cm; KGE = 0,57), superando métodos
+tradicionais sobretudo em cenários de variação rápida do nível d’água. O XGBoost obteve métricas semelhantes, porém com
+menor custo computacional no treinamento. Os resultados indicam que modelos baseados em Gradient Boosting são opções
+viáveis para sistemas integrados de alerta, pois reduzem a dependência de simulações hidrodinâmicas complexas e ampliam
+o acesso a informações críticas para suporte à decisão em eventos extremos.
    
 \vspace{\onelineskip}
 
@@ -380,11 +380,11 @@ normalization, and the models were optimized using Bayesian optimization. Perfor
 hydrologically relevant metrics: Kling--Gupta Efficiency (KGE), Nash--Sutcliffe Efficiency (NSE), root mean square error
 (RMSE), and mean absolute error (MAE).
 
-% Preliminary results indicate that LightGBM achieved the best balance between accuracy (RMSE = 8.3 cm; NSE = 0.96) and
-% computational efficiency (< 2 seconds for real-time predictions), outperforming traditional models in scenarios of
-% abrupt variation. We conclude that boosting-based models are viable alternatives for integrated alert systems, reducing
-% reliance on complex hydrodynamic simulations and democratizing access to critical information for decision-making during
-% extreme events.
+The study showed that LightGBM achieved the best overall performance (RMSE = 93 cm; KGE = 0.57), outperforming
+traditional methods particularly in scenarios involving rapid water-level fluctuations. XGBoost reached comparable
+metrics while requiring lower computational cost during training. The results indicate that Gradient Boosting models are
+viable alternatives for integrated early-warning systems, as they reduce dependence on complex hydrodynamic simulations
+and expand access to critical information for decision support during extreme events.
 
    \vspace{\onelineskip}
  
