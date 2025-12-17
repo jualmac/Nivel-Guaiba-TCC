@@ -331,10 +331,14 @@
 % ---
 % Agradecimentos
 % ---
-% \begin{agradecimentos}
-% \lipsum[1]
+\begin{agradecimentos}
+Nenhum aspecto desse trabalho teria sido possível sem a minha esposa, melhor amiga e parceira de jornada, Karoline. Teu carinho e suporte tornaram esse trabalho possível de uma forma literal. Sem todas as conversas que tivemos e os choques de realidade que me destes, nunca teria dessemperrado. Mais ainda, sem teu computador, nunca teria rodado esses modelos nas minhas velharias.
 
-% \end{agradecimentos}
+Ao meu amigo Henrique, por sempre estar disposto a convesar sobre a vida e me lembrar a importancia de não perder meus objetivos de vista. À José e Thomas, pela continua fonte de diversão e parceria.   
+
+Aos meus pais, que me deram a chance de estudar que nunca tiveram.
+
+\end{agradecimentos}
 % ---
 
 % ---
@@ -353,7 +357,7 @@ precoce para gestão de crises. Foram avaliados quatro modelos baseados em dados
 neural recorrente), XGBoost e LightGBM (baseados em Gradient Boosting), utilizando séries temporais horárias de nível
 d'água e variáveis meteorológicas (2018-2025) do Sistema Nacional de Informações sobre Recursos Hídricos (SNIRH). Os
 dados foram pré-processados com interpolação de falhas e normalização, e os modelos otimizados via otimização
-Bayesiana. O desempenho foi quantificado por métricas hidrologicamente relevantes: Eficiência de Kling-Gupta, NSE
+Bayesiana. O desempenho foi quantificado por métricas hidrologicamente relevantes: Eficiência de Kling-Gupta (KGE), NSE
 (coeficiente de eficiência de Nash-Sutcliffe), RMSE (raiz do erro quadrático médio) e MAE (erro absoluto médio).
 
 O estudo mostrou que o LightGBM apresentou o melhor desempenho geral (RMSE = 93 cm; KGE = 0,57), superando métodos

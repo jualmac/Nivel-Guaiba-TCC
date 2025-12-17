@@ -29,14 +29,22 @@ A combinação dos dois componentes forma o modelo ARMA, como mostrado na equaç
     X_t = \epsilon_t + \sum_{i=1}^{p}\phi_i X_{t-i} + \sum_{i=1}^q \theta_i \epsilon_{t-i}
 \end{equation}
 
-Para tornar a série estacionária, o ARIMA inclui um termo de diferenciação dos valores consecutivos da série, que remove
-tendências de longo prazo. A diferenciação é representada pelo operador $(1 - L)$, onde $L^i$ é o operador de defasagem,
-definido como $L^i = \frac{X_{t-i}}{X_t}$, ou seja, uma defasagem de $X_t$ por $i$ períodos. Aplicando isto, temos:
+Entretanto, modelos ARMA pressupõem que a série seja estacionária (com média e variância constantes ao longo do
+tempo). Na prática, muitas séries reais apresentam tendências. Para tratar essa não-estacionariedade, o modelo ARIMA
+introduz o parâmetro $d$, referente à ordem de integração.
+
+O parâmetro $d$ indica o número de vezes que a série deve ser diferenciada para tornar-se estacionária. A primeira
+diferença ($d=1$) é definida como $\Delta X_t = X_t - X_{t-1}$. Para facilitar a manipulação matemática, utiliza-se o
+operador de defasagem (ou \textit{lag}) $L$, definido como $L^i X_t = X_{t-i}$. Assim, a diferenciação de ordem $d$ é
+representada pelo operador $(1 - L)^d$.
+
+Ao aplicar este operador à série original, transformamos $X_t$ em uma série estacionária antes de aplicar os componentes
+AR e MA. O modelo ARIMA($p, d, q$) resultante é expresso na \autoref{arima}:
 
 \begin{equation}
     \label{arima}
-    (1-\sum_{i-1}^p \phi_i L^i)(1-L)^dX_t = (1+\sum_{i=1}^q\theta_iL^i)\epsilon_t
-\end{equation} 
+    \left(1 - \sum_{i=1}^p \phi_i L^i\right) (1 - L)^d X_t = \left(1 + \sum_{i=1}^q \theta_i L^i\right) \epsilon_t
+\end{equation}
 
 A extensão SARIMA incorpora componentes sazonais adicionais para lidar com padrões que se repetem em intervalos fixos,
 como meses ou trimestres. Esses termos sazonais seguem a mesma estrutura do ARIMA, com parâmetros $P$, $D$, $Q$ e
@@ -49,4 +57,3 @@ padrões cíclicos de longo prazo presentes em séries temporais com sazonalidad
 % Nessa expressão $\phi_p(L)$ e $\theta_q(L)$ são os polinômios não sazonais AR e MA, respectivamente, $\Phi_P(L^s)$ e
 % $\Theta_Q(L^s)$ são os polinômios sazonais AR e MA, aplicados com defasagem múltipla de $s$ períodos e $(1 - L)^d$
 % representa a diferenciação não sazonal e $(1 - L^s)^D$ a diferenciação sazonal.
-
