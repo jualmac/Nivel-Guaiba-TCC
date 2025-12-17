@@ -7,6 +7,7 @@ mlruns/
 
 # Large data files (#TODO: LFS maybe?)
 ./data
+*.csv
 
 # PDF
 *.pdf
