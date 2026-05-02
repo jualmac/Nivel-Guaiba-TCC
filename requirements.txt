@@ -26,6 +26,7 @@ pmdarima
 torch
 optuna
 permetrics
+duckdb-cli
 
 #statsforecast
 #neuralforecast
