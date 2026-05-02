@@ -191,6 +191,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venv #Damn, need to write this 100 diff ways tf;
 
 # Spyder project settings
 .spyderproject
