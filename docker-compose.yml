@@ -19,7 +19,7 @@ services:
   database:
     build:
       context: .
-      dockerfile: source_database/Dockerfile.database
+      dockerfile: src/Dockerfile.database
     container_name: nivel_tcc_database
     volumes:
       - ./data:/app/data  # Shared database volume;
@@ -35,7 +35,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: source_backend/Dockerfile.backend
+      dockerfile: src/Dockerfile.backend
     container_name: nivel_tcc_backend
     volumes:
       - ./data:/app/data  # Shared database volume;

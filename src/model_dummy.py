@@ -14,7 +14,7 @@ import pandas as pd
 from typing import Optional, Dict
 from sklearn.dummy import DummyRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
-from source_backend.metrics import (
+from src.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,
 )

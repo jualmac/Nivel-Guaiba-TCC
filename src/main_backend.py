@@ -18,10 +18,12 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 from typing import Optional
 from db_handler import DBConnection
-from source_backend.pipe_preparation import data_division, encoding_pipeline
-from source_backend.train_models import training_pipeline
-from source_backend.mlflow_utils import MLFlowHandler
-from source_database.data_io import save_to_database
+from src.pipe_preparation import data_division, encoding_pipeline
+from src.train_models import training_pipeline
+from src.mlflow_utils import MLFlowHandler
+from src.data_io import save_to_database
+from src.main_data import main_database
+from src.data_imputation import feature_imputation
 from util import configure_logging
 
 logger = configure_logging(__name__)
@@ -56,7 +58,7 @@ def main_backend(
     """
     Execute complete model training pipeline: data loading, splitting, preprocessing, and training;
     
-    Reads clean data from database (produced by source_database ETL), performs train/test split,
+    Reads clean data from database (produced by src ETL), performs train/test split,
     applies feature encoding and preprocessing, trains the selected model, and evaluates performance;
     Optionally saves predictions and metrics to database;
     
@@ -118,11 +120,10 @@ def main_backend(
         mlflow_handler.log_params(log_params)
         mlflow_handler.end_run()
     
-    # Read clean data from database;
-    logger.info("Loading data from database...")
-    db = DBConnection()
-    df = db.run("SELECT * FROM data_stations")['result']
-    logger.info("Loaded %s rows from database", len(df))
+    # Execute data pipeline and read clean data;
+    logger.info("Executing ETL pipeline...")
+    df = main_database(save_to_db=save_to_db)
+    logger.info("Loaded %s rows from data pipeline", len(df))
 
     # Enforce chronological order to avoid temporal leakage before splitting;
     if "Data_Hora_Medicao" in df.columns:
@@ -142,6 +143,11 @@ def main_backend(
             random_state=random_state)
         logger.info("Train set: %s | Validation set: %s | Test set: %s", X_train.shape, X_val.shape, X_test.shape)
 
+        logger.info("Applying feature imputation post-split...")
+        X_train = feature_imputation(X_train)
+        X_val = feature_imputation(X_val)
+        X_test = feature_imputation(X_test)
+
     else:
         X_train, X_test, y_train, y_test = data_division(
             df=df,
@@ -150,6 +156,10 @@ def main_backend(
             val_size=val_size,
             random_state=random_state)
         logger.info("Train set: %s | Test set: %s", X_train.shape, X_test.shape)
+        
+        logger.info("Applying feature imputation post-split...")
+        X_train = feature_imputation(X_train)
+        X_test = feature_imputation(X_test)
     
     # Create preprocessing pipeline;
     logger.info("Creating preprocessing pipeline...")

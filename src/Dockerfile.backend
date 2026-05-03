@@ -18,16 +18,17 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY db_handler.py .
 COPY util.py .
 
-# Copy database module;
-COPY source_database/ ./source_database/
+# Copy backend module;
+COPY src/ ./src/
 
-# Create data directory for database;
-RUN mkdir -p /app/data && \
-    chmod 755 /app/data
+# Create necessary directories;
+RUN mkdir -p /app/data /app/models /app/mlruns && \
+    chmod 755 /app/data /app/models /app/mlruns
 
-# Set Python path;
+# Set Python path and MLflow tracking URI;
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV MLFLOW_TRACKING_URI=file:/app/mlruns
 
-# Run the ETL pipeline;
-CMD ["python", "-u", "source_database/main_data.py"]
+# Run the model training pipeline;
+CMD ["python", "-u", "src/main_backend.py"]

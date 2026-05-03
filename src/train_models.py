@@ -17,12 +17,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 
 # Models;
-from source_backend.model_sarima import SARIMAModels
-from source_backend.model_lstm import LSTMModels
-from source_backend.model_xgboost import XGBoostModels
-from source_backend.model_lightgbm import LightGBMModels
-from source_backend.model_dummy import DummyModels
-from source_backend.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer, CumulativeFeaturesTransformer
+from src.model_sarima import SARIMAModels
+from src.model_lstm import LSTMModels
+from src.model_xgboost import XGBoostModels
+from src.model_lightgbm import LightGBMModels
+from src.model_dummy import DummyModels
+from src.pipe_transformations import FeatureImportanceSelector, LagFeaturesTransformer, RollingStatsTransformer, CumulativeFeaturesTransformer
 
 ########################################################################################################################
 #                                                                  

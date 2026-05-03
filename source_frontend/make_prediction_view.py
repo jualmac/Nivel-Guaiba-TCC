@@ -19,7 +19,7 @@ import pandas as pd
 import seaborn as sns
 
 from db_handler import DBConnection
-from source_backend.metrics import kge
+from src.metrics import kge
 
 ########################################################################################################################
 #                                                                  

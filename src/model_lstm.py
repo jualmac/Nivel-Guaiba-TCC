@@ -17,9 +17,9 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
-from source_backend.mlflow_utils import MLFlowHandler
+from src.mlflow_utils import MLFlowHandler
 from util import get_device_config, configure_logging
-from source_backend.metrics import (
+from src.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,
 )
@@ -371,7 +371,7 @@ class LSTMModels:
             - dict: Best hyperparameters
         """
         # Import here to avoid circular import;
-        from source_backend.optimize_params import BayesianOptimization
+        from src.optimize_params import BayesianOptimization
         
         # Get best parameters from optimizer;
         optimizer = BayesianOptimization(

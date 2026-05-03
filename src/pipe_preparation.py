@@ -3,7 +3,7 @@ Data preparation utilities for model training;
 
 This module handles train/test splitting, feature encoding, and preprocessing operations
 that are specific to machine learning workflows. These operations are separate from
-the ETL pipeline in source_database;
+the ETL pipeline in src;
 """
 
 ########################################################################################################################

@@ -71,7 +71,6 @@ def save_to_database(
     missing: Optional[pd.DataFrame] = None,
     df_out: Optional[pd.DataFrame] = None,
     df_agg: Optional[pd.DataFrame] = None,
-    df_imp: Optional[pd.DataFrame] = None,
     df_melted: Optional[pd.DataFrame] = None,
     df_predictions: Optional[pd.DataFrame] = None,
     df_metrics: Optional[pd.DataFrame] = None,
@@ -89,7 +88,6 @@ def save_to_database(
         missing (Optional[pd.DataFrame]): Missing values tracking -> 'data_stations_missing' (default: None);
         df_out (Optional[pd.DataFrame]): Outlier-removed data -> 'data_stations_outlier' (default: None);
         df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
-        df_imp (Optional[pd.DataFrame]): Imputed data -> 'data_stations_imputed' (default: None);
         df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations' (default: None);
         df_predictions (Optional[pd.DataFrame]): ML model predictions -> 'models_predictions' (default: None);
         df_metrics (Optional[pd.DataFrame]): ML model metrics -> 'models_metrics' (default: None);
@@ -110,8 +108,6 @@ def save_to_database(
         db.write(df=df_out, table_name='data_stations_outlier', inplace=True)
     if df_agg is not None:
         db.write(df=df_agg, table_name='data_stations_aggregated', inplace=True)
-    if df_imp is not None:
-        db.write(df=df_imp, table_name='data_stations_imputed', inplace=True)
     if df_melted is not None:
         db.write(df=df_melted, table_name='data_stations', inplace=True)
     
