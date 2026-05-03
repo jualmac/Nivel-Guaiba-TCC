@@ -28,41 +28,40 @@ def get_data() -> pd.DataFrame:
     """
     Query and concatenate raw station data from DuckDB database;
     
-    Executes SELECT queries for all station tables and merges guaiba_1 and guaiba_2 into a single
-    continuous time series (guaiba_2 served as backup during 2024 floods). All stations are
-    concatenated into a unified dataframe;
+    Executes a single SELECT query for all required stations from the 
+    HidroinfoanaSerieTelemetricaDetalhada_v1 table and merges guaiba_1 (87450004) 
+    and guaiba_2 (87444000) into a single continuous time series (guaiba_2 served as 
+    backup during 2024 floods).
     
     Returns:
-        pd.DataFrame: Combined dataframe with all station data, guaiba stations merged;
+        pd.DataFrame: Dataframe with all station data, guaiba stations merged;
     """
     # Initialize the Connection;
     db = DBConnection()
 
-    # Query data;
-    query = {
-        'cai_1':        'SELECT * FROM station_cai_1',
-        'cai_2':        'SELECT * FROM station_cai_2',
-        'gravatai_1':   'SELECT * FROM station_gravatai_1',
-        'guaiba_1':     'SELECT * FROM station_guaiba_1',
-        'guaiba_2':     'SELECT * FROM station_guaiba_2',
-        'jacui_1':      'SELECT * FROM station_jacui_1',
-        'sinos_1':      'SELECT * FROM station_sinos_1',
-        'sinos_2':      'SELECT * FROM station_sinos_2',
-        'taquari_1':    'SELECT * FROM station_taquari_1',
-        'taquari_2':    'SELECT * FROM station_taquari_2',
-        }
-    dataframe = db.run(query=query)
+    # Query data for all required stations;
+    query = """
+        SELECT * FROM HidroinfoanaSerieTelemetricaDetalhada_v1
+        WHERE codigoestacao IN (
+            '87450004', '87444000', '87399000', '87382000', 
+            '87380000', '86510000', '86720000', '87150000', 
+            '87170000', '85900000'
+        )
+    """
+    df = db.run(query=query)['result']
+    
+    # Ensure codigoestacao is in lowercase (just in case the DB returns it in uppercase)
+    if 'CodigoEstacao' in df.columns:
+        df = df.rename(columns={'CodigoEstacao': 'codigoestacao'})
 
     # Merge guaiba_1 and guaiba_2 into a single dataframe -> This is because the guaiba_2 station was setted as a backup to guaiba_1 during the 2024 floods. Therefore, their data should be considered as a continuous time series;
-    guaiba_merged = pd.concat([dataframe['guaiba_1'], dataframe['guaiba_2']])
+    guaiba_merged = df[df['codigoestacao'].isin(['87450004', '87444000'])].copy()
     guaiba_merged['codigoestacao'] = '87450004'
     
-    # Update the dictionary with the merged guaiba and remove guaiba_2;
-    dataframe['guaiba_1'] = guaiba_merged
-    dataframe.pop('guaiba_2')
+    # Remove original guaiba stations from df and concatenate the merged one;
+    df = df[~df['codigoestacao'].isin(['87450004', '87444000'])]
+    df = pd.concat([df, guaiba_merged], ignore_index=True)
     
-    # Concatenate all station dataframes;
-    df = pd.concat(list(dataframe.values()))
     return df
 
 
