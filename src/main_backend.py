@@ -22,7 +22,7 @@ from src.pipelines.pipeline_preparation import data_division, encoding_pipeline
 from src.models.train_models import training_pipeline
 from src.mlflow_utils import MLFlowHandler
 from src.etl.data_io import save_to_database
-from src.pipelines.pipeline_data import main_database
+from src.pipelines.pipeline_data import pipeline_data
 from src.etl.data_imputation import feature_imputation
 from src.util import configure_logging
 
@@ -122,7 +122,7 @@ def main_backend(
     
     # Execute data pipeline and read clean data;
     logger.info("Executing ETL pipeline...")
-    df = main_database(save_to_db=save_to_db)
+    df = pipeline_data(save_to_db=save_to_db)
     logger.info("Loaded %s rows from data pipeline", len(df))
 
     # Enforce chronological order to avoid temporal leakage before splitting;

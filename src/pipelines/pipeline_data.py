@@ -28,7 +28,7 @@ logger = configure_logging(__name__)
 # MAIN PIPELINE
 #
 ########################################################################################################################
-def main_database(
+def pipeline_data(
     save_to_db: bool = False,
     frequency: str = 'h',
     max_fill_steps: int = 96  # 96 steps of 15 minutes = 1 day;
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     logger.info("Arguments: %s", args)
     
     # Execute main database pipeline with parsed arguments;
-    main_database(
+    pipeline_data(
         save_to_db=args.save_to_db, 
         frequency=args.frequency, 
         max_fill_steps=args.max_fill_steps
