@@ -554,7 +554,7 @@ if __name__ == "__main__":
     # Example: Load data and run comparison;
     # Uncomment and modify the following to use with real data:
     
-    # from src.data_transformation import collect_all_stations
+    # from src.etl.data_transformation import collect_all_stations
     # df_cleaned, df_filled, df_agg, df_out, df_imp, df_melted, imputer_stats = collect_all_stations(
     #     save_to_db=False, 
     #     frequency='h', 

@@ -371,7 +371,7 @@ class LSTMModels:
             - dict: Best hyperparameters
         """
         # Import here to avoid circular import;
-        from src.optimize_params import BayesianOptimization
+        from src.models.optimize_params import BayesianOptimization
         
         # Get best parameters from optimizer;
         optimizer = BayesianOptimization(

@@ -30,4 +30,4 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 # Run the ETL pipeline;
-CMD ["python", "-u", "src/main_data.py"]
+CMD ["python", "-u", "src/pipelines/pipeline_data.py"]

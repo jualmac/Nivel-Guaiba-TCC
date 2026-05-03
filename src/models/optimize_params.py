@@ -188,7 +188,7 @@ class BayesianOptimization:
         Custom implementation for PyTorch model returning mean KGE across splits.
         """
         # Import here to avoid circular import;
-        from src.model_lstm import _LSTMRegressor as LSTMRegressor
+        from src.models.model_lstm import _LSTMRegressor as LSTMRegressor
         
         # Use raw features when available to refit preprocessing per fold;
         X_source = self.X_raw if self.X_raw is not None else self.X_train

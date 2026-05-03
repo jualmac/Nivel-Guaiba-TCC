@@ -15,10 +15,10 @@ from typing import Tuple, Dict, Any, Optional
 from sklearn.pipeline import Pipeline
 
 # Internal imports;
-from src.data_io import get_data, save_to_database
-from src.data_cleaning import clean_dataframe
-from src.data_transformation import fill_gaps, aggregate_data, melt_dataframe
-from src.outlier_detection import outlier_removal
+from src.etl.data_io import get_data, save_to_database
+from src.etl.data_cleaning import clean_dataframe
+from src.etl.data_transformation import fill_gaps, aggregate_data, melt_dataframe
+from src.etl.outlier_detection import outlier_removal
 from util import configure_logging
 
 logger = configure_logging(__name__)
