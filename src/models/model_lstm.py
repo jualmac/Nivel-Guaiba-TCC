@@ -17,6 +17,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
+from sklearn.base import BaseEstimator, RegressorMixin
 from src.mlflow_utils import MLFlowHandler
 from src.util import get_device_config, configure_logging
 from src.metrics import (
@@ -30,7 +31,7 @@ logger = configure_logging(__name__)
 #
 # INNER PYTORCH MODULE
 #
-########################################################################################################################
+#########################################################################################################################
 class _LSTMRegressor(nn.Module):
     """
     Standard PyTorch LSTM implementation.
@@ -60,8 +61,8 @@ class _LSTMRegressor(nn.Module):
 #                                                                  
 # MODEL WRAPPER
 #
-########################################################################################################################
-class LSTMModels:
+#########################################################################################################################
+class LSTMModels(BaseEstimator, RegressorMixin):
     def __init__(self,
                 random_state: int = 42,
                 n_trials: int = 10,
@@ -72,13 +73,16 @@ class LSTMModels:
         """
         Initialize the model wrapper.
         """
-        self.model_name = 'lstm'
         self.random_state = random_state
         self.n_trials = n_trials
+        self.batch = batch
+        self.mode = mode
+        self.kwargs = kwargs
+        
+        self.model_name = 'lstm'
         self.batch_size = batch
         self.sequence_length = None
-        self.mode = mode
-        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility;
+        self.log_mlflow = kwargs.get('log_mlflow', True)
         
         # Determine device;
         self.device = torch.device('cuda' if self.mode in ['GPU', 'CUDA'] and torch.cuda.is_available() else 'cpu')
@@ -128,7 +132,7 @@ class LSTMModels:
         else:
             logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
-            best_params = mlflow_handler.load_best_params(metric_name="lstm_best_rmse", mode="min")
+            best_params = mlflow_handler.load_best_params(metric_name="train_best_kge", mode="max")
             if not best_params:
                 logger.info("No best params found, using defaults.")
                 best_params = {
@@ -148,6 +152,9 @@ class LSTMModels:
 
         # Convert inputs to float32 numpy arrays to ensure TensorDataset compatibility
         if isinstance(self.X, pd.DataFrame):
+            for col in self.X.select_dtypes(include=['object']).columns:
+                self.X[col] = pd.to_numeric(self.X[col], errors='coerce')
+            self.X = self.X.fillna(0)
             self.X = self.X.select_dtypes(include=[np.number]).values
         
         if hasattr(self.X, 'astype'):
@@ -170,8 +177,11 @@ class LSTMModels:
         # Prepare Validation Data if present;
         val_loader = None
         if X_val is not None and y_val is not None:
-            # Pre-clean validation data: drop non-numeric columns
+            # Pre-clean validation data: coerce object columns and drop non-numeric
             if isinstance(X_val, pd.DataFrame):
+                for col in X_val.select_dtypes(include=['object']).columns:
+                    X_val[col] = pd.to_numeric(X_val[col], errors='coerce')
+                X_val = X_val.fillna(0)
                 X_val = X_val.select_dtypes(include=[np.number])
 
             X_val_np = X_val.values if hasattr(X_val, 'values') else X_val
@@ -250,7 +260,12 @@ class LSTMModels:
             else:
                 logger.info("[LSTM][Epoch %s/%s] train_loss=%.4f; (no val loader)",
                             epoch + 1, epochs, train_loss/len(train_loader))
+        
+        self.is_fitted_ = True
         return self
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, 'is_fitted_') and self.is_fitted_
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
         """
@@ -260,6 +275,12 @@ class LSTMModels:
             raise ValueError("Model has not been fitted.")
         if X_test is None:
             raise ValueError("X_test cannot be None.")
+
+        # Coerce object columns to numeric (ColumnTransformer remainder='passthrough' can output object dtype);
+        if isinstance(X_test, pd.DataFrame):
+            for col in X_test.select_dtypes(include=['object']).columns:
+                X_test[col] = pd.to_numeric(X_test[col], errors='coerce')
+            X_test = X_test.fillna(0)
 
         # Pre-clean: drop non-numeric columns
         if isinstance(X_test, pd.DataFrame):

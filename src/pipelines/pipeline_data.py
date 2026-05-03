@@ -8,11 +8,12 @@ Main pipeline orchestrator for data processing, transformation, and model traini
 #
 ########################################################################################################################
 import os
+import sys
 import argparse
-import logging
 import pandas as pd
-from typing import Tuple, Dict, Any, Optional
-from sklearn.pipeline import Pipeline
+
+# Add project root to sys.path to allow absolute imports from 'src' when run as a script;
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 
 # Internal imports;
 from src.etl.data_io import get_data, save_to_database

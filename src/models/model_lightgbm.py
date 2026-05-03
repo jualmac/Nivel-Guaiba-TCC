@@ -19,6 +19,7 @@ from typing import Tuple, List, Optional, Any, Dict
 from lightgbm import LGBMRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
+from sklearn.base import BaseEstimator, RegressorMixin
 from src.models.optimize_params import BayesianOptimization
 from src.etl.transformations import nature_encode
 from src.mlflow_utils import MLFlowHandler
@@ -34,8 +35,8 @@ from src.metrics import (
 #
 # MODEL
 #
-########################################################################################################################
-class LightGBMModels:
+#########################################################################################################################
+class LightGBMModels(BaseEstimator, RegressorMixin):
     def __init__(self,
                 random_state: int = 42,
                 n_trials: int = 10,
@@ -48,14 +49,16 @@ class LightGBMModels:
         Initialize the model by defining the variables;
         """
         # Define arguments;
-        self.model_name = 'lightgbm'
         self.random_state = random_state
         self.n_trials = n_trials
         self.batch = batch
         self.steps = steps
         self.mode = mode
+        self.kwargs = kwargs
+        
+        self.model_name = 'lightgbm'
         self.device_config = get_device_config(self.mode, self.model_name)
-        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility;
+        self.log_mlflow = kwargs.get('log_mlflow', True)
     
     def fit(self, 
             X: pd.DataFrame, 
@@ -117,7 +120,7 @@ class LightGBMModels:
         else:
             logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
-            best_params = mlflow_handler.load_best_params(metric_name="score", mode="max")
+            best_params = mlflow_handler.load_best_params(metric_name="train_best_kge", mode="max") #(metric_name="score", mode="max")
             
             if not best_params:
                 logger.info("No best params found in MLflow, using defaults.")
@@ -136,6 +139,7 @@ class LightGBMModels:
         best_params.setdefault("verbosity", -1)
 
         # Add early stopping parameters if validation set is provided;
+        eval_metric = None
         if eval_set is not None:
             # Set early stopping parameters if not already in best_params;
             if 'early_stopping_rounds' not in best_params:
@@ -146,19 +150,38 @@ class LightGBMModels:
                 score = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
                 return 'kge', score, True
 
-            best_params['eval_metric'] = _lightgbm_kge_eval
+            eval_metric = _lightgbm_kge_eval
 
         # Create model with params;
         logger.info("Training LightGBM with params: %s", best_params)
         self.model = LGBMRegressor(**best_params)
 
+        # Coerce object columns to numeric (ColumnTransformer remainder='passthrough' can output object dtype);
+        if isinstance(self.X, pd.DataFrame):
+            for col in self.X.select_dtypes(include=['object']).columns:
+                self.X[col] = pd.to_numeric(self.X[col], errors='coerce')
+            self.X = self.X.fillna(0)
+        
+        if eval_set is not None:
+            X_eval, y_eval = eval_set[0]
+            if isinstance(X_eval, pd.DataFrame):
+                for col in X_eval.select_dtypes(include=['object']).columns:
+                    X_eval[col] = pd.to_numeric(X_eval[col], errors='coerce')
+                X_eval = X_eval.fillna(0)
+                eval_set = [(X_eval, y_eval)]
+
         # Fit model with Training data (and validation set for early stopping if provided);
         if eval_set is not None:
-            self.model.fit(self.X, self.y, eval_set=eval_set)
+            self.model.fit(self.X, self.y, eval_set=eval_set, eval_metric=eval_metric)
         else:
             self.model.fit(self.X, self.y)
+        
+        self.is_fitted_ = True
         return self
-    
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, 'is_fitted_') and self.is_fitted_
+
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
         """
         Predicts the model with the provided test dataset.
@@ -183,6 +206,12 @@ class LightGBMModels:
         
         # Apply calendar feature engineering (same as training);
         X_test_processed = self._add_calendar_features(X=X_test_processed)
+
+        # Coerce object columns to numeric (ColumnTransformer remainder='passthrough' can output object dtype);
+        if isinstance(X_test_processed, pd.DataFrame):
+            for col in X_test_processed.select_dtypes(include=['object']).columns:
+                X_test_processed[col] = pd.to_numeric(X_test_processed[col], errors='coerce')
+            X_test_processed = X_test_processed.fillna(0)
 
         # Make predictions;
         self.y_pred = self.model.predict(X_test_processed)

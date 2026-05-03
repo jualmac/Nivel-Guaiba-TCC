@@ -13,6 +13,14 @@ from sklearn.feature_selection import SelectKBest, f_regression, SelectFromModel
 from xgboost import XGBRegressor
 from src.util import get_device_config
 
+
+def _coerce_numeric_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    """Coerce object-typed columns to numeric where possible; prevents XGBoost dtype errors."""
+    obj_cols = df.select_dtypes(include=['object']).columns
+    for col in obj_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
 ########################################################################################################################
 #
 # TRANSFORMER
@@ -143,6 +151,9 @@ class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
         input_is_df = isinstance(X, pd.DataFrame)
         X_copy = X.copy() if input_is_df else pd.DataFrame(X)
 
+        # Coerce object columns to numeric BEFORE engineering to prevent dtype propagation;
+        X_copy = _coerce_numeric_dtypes(X_copy)
+
         # Identify columns that should not be lagged (date/index-like columns);
         exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
         engineered_prefixes = ("lag_", "rolling_mean_", "rolling_std_", "cum_sum_")
@@ -175,8 +186,9 @@ class LagFeaturesTransformer(BaseEstimator, TransformerMixin):
             lag_df = pd.DataFrame(lag_data, index=X_copy.index)
             X_copy = pd.concat([X_copy, lag_df], axis=1)
 
-        # Fill NaNs;
+        # Fill NaNs and coerce dtypes;
         X_copy = X_copy.fillna(0)
+        X_copy = _coerce_numeric_dtypes(X_copy)
         return X_copy if input_is_df else X_copy.to_numpy()
 
 class RollingStatsTransformer(BaseEstimator, TransformerMixin):
@@ -190,6 +202,9 @@ class RollingStatsTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X):
         input_is_df = isinstance(X, pd.DataFrame)
         X_copy = X.copy() if input_is_df else pd.DataFrame(X)
+
+        # Coerce object columns to numeric BEFORE engineering to prevent dtype propagation;
+        X_copy = _coerce_numeric_dtypes(X_copy)
 
         # Identify columns that should not be rolled (date/index-like columns);
         exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
@@ -224,8 +239,9 @@ class RollingStatsTransformer(BaseEstimator, TransformerMixin):
             roll_df = pd.DataFrame(roll_data, index=X_copy.index)
             X_copy = pd.concat([X_copy, roll_df], axis=1)
 
-        # Fill NaNs;
+        # Fill NaNs and coerce dtypes;
         X_copy = X_copy.fillna(0)
+        X_copy = _coerce_numeric_dtypes(X_copy)
         return X_copy if input_is_df else X_copy.to_numpy()
 
 class CumulativeFeaturesTransformer(BaseEstimator, TransformerMixin):
@@ -239,6 +255,9 @@ class CumulativeFeaturesTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X):
         input_is_df = isinstance(X, pd.DataFrame)
         X_copy = X.copy() if input_is_df else pd.DataFrame(X)
+
+        # Coerce object columns to numeric BEFORE engineering to prevent dtype propagation;
+        X_copy = _coerce_numeric_dtypes(X_copy)
 
         # Identify columns that should not be accumulated (date/index-like columns);
         exclude_names = {"date", "datetime", "timestamp", "data_hora_medicao", "data_hora"};
@@ -272,6 +291,7 @@ class CumulativeFeaturesTransformer(BaseEstimator, TransformerMixin):
             accum_df = pd.DataFrame(accum_data, index=X_copy.index)
             X_copy = pd.concat([X_copy, accum_df], axis=1)
 
-        # Fill NaNs;
+        # Fill NaNs and coerce dtypes;
         X_copy = X_copy.fillna(0)
+        X_copy = _coerce_numeric_dtypes(X_copy)
         return X_copy if input_is_df else X_copy.to_numpy()

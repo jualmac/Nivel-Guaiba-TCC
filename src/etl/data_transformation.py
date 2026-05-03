@@ -1,5 +1,3 @@
-#TODO: Add categorical features from the stations column. Could be done right before melting the dataframe. Probably just a column with that data, like River Name, LAT, LON, Area_Drenagem (BEM IMPORTANTE, É quanta área acaba escoando para a bacia) -> Encode based on the cardinality if needed;
-
 """
 Time series transformation operations;
 
@@ -213,7 +211,7 @@ def fill_gaps(
                 Latitude,
                 Longitude,
                 Rio_Codigo
-            FROM stations
+            FROM HidroInventarioEstacoes
             WHERE codigoestacao IN ({placeholders})
         """
         station_meta = db.run(query, params=tuple(stations)).get('result', pd.DataFrame())

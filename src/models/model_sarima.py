@@ -74,7 +74,10 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
             
         # Standardize to numpy/numeric and fill NaNs (ARIMA requirement)
         if isinstance(X, pd.DataFrame):
-            X_clean = X.select_dtypes(include=[np.number]).fillna(0).values
+            X_clean = X.copy()
+            for col in X_clean.select_dtypes(include=['object']).columns:
+                X_clean[col] = pd.to_numeric(X_clean[col], errors='coerce')
+            X_clean = X_clean.select_dtypes(include=[np.number]).fillna(0).values
         else:
             X_clean = np.nan_to_num(X)
             
@@ -191,7 +194,12 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                 self.X_train = None # Flag that we aren't using exog
             except:
                 raise ValueError("Critical SARIMA failure. Data may be unsuitable.")
+        
+        self.is_fitted_ = True
         return self
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, 'is_fitted_') and self.is_fitted_
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
         """

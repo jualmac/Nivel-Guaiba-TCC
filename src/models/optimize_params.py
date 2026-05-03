@@ -168,12 +168,12 @@ class BayesianOptimization:
             # Hyperparameters;
             params = {
                 # Architecture Tuning;
-                "hidden_size": trial.suggest_categorical("hidden_size", [16, 32, 64, 128, 256]),
+                "hidden_size": trial.suggest_categorical("hidden_size", [128, 256, 512]),
                 "num_layers": trial.suggest_int("num_layers", 1, 3), 
-                "dropout": trial.suggest_float("dropout", 0.0, 0.5),
+                "dropout": trial.suggest_float("dropout", 0.0, 0.3),
                 "learning_rate": trial.suggest_float("learning_rate", 1e-3, 1e-2, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256]),
-                "epochs": 50, 
+                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128]),
+                "epochs": 30, 
                 "sequence_length": trial.suggest_categorical("sequence_length", [12, 24, 36, 48, 72, 96, 168]) 
             }
             return self.evaluate_lstm(params)
@@ -224,10 +224,13 @@ class BayesianOptimization:
                 X_train_fold = fold_pipeline.fit_transform(X_train_fold, y_train_fold)
                 X_val_fold = fold_pipeline.transform(X_val_fold)
 
-            # Remove non-numeric columns and enforce float dtype;
+            # Coerce object columns to numeric and remove any remaining non-numeric;
             if isinstance(X_train_fold, pd.DataFrame):
-                X_train_fold = X_train_fold.select_dtypes(include=[np.number])
-                X_val_fold = X_val_fold.select_dtypes(include=[np.number])
+                for col in X_train_fold.select_dtypes(include=['object']).columns:
+                    X_train_fold[col] = pd.to_numeric(X_train_fold[col], errors='coerce')
+                    X_val_fold[col] = pd.to_numeric(X_val_fold[col], errors='coerce')
+                X_train_fold = X_train_fold.select_dtypes(include=[np.number]).fillna(0)
+                X_val_fold = X_val_fold.select_dtypes(include=[np.number]).fillna(0)
             
             X = np.asarray(X_train_fold, dtype=np.float64)
             y = np.asarray(y_train_fold, dtype=np.float64)
@@ -359,6 +362,14 @@ class BayesianOptimization:
             if self.postprocess_fn is not None:
                 X_train_transformed = self.postprocess_fn(X_train_transformed.copy())
                 X_val_transformed = self.postprocess_fn(X_val_transformed.copy())
+
+            # Coerce remaining object columns to numeric (remainder='passthrough' from ColumnTransformer can output object dtype);
+            if isinstance(X_train_transformed, pd.DataFrame):
+                for col in X_train_transformed.select_dtypes(include=['object']).columns:
+                    X_train_transformed[col] = pd.to_numeric(X_train_transformed[col], errors='coerce')
+                    X_val_transformed[col] = pd.to_numeric(X_val_transformed[col], errors='coerce')
+                X_train_transformed = X_train_transformed.fillna(0)
+                X_val_transformed = X_val_transformed.fillna(0)
 
             model_fold = clone(model)
             model_fold.fit(X_train_transformed, y_train_fold)

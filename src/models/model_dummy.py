@@ -14,6 +14,7 @@ import pandas as pd
 from typing import Optional, Dict
 from sklearn.dummy import DummyRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
+from sklearn.base import BaseEstimator, RegressorMixin
 from src.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,
@@ -23,8 +24,8 @@ from src.metrics import (
 #
 # MODEL
 #
-########################################################################################################################
-class DummyModels:
+#########################################################################################################################
+class DummyModels(BaseEstimator, RegressorMixin):
     def __init__(
         self,
         strategy: str = "mean",
@@ -34,10 +35,12 @@ class DummyModels:
         """
         Initialize DummyRegressor wrapper with pipeline-compatible signature.;
         """
-        self.model_name = "dummy"
         self.strategy = strategy
         self.random_state = random_state
-        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility; DUMMY doesn't use MLFlow but accepts for consistency;
+        self.kwargs = kwargs
+        
+        self.model_name = "dummy"
+        self.log_mlflow = kwargs.get('log_mlflow', True)
 
     def fit(
         self,
@@ -60,7 +63,12 @@ class DummyModels:
         # DummyRegressor provides a quick baseline using simple strategies.;
         self.model = DummyRegressor(strategy=self.strategy)
         self.model.fit(self.X, self.y)
+        self.is_fitted_ = True
         return self
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, 'is_fitted_') and self.is_fitted_
+
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
         """

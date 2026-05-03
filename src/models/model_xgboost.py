@@ -24,6 +24,7 @@ import xgboost as xgb
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
+from sklearn.base import BaseEstimator, RegressorMixin
 from src.models.optimize_params import BayesianOptimization
 from src.etl.transformations import nature_encode
 from src.mlflow_utils import MLFlowHandler
@@ -40,7 +41,7 @@ from src.metrics import (
 # MODEL
 #
 ########################################################################################################################
-class XGBoostModels:
+class XGBoostModels(BaseEstimator, RegressorMixin):
     def __init__(self,
                 random_state: int = 42,
                 n_trials: int = 10,
@@ -53,14 +54,16 @@ class XGBoostModels:
         Initialize the model by defining the variables;
         """
         # Define arguments;
-        self.model_name = 'xgboost'
         self.random_state = random_state
         self.n_trials = n_trials
         self.batch = batch
         self.steps = steps
         self.mode = mode
+        self.kwargs = kwargs
+        
+        self.model_name = 'xgboost'
         self.device_config = get_device_config(self.mode, self.model_name)
-        self.log_mlflow = kwargs.get('log_mlflow', True)  # Default to True for backward compatibility;
+        self.log_mlflow = kwargs.get('log_mlflow', True)
     
     def fit(self, 
             X: pd.DataFrame = None, 
@@ -125,7 +128,7 @@ class XGBoostModels:
         else:
             logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
-            best_params = mlflow_handler.load_best_params(metric_name="score", mode="max")
+            best_params = mlflow_handler.load_best_params(metric_name="train_best_kge", mode="max")
             
             if not best_params:
                 logger.info("No best params found in MLflow, using defaults.")
@@ -143,38 +146,52 @@ class XGBoostModels:
         # Add early stopping parameters if validation set is provided;
         callbacks = None
         if eval_set is not None:
-            # Set early stopping parameters if not already in best_params;
-            if 'early_stopping_rounds' not in best_params:
-                best_params['early_stopping_rounds'] = early_stopping
-
             # Use KGE as validation metric and keep early stopping aligned to maximization;
-            def _xgb_kge_eval(preds: np.ndarray, dtrain) -> tuple[str, float]:
-                labels = dtrain.get_label()
-                score = kling_gupta_efficiency(y_true=labels, y_pred=preds)
-                return 'kge', score
+            def _xgb_kge_eval(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+                return kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
 
             best_params['eval_metric'] = _xgb_kge_eval
             callbacks = [
                 xgb.callback.EarlyStopping(
-                    rounds=best_params['early_stopping_rounds'],
+                    rounds=early_stopping,
                     save_best=True,
                     maximize=True
                 )
             ]
+            # Remove early_stopping_rounds from params — handled by the callback;
+            best_params.pop('early_stopping_rounds', None)
 
-        # Create model with params;
+        # Create model with params (callbacks go in the constructor for XGBoost ≥2.0);
         # Anchor baseline to target mean to reduce bias toward zero;
         best_params.setdefault("base_score", float(np.mean(self.y)))
         logger.info("Training XGBoost with params: %s", best_params)
-        self.model = XGBRegressor(**best_params)
+        self.model = XGBRegressor(**best_params, callbacks=callbacks)
+
+        # Coerce object columns to numeric (ColumnTransformer remainder='passthrough' can output object dtype);
+        if isinstance(self.X, pd.DataFrame):
+            for col in self.X.select_dtypes(include=['object']).columns:
+                self.X[col] = pd.to_numeric(self.X[col], errors='coerce')
+            self.X = self.X.fillna(0)
+        if eval_set is not None:
+            X_eval, y_eval = eval_set[0]
+            if isinstance(X_eval, pd.DataFrame):
+                for col in X_eval.select_dtypes(include=['object']).columns:
+                    X_eval[col] = pd.to_numeric(X_eval[col], errors='coerce')
+                X_eval = X_eval.fillna(0)
+                eval_set = [(X_eval, y_eval)]
 
         # Fit model with Training data (and validation set for early stopping if provided);
         if eval_set is not None:
-            self.model.fit(self.X, self.y, eval_set=eval_set, callbacks=callbacks)
+            self.model.fit(self.X, self.y, eval_set=eval_set)
         else:
             self.model.fit(self.X, self.y)
+        
+        self.is_fitted_ = True
         return self
-    
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, 'is_fitted_') and self.is_fitted_
+
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
         """
         Predicts the model with the provided test dataset.
@@ -200,6 +217,12 @@ class XGBoostModels:
         
         # Apply calendar feature engineering (same as training);
         X_test_processed = self._add_calendar_features(X=X_test_processed)
+
+        # Coerce object columns to numeric (ColumnTransformer remainder='passthrough' can output object dtype);
+        if isinstance(X_test_processed, pd.DataFrame):
+            for col in X_test_processed.select_dtypes(include=['object']).columns:
+                X_test_processed[col] = pd.to_numeric(X_test_processed[col], errors='coerce')
+            X_test_processed = X_test_processed.fillna(0)
 
         # Make predictions;
         self.y_pred = self.model.predict(X_test_processed)
