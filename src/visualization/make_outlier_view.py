@@ -40,7 +40,7 @@ from sklearn.decomposition import PCA as sklearn_PCA
 # Import the models used in data_transformation.py;
 from pyod.models.ecod import ECOD
 from pyod.models.pca import PCA
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

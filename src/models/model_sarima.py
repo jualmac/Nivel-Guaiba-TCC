@@ -24,7 +24,7 @@ from src.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,
 )
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

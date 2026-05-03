@@ -20,8 +20,8 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from category_encoders import BinaryEncoder
 from sklearn.model_selection import train_test_split
-from db_handler import DBConnection
-from util import STATION_COLS, configure_logging
+from src.db_handler import DBConnection
+from src.util import STATION_COLS, configure_logging
 
 logger = configure_logging(__name__)
 

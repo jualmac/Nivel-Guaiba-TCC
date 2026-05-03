@@ -17,7 +17,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Dict, List, Optional, Tuple
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

@@ -11,7 +11,7 @@ packages like scikit learn. However, some of them may depend on these packages o
 import logging
 import numpy as np
 from permetrics.regression import RegressionMetric
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

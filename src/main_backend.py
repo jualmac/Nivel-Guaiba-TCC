@@ -17,14 +17,14 @@ import logging
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from typing import Optional
-from db_handler import DBConnection
+from src.db_handler import DBConnection
 from src.pipelines.pipeline_preparation import data_division, encoding_pipeline
 from src.models.train_models import training_pipeline
 from src.mlflow_utils import MLFlowHandler
 from src.etl.data_io import save_to_database
 from src.pipelines.pipeline_data import main_database
 from src.etl.data_imputation import feature_imputation
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

@@ -14,8 +14,8 @@ import logging
 import pandas as pd
 from typing import Optional
 
-from db_handler import DBConnection
-from util import configure_logging
+from src.db_handler import DBConnection
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

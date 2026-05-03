@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from db_handler import DBConnection
+from src.db_handler import DBConnection
 from src.metrics import kge
 
 ########################################################################################################################

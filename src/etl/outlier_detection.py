@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from pyod.models.pca import PCA
 from pyod.models.ecod import ECOD
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

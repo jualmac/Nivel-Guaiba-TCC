@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import SelectKBest, f_regression, SelectFromModel
 from xgboost import XGBRegressor
-from util import get_device_config
+from src.util import get_device_config
 
 ########################################################################################################################
 #

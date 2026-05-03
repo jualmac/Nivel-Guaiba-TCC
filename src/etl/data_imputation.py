@@ -12,7 +12,7 @@ Handles missing value imputation using CubicSpline interpolation for wide-format
 import numpy as np
 import pandas as pd
 from scipy.interpolate import CubicSpline
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

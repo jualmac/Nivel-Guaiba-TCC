@@ -22,7 +22,7 @@ from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from src.models.optimize_params import BayesianOptimization
 from src.etl.transformations import nature_encode
 from src.mlflow_utils import MLFlowHandler
-from util import get_device_config, is_cpu_mode, configure_logging
+from src.util import get_device_config, is_cpu_mode, configure_logging
 
 logger = configure_logging(__name__)
 from src.metrics import (

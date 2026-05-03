@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional, Dict
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from src.mlflow_utils import MLFlowHandler
-from util import get_device_config, configure_logging
+from src.util import get_device_config, configure_logging
 from src.metrics import (
     nse as nash_sutcliffe_efficiency,
     kge as kling_gupta_efficiency,

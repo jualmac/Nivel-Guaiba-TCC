@@ -12,7 +12,7 @@ import mlflow.sklearn
 from typing import Dict, Any, Optional
 import os
 from datetime import datetime
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

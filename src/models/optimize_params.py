@@ -28,7 +28,7 @@ from torch.utils.data import Dataset, DataLoader
 import os
 import gc
 import mlflow
-from util import get_device_config, configure_logging
+from src.util import get_device_config, configure_logging
 from src.metrics import kge
 
 ########################################################################################################################

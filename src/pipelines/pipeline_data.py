@@ -19,7 +19,7 @@ from src.etl.data_io import get_data, save_to_database
 from src.etl.data_cleaning import clean_dataframe
 from src.etl.data_transformation import fill_gaps, aggregate_data, melt_dataframe
 from src.etl.outlier_detection import outlier_removal
-from util import configure_logging
+from src.util import configure_logging
 
 logger = configure_logging(__name__)
 

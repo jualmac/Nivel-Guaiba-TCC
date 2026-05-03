@@ -14,9 +14,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy shared modules from root level;
-COPY db_handler.py .
-COPY util.py .
 
 # Copy database module;
 COPY src/ ./src/
