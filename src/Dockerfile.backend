@@ -28,4 +28,4 @@ ENV PYTHONUNBUFFERED=1
 ENV MLFLOW_TRACKING_URI=file:/app/mlruns
 
 # Run the model training pipeline;
-CMD ["python", "-u", "src/main_backend.py"]
+CMD ["python", "-u", "src/main.py"]

@@ -369,7 +369,7 @@ def _run_case_study_mode(
 # MAIN BACKEND PIPELINE
 #
 ########################################################################################################################
-def main_backend(
+def main(
     target_column: str,
     pipeline_mode: str = 'all',
     models_to_use: Optional[list] = None,
@@ -547,7 +547,7 @@ if __name__ == "__main__":
     
     parsed_steps = [int(s) for s in args.steps]
 
-    main_backend(
+    main(
         target_column=args.target_column,
         pipeline_mode=args.pipeline_mode,
         models_to_use=args.models_to_use,
