@@ -128,7 +128,7 @@ class XGBoostModels(BaseEstimator, RegressorMixin):
         else:
             logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
-            best_params = mlflow_handler.load_best_params(metric_name="train_best_kge", mode="max")
+            best_params = mlflow_handler.load_best_params(metric_name="train_best_rmse", mode="min")
             
             if not best_params:
                 logger.info("No best params found in MLflow, using defaults.")
@@ -146,16 +146,12 @@ class XGBoostModels(BaseEstimator, RegressorMixin):
         # Add early stopping parameters if validation set is provided;
         callbacks = None
         if eval_set is not None:
-            # Use KGE as validation metric and keep early stopping aligned to maximization;
-            def _xgb_kge_eval(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-                return kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
-
-            best_params['eval_metric'] = _xgb_kge_eval
+            # Early stopping will default to RMSE for regression;
             callbacks = [
                 xgb.callback.EarlyStopping(
                     rounds=early_stopping,
                     save_best=True,
-                    maximize=True
+                    maximize=False
                 )
             ]
             # Remove early_stopping_rounds from params — handled by the callback;

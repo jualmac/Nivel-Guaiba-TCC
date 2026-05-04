@@ -73,6 +73,7 @@ def save_to_database(
     df_agg: Optional[pd.DataFrame] = None,
     df_melted: Optional[pd.DataFrame] = None,
     df_predictions: Optional[pd.DataFrame] = None,
+    df_test_predictions: Optional[pd.DataFrame] = None,
     df_metrics: Optional[pd.DataFrame] = None,
     df_features: Optional[pd.DataFrame] = None
 ) -> None:
@@ -89,7 +90,8 @@ def save_to_database(
         df_out (Optional[pd.DataFrame]): Outlier-removed data -> 'data_stations_outlier' (default: None);
         df_agg (Optional[pd.DataFrame]): Aggregated data -> 'data_stations_aggregated' (default: None);
         df_melted (Optional[pd.DataFrame]): Melted data -> 'data_stations' (default: None);
-        df_predictions (Optional[pd.DataFrame]): ML model predictions -> 'models_predictions' (default: None);
+        df_predictions (Optional[pd.DataFrame]): ML case study predictions -> 'models_case_predictions' (default: None);
+        df_test_predictions (Optional[pd.DataFrame]): ML general-mode test predictions -> 'models_test_predictions' (default: None);
         df_metrics (Optional[pd.DataFrame]): ML model metrics -> 'models_metrics' (default: None);
         df_features (Optional[pd.DataFrame]): Processed feature matrices (post-preprocessing and feature selection)
             for model inputs -> 'models_features' (default: None);
@@ -111,9 +113,13 @@ def save_to_database(
     if df_melted is not None:
         db.write(df=df_melted, table_name='data_stations', inplace=True)
     
-    # Save predictions;
+    # Save case study predictions;
     if df_predictions is not None:
-        db.write(df=df_predictions, table_name='models_predictions', inplace=True)
+        db.write(df=df_predictions, table_name='models_case_predictions', inplace=True)
+
+    # Save general-mode test predictions;
+    if df_test_predictions is not None:
+        db.write(df=df_test_predictions, table_name='models_test_predictions', inplace=True)
 
     # Save and Update metrics;
     if df_metrics is not None:

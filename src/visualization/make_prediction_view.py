@@ -1,7 +1,7 @@
 """
 Generate prediction comparison plots from stored model outputs;
 
-Reads the `models_predictions` table from DuckDB, reshapes predictions for
+Reads the `models_case_predictions` table from DuckDB, reshapes predictions for
 line plotting, overlays ground truth, and saves the chart under ./data/;
 """
 
@@ -45,9 +45,9 @@ def make_prediction_view(
     
     # Load predictions table from DuckDB; expect columns: date, model columns, y_true;
     db = DBConnection(path=db_path)
-    df = db.run("SELECT * FROM models_predictions ORDER BY date")["result"]
+    df = db.run("SELECT * FROM models_case_predictions ORDER BY date")["result"]
     if df.empty:
-        raise ValueError("models_predictions is empty; rerun backend to generate predictions")
+        raise ValueError("models_case_predictions is empty; rerun backend to generate predictions")
     
     # df.drop(columns=['LSTM', 'SARIMA'], inplace=True)
 
@@ -78,7 +78,7 @@ def make_prediction_view(
     exclude_cols: List[str] = ["date", "y_true"]
     model_cols = [c for c in df.columns if c not in exclude_cols]
     if not model_cols:
-        raise ValueError("No model prediction columns found in models_predictions")
+        raise ValueError("No model prediction columns found in models_case_predictions")
     
     # Melt predictions to long format for seaborn hue handling; keeps y_true separate for emphasis;
     plot_df = df.melt(

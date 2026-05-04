@@ -132,7 +132,7 @@ class LSTMModels(BaseEstimator, RegressorMixin):
         else:
             logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
-            best_params = mlflow_handler.load_best_params(metric_name="train_best_kge", mode="max")
+            best_params = mlflow_handler.load_best_params(metric_name="train_best_rmse", mode="min")
             if not best_params:
                 logger.info("No best params found, using defaults.")
                 best_params = {

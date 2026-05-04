@@ -98,6 +98,7 @@ def _run_general_mode(
         logger.warning("Dataset may be too small for the requested folds and horizons.")
 
     all_metrics = []
+    all_test_predictions = []
 
     for fold in range(cv_folds):
         logger.info("================================== FOLD %s / %s ==================================", fold+1, cv_folds)
@@ -162,11 +163,11 @@ def _run_general_mode(
             )
 
             # Inverse log-transform predictions and true values back to original scale;
-            y_pred = np.expm1(y_pred)
+            y_pred_orig = np.expm1(y_pred)
             y_test_orig = np.expm1(y_test.values)
 
             # Evaluate multi-horizon (original scale);
-            horizon_metrics = evaluate_multi_horizon(y_test_orig, y_pred, steps)
+            horizon_metrics = evaluate_multi_horizon(y_test_orig, y_pred_orig, steps)
 
             for step, h_metrics in horizon_metrics.items():
                 all_metrics.append({
@@ -180,6 +181,29 @@ def _run_general_mode(
                     'r2': h_metrics['r2'],
                     'kge': h_metrics['kge']
                 })
+
+            # Collect test predictions for DB;
+            date_col = None
+            if "Data_Hora_Medicao" in X_test.columns:
+                date_col = X_test["Data_Hora_Medicao"].values
+            elif hasattr(X_test, "index"):
+                date_col = X_test.index.values
+
+            for step in steps:
+                # Each step covers the first `step` hours of the test fold;
+                n = min(step, len(y_test_orig))
+                pred_df = pd.DataFrame({
+                    'model_name': name,
+                    'fold': fold + 1,
+                    'step': step,
+                    'y_true': y_test_orig[:n],
+                    'y_pred': y_pred_orig[:n],
+                    'y_pred_log': y_pred[:n],
+                    'target_column': target_column
+                })
+                if date_col is not None:
+                    pred_df['date'] = date_col[:n]
+                all_test_predictions.append(pred_df)
 
             if log_mlflow:
                 mlflow_handler.end_run()
@@ -204,7 +228,8 @@ def _run_general_mode(
     else:
         df_agg_metrics = pd.DataFrame()
 
-    return df_agg_metrics
+    df_test_predictions = pd.concat(all_test_predictions, ignore_index=True) if all_test_predictions else None
+    return df_agg_metrics, df_test_predictions
 
 
 ########################################################################################################################
@@ -223,10 +248,10 @@ def _run_case_study_mode(
     Uses optimize=False to load best hyperparameters from Nested CV runs;
     Returns case study metrics, predictions, and features DataFrames;
     """
-    logger.info("==================== CASE STUDY MODE: MAY 2024 FLOOD ====================")
+    logger.info("==================== CASE STUDY MODE: SPECIFIC FLOOD ====================")
 
-    case_study_start = pd.to_datetime('2024-05-01')
-    case_study_end = pd.to_datetime('2024-06-01')
+    case_study_start = pd.to_datetime('2025-06-20')
+    case_study_end = pd.to_datetime('2025-07-01')
 
     df_train = df[df['Data_Hora_Medicao'] < case_study_start].copy().reset_index(drop=True)
     df_test = df[(df['Data_Hora_Medicao'] >= case_study_start) & (df['Data_Hora_Medicao'] < case_study_end)].copy().reset_index(drop=True)
@@ -474,10 +499,11 @@ def main(
     df_cs_metrics = pd.DataFrame()
     df_predictions = None
     df_features = None
+    df_test_predictions = None
 
     # ── GENERAL MODE (Reliability): Nested CV on full dataset ──
     if pipeline_mode in ('general', 'all'):
-        df_agg_metrics = _run_general_mode(
+        df_agg_metrics, df_test_predictions = _run_general_mode(
             df=df, target_column=target_column,
             cv_folds=cv_folds, optimize=optimize,
             **model_kwargs
@@ -499,6 +525,7 @@ def main(
 
         save_to_database(
             df_predictions=df_predictions,
+            df_test_predictions=df_test_predictions,
             df_metrics=final_metrics,
             df_features=df_features
         )
@@ -528,7 +555,7 @@ if __name__ == "__main__":
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
-    parser.add_argument('--trials', type=int, default=30, help='Number of trials for hyperparameter optimization')
+    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization')
     parser.add_argument('--early_stopping', type=int, default=10, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=30, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], default='h', help='Frequency of predictions (pandas offset)')

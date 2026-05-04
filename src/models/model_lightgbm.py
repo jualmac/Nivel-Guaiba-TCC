@@ -120,7 +120,7 @@ class LightGBMModels(BaseEstimator, RegressorMixin):
         else:
             logger.info("Loading best parameters from MLflow...")
             mlflow_handler = MLFlowHandler()
-            best_params = mlflow_handler.load_best_params(metric_name="train_best_kge", mode="max") #(metric_name="score", mode="max")
+            best_params = mlflow_handler.load_best_params(metric_name="train_best_rmse", mode="min") #(metric_name="score", mode="max")
             
             if not best_params:
                 logger.info("No best params found in MLflow, using defaults.")
@@ -139,18 +139,10 @@ class LightGBMModels(BaseEstimator, RegressorMixin):
         best_params.setdefault("verbosity", -1)
 
         # Add early stopping parameters if validation set is provided;
-        eval_metric = None
         if eval_set is not None:
             # Set early stopping parameters if not already in best_params;
             if 'early_stopping_rounds' not in best_params:
                 best_params['early_stopping_rounds'] = early_stopping
-
-            # Use KGE as validation metric and keep LightGBM aware it should maximize;
-            def _lightgbm_kge_eval(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[str, float, bool]:
-                score = kling_gupta_efficiency(y_true=y_true, y_pred=y_pred)
-                return 'kge', score, True
-
-            eval_metric = _lightgbm_kge_eval
 
         # Create model with params;
         logger.info("Training LightGBM with params: %s", best_params)
@@ -172,7 +164,7 @@ class LightGBMModels(BaseEstimator, RegressorMixin):
 
         # Fit model with Training data (and validation set for early stopping if provided);
         if eval_set is not None:
-            self.model.fit(self.X, self.y, eval_set=eval_set, eval_metric=eval_metric)
+            self.model.fit(self.X, self.y, eval_set=eval_set)
         else:
             self.model.fit(self.X, self.y)
         

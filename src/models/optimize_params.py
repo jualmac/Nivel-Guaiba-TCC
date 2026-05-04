@@ -30,6 +30,7 @@ import gc
 import mlflow
 from src.util import get_device_config, configure_logging
 from src.metrics import kge
+from sklearn.metrics import root_mean_squared_error
 
 ########################################################################################################################
 #                                                                  
@@ -39,7 +40,7 @@ from src.metrics import kge
 class BayesianOptimization:
     """
     Performs Bayesian Optimization on specified regression models.
-    Optimization maximizes Kling Gupta Efficiency (KGE), which ranges from (-inf, 1] and peaks at 1.0.
+    Optimization minimizes Root Mean Squared Error (RMSE).
 
     Attributes
     ----------
@@ -112,7 +113,7 @@ class BayesianOptimization:
         Returns
         -------
         float
-            The KGE score for the given trial (higher is better; max is 1.0).
+            The RMSE score for the given trial (lower is better).
         """
         # XGBoost;
         if self.model_name == "xgboost":
@@ -306,8 +307,8 @@ class BayesianOptimization:
             if y_val_true_all and y_val_pred_all:
                 y_true_np = np.concatenate(y_val_true_all)
                 y_pred_np = np.concatenate(y_val_pred_all)
-                kge_score = kge(y_true=y_true_np, y_pred=y_pred_np)
-                scores.append(kge_score)
+                rmse_score = root_mean_squared_error(y_true=y_true_np, y_pred=y_pred_np)
+                scores.append(rmse_score)
             
             # Cleanup memory
             del model, optimizer, criterion, train_loader, val_loader, train_dataset, val_dataset
@@ -315,13 +316,13 @@ class BayesianOptimization:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             gc.collect() 
-        return np.mean(scores) if scores else -float('inf')
+        return np.mean(scores) if scores else float('inf')
 
     def evaluate(self, model) -> float:
         """
         Evaluates the regression model using TimeSeriesSplit cross-validation with proper
         refitting of preprocessing inside each fold to avoid leakage.
-        Returns the mean KGE across splits (higher is better; max is 1.0).
+        Returns the mean RMSE across splits (lower is better).
         """
         # Select raw data when provided so scalers/encoders are refit per fold;
         X_source = self.X_raw if self.X_raw is not None else self.X_train
@@ -378,10 +379,10 @@ class BayesianOptimization:
             y_true_np = np.asarray(y_val_fold, dtype=float).ravel()
             preds_np = np.asarray(preds, dtype=float).ravel()
 
-            # Compute KGE for the validation fold; 
-            kge_score = kge(y_true=y_true_np, y_pred=preds_np)
-            scores.append(kge_score)
-        return np.mean(scores) if scores else -float('inf')
+            # Compute RMSE for the validation fold; 
+            rmse_score = root_mean_squared_error(y_true=y_true_np, y_pred=preds_np)
+            scores.append(rmse_score)
+        return np.mean(scores) if scores else float('inf')
 
     def optimize(self) -> dict:
         """
@@ -392,7 +393,7 @@ class BayesianOptimization:
             dict: The best hyperparameters found during optimization
         """
         study = optuna.create_study(
-            direction="maximize", 
+            direction="minimize", 
             sampler=optuna.samplers.TPESampler(),
             pruner=optuna.pruners.MedianPruner(
                 n_startup_trials=3,
@@ -428,7 +429,7 @@ class BayesianOptimization:
         # Log the final best metric and corresponding parameters to the current active MLflow run (only if logging is enabled).
         # Use prefixed keys to avoid MLflow param conflicts with previously logged parameters in the same run.
         if self.log_mlflow:
-            mlflow.log_metric("train_best_kge", study.best_value)
+            mlflow.log_metric("train_best_rmse", study.best_value)
             model_prefix = f"{self.model_name}"
             prefixed_best_params = {f"{model_prefix}{k}": v for k, v in best_params.items()}
             mlflow.log_params(prefixed_best_params)
