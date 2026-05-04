@@ -49,13 +49,13 @@ def make_prediction_view(
     if df.empty:
         raise ValueError("models_predictions is empty; rerun backend to generate predictions")
     
-    df.drop(columns=['LSTM', 'SARIMA'], inplace=True)
+    # df.drop(columns=['LSTM', 'SARIMA'], inplace=True)
 
-    df = df.loc[df['date'] > '2024-06-01']
+    df = df.loc[df['date'] > '2024-05-01']
     # # df = df.loc[df['date'] < '2025-08-01']
 
-    df['LIGHTGBM'] = df['LIGHTGBM'] + 50
-    df['XGBOOST'] = df['XGBOOST'] + 50
+    # df['LIGHTGBM'] = df['LIGHTGBM'] + 50
+    # df['XGBOOST'] = df['XGBOOST'] + 50
 
     print(kge(
     y_true=df['y_true'].to_numpy(dtype=float),
