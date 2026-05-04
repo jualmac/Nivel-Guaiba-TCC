@@ -19,6 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 import argparse
 import logging
+import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from typing import Optional, List
@@ -160,8 +161,12 @@ def _run_general_mode(
                 optimize=optimize, early_stopping=early_stopping
             )
 
-            # Evaluate multi-horizon;
-            horizon_metrics = evaluate_multi_horizon(y_test.values, y_pred, steps)
+            # Inverse log-transform predictions and true values back to original scale;
+            y_pred = np.expm1(y_pred)
+            y_test_orig = np.expm1(y_test.values)
+
+            # Evaluate multi-horizon (original scale);
+            horizon_metrics = evaluate_multi_horizon(y_test_orig, y_pred, steps)
 
             for step, h_metrics in horizon_metrics.items():
                 all_metrics.append({
@@ -288,6 +293,11 @@ def _run_case_study_mode(
             optimize=False, early_stopping=early_stopping
         )
 
+        # Inverse log-transform predictions and true values back to original scale;
+        y_pred_log = y_pred.copy()          # keep log-scale predictions for DB
+        y_pred = np.expm1(y_pred)
+        y_test_cs_orig = np.expm1(y_test_cs.values)
+
         # Collect features for DB;
         if save_to_db:
             def collect_features(split_name, X_split, y_split):
@@ -317,8 +327,9 @@ def _run_case_study_mode(
 
         pred_df = pd.DataFrame({
             'model_name': name,
-            'y_true': y_test_cs.values,
-            'y_pred': y_pred,
+            'y_true': y_test_cs_orig,       # original scale
+            'y_pred': y_pred,               # original scale (after expm1)
+            'y_pred_log': y_pred_log,       # log scale (before expm1)
             'target_column': target_column
         })
         if hasattr(X_test_cs, 'index'):
@@ -328,8 +339,8 @@ def _run_case_study_mode(
 
         all_predictions_cs.append(pred_df)
 
-        # Evaluate multi-horizon;
-        horizon_metrics = evaluate_multi_horizon(y_test_cs.values, y_pred, steps)
+        # Evaluate multi-horizon (original scale);
+        horizon_metrics = evaluate_multi_horizon(y_test_cs_orig, y_pred, steps)
         for step, h_metrics in horizon_metrics.items():
             case_study_metrics.append({
                 'model_name': f"{name}_CASE_STUDY",
@@ -440,6 +451,11 @@ def main(
     # Drop missing targets;
     df = df.dropna(subset=[target_column]).reset_index(drop=True)
     df['Data_Hora_Medicao'] = pd.to_datetime(df['Data_Hora_Medicao'])
+
+    # Log-transform the target: y_log = ln(y + 1)
+    # Models train on log-scaled target; predictions are inverse-transformed after predict();
+    df[target_column] = np.log1p(df[target_column])
+    logger.info("Applied log1p transform to target '%s'", target_column)
 
     logger.info("Full dataset: %s rows (%s to %s)", len(df),
                 df['Data_Hora_Medicao'].min(), df['Data_Hora_Medicao'].max())
