@@ -37,6 +37,57 @@ logger = configure_logging(__name__)
 
 ########################################################################################################################
 #                                                                  
+# HELPER: CASE STUDY PREDICTIONS OUTPUT
+#
+########################################################################################################################
+def _build_case_predictions_table(full_preds: pd.DataFrame) -> pd.DataFrame:
+    """
+    Build a wide case-study predictions table without losing the forecast horizon dimension;
+    """
+    full_preds = full_preds.copy()
+    if 'date' not in full_preds.columns:
+        full_preds['date'] = full_preds.index
+
+    index_col = 'date'
+    steps_in_predictions = sorted(full_preds['step'].dropna().unique())
+    include_step_suffix = len(steps_in_predictions) > 1
+
+    if include_step_suffix:
+        # Multiple horizons predict different target timestamps for the same input date, so the horizon must be explicit;
+        full_preds['prediction_column'] = (
+            full_preds['model_name'].astype(str) + '_' + full_preds['step'].astype(str) + 'h'
+        )
+        y_true_columns = full_preds.pivot_table(
+            index=index_col,
+            columns='step',
+            values='y_true',
+            aggfunc='first'
+        ).rename(columns=lambda step: f"y_true_{step}h")
+    else:
+        full_preds['prediction_column'] = full_preds['model_name']
+        y_true_columns = full_preds.groupby(index_col)['y_true'].first().to_frame(name='y_true')
+
+    duplicate_keys = full_preds.duplicated([index_col, 'prediction_column'], keep=False)
+    if duplicate_keys.any():
+        logger.warning(
+            "Found %s duplicate case-study prediction rows for the same date/model/horizon; averaging y_pred values.",
+            int(duplicate_keys.sum())
+        )
+
+    df_predictions = full_preds.pivot_table(
+        index=index_col,
+        columns='prediction_column',
+        values='y_pred',
+        aggfunc='mean'
+    )
+    df_predictions = df_predictions.join(y_true_columns)
+    df_predictions = df_predictions.reset_index()
+
+    return df_predictions
+
+
+########################################################################################################################
+#                                                                  
 # HELPER: TRAIN AND EVALUATE A SINGLE MODEL
 #
 ########################################################################################################################
@@ -248,24 +299,26 @@ def _run_general_mode(
 
 ########################################################################################################################
 #                                                                  
-# CASE STUDY MODE: MAY 2024 FLOOD EVENT (Capability)
+# CASE STUDY MODE: FLOOD EVENT (Capability)
 #
 ########################################################################################################################
 def _run_case_study_mode(
     df, target_column, models_to_use, steps,
     random_state, n_trials, batch, freq, mode,
     early_stopping, save_to_db,
-    use_feature_selection, n_features, mlflow_handler, log_mlflow
+    use_feature_selection, n_features, mlflow_handler, log_mlflow,
+    case_study_start: str,
+    case_study_end: str,
 ):
     """
-    Capability evaluation: Train on all data before May 2024, test on May 2024 flood;
+    Capability evaluation: Train on all data before, test on flood;
     Uses optimize=False to load best hyperparameters from Nested CV runs;
     Returns case study metrics, predictions, and features DataFrames;
     """
     logger.info("==================== CASE STUDY MODE: SPECIFIC FLOOD ====================")
 
-    case_study_start = pd.to_datetime('2024-05-01')
-    case_study_end = pd.to_datetime('2024-06-01')
+    case_study_start_ts = pd.to_datetime(case_study_start)
+    case_study_end_ts = pd.to_datetime(case_study_end)
 
     max_horizon = max(steps)
 
@@ -282,13 +335,13 @@ def _run_case_study_mode(
         df_step[target_shifted] = df_step[target_column].shift(-step)
         df_step = df_step.dropna(subset=[target_shifted]).reset_index(drop=True)
 
-        df_train = df_step[df_step['Data_Hora_Medicao'] < case_study_start].copy().reset_index(drop=True)
-        df_test = df_step[(df_step['Data_Hora_Medicao'] >= case_study_start) & (df_step['Data_Hora_Medicao'] < case_study_end)].copy().reset_index(drop=True)
+        df_train = df_step[df_step['Data_Hora_Medicao'] < case_study_start_ts].copy().reset_index(drop=True)
+        df_test = df_step[(df_step['Data_Hora_Medicao'] >= case_study_start_ts) & (df_step['Data_Hora_Medicao'] < case_study_end_ts)].copy().reset_index(drop=True)
 
         logger.info("Case Study - Training data: %s rows, Test data: %s rows", len(df_train), len(df_test))
 
         if len(df_test) == 0:
-            logger.warning("No test data available for May 2024 case study at step %s. Skipping.", step)
+            logger.warning("No test data available for the case study at step %s. Skipping.", step)
             continue
 
         X_train_cs = df_train.drop(columns=[target_shifted])
@@ -416,16 +469,7 @@ def _run_case_study_mode(
     df_predictions = None
     if all_predictions_cs:
         full_preds = pd.concat(all_predictions_cs, ignore_index=False)
-        if 'date' in full_preds.columns:
-            df_predictions = full_preds.pivot(index='date', columns='model_name', values='y_pred')
-            y_true = full_preds.groupby('date')['y_true'].first()
-            df_predictions['y_true'] = y_true
-            df_predictions = df_predictions.reset_index()
-        else:
-            df_predictions = full_preds.pivot_table(index=full_preds.index, columns='model_name', values='y_pred')
-            y_true = full_preds.groupby(level=0)['y_true'].first()
-            df_predictions['y_true'] = y_true
-            df_predictions = df_predictions.reset_index().rename(columns={'index': 'date'})
+        df_predictions = _build_case_predictions_table(full_preds=full_preds)
 
     df_features = pd.concat(all_features_cs, ignore_index=True) if all_features_cs else None
     return df_cs_metrics, df_predictions, df_features
@@ -455,14 +499,19 @@ def main(
     use_cumulative: bool = False,
     use_feature_selection: bool = False,
     n_features: Optional[int] = None,
-    log_mlflow: bool = True
+    log_mlflow: bool = True,
+    data_end_date: Optional[str] = None,
+    case_study_start: str = '2024-05-20',
+    case_study_end: str = '2024-06-01',
 ) -> None:
     """
     Main orchestrator for model training and evaluation;
     
     Parameters:
         pipeline_mode (str): Execution mode - 'general' (Nested CV on full data),
-            'case' (May 2024 flood study), or 'all' (both sequentially);
+            'case' (flood window study), or 'all' (both sequentially);
+        data_end_date (Optional[str]): If set (YYYY-MM-DD), drop rows after that calendar day before ML prep;
+        case_study_start / case_study_end (str): Test window [start, end) for case mode (YYYY-MM-DD);
     """
     # Initialize MLFlow Handler;
     mlflow_handler = None
@@ -488,7 +537,10 @@ def main(
             "use_rolling_stats": use_rolling_stats,
             "use_cumulative": use_cumulative,
             "use_feature_selection": use_feature_selection,
-            "n_features": n_features if n_features is not None else "None"
+            "n_features": n_features if n_features is not None else "None",
+            "data_end_date": data_end_date if data_end_date is not None else "None",
+            "case_study_start": case_study_start,
+            "case_study_end": case_study_end,
         }
         mlflow_handler.log_params(log_params)
         mlflow_handler.end_run()
@@ -507,6 +559,20 @@ def main(
     # Drop missing targets;
     df = df.dropna(subset=[target_column]).reset_index(drop=True)
     df['Data_Hora_Medicao'] = pd.to_datetime(df['Data_Hora_Medicao'])
+
+    # Optional end cut: keep series through the given calendar day (inclusive), before log1p and feature engineering;
+    if data_end_date is not None:
+        upper_exclusive = pd.to_datetime(data_end_date).normalize() + pd.Timedelta(days=1)
+        n_before = len(df)
+        df = df[df['Data_Hora_Medicao'] < upper_exclusive].reset_index(drop=True)
+        logger.info(
+            "Applied data_end_date=%s: %s -> %s rows (%s to %s)",
+            data_end_date,
+            n_before,
+            len(df),
+            df['Data_Hora_Medicao'].min() if len(df) else None,
+            df['Data_Hora_Medicao'].max() if len(df) else None,
+        )
 
     # Log-transform the target: y_log = ln(y + 1)
     # Models train on log-scaled target; predictions are inverse-transformed after predict();
@@ -554,6 +620,8 @@ def main(
         df_cs_metrics, df_predictions, df_features = _run_case_study_mode(
             df=df, target_column=target_column,
             save_to_db=save_to_db,
+            case_study_start=case_study_start,
+            case_study_end=case_study_end,
             **model_kwargs
         )
 
@@ -587,7 +655,7 @@ if __name__ == "__main__":
                         help='Forecasting horizons in hours')
     parser.add_argument('--models_to_use', type=str, nargs='+', 
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY'], 
-                        default=['SARIMA', 'XGBOOST', 'LIGHTGBM', 'DUMMY'], 
+                        default=['XGBOOST'], 
                         help='List of models to train')
 
     parser.add_argument('--target_column', type=str, default='Cota_Adotada_87450004', help='Name of target column to predict')
@@ -595,11 +663,30 @@ if __name__ == "__main__":
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
-    parser.add_argument('--trials', type=int, default=50, help='Number of trials for hyperparameter optimization')
+    parser.add_argument('--trials', type=int, default=1, help='Number of trials for hyperparameter optimization')
     parser.add_argument('--early_stopping', type=int, default=10, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=30, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], default='h', help='Frequency of predictions (pandas offset)')
-    
+
+    parser.add_argument(
+        '--data_end_date',
+        type=str,
+        default='2025-07-15',
+        help='YYYY-MM-DD: keep rows with Data_Hora_Medicao before midnight of the next day (inclusive of that day); omit to use full ETL output',
+    )
+    parser.add_argument(
+        '--case_study_start',
+        type=str,
+        default='2024-05-20',
+        help='Case study test window start (YYYY-MM-DD), inclusive',
+    )
+    parser.add_argument(
+        '--case_study_end',
+        type=str,
+        default='2024-06-01',
+        help='Case study test window end (YYYY-MM-DD), exclusive',
+    )
+
     parser.add_argument('--save_to_db', action='store_true', help='Save the results to the database')
     parser.add_argument('--no_save_to_db', dest='save_to_db', action='store_false', help='Do not save the results to the database')
     parser.add_argument('--optimize', action='store_true', help='Perform hyperparameter Optimization')
@@ -649,6 +736,9 @@ if __name__ == "__main__":
         use_cumulative=args.use_cumulative,
         use_feature_selection=args.use_feature_selection,
         n_features=args.n_features,
-        log_mlflow=args.log_mlflow
+        log_mlflow=args.log_mlflow,
+        data_end_date=args.data_end_date,
+        case_study_start=args.case_study_start,
+        case_study_end=args.case_study_end,
     )
     logger.info("All Done!")

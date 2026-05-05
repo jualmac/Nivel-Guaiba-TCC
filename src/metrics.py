@@ -8,6 +8,12 @@ packages like scikit learn. However, some of them may depend on these packages o
 # LIBRARIES
 #
 ########################################################################################################################
+import os
+import sys
+
+# Add project root to sys.path to allow absolute imports from 'src' when run as a script;
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 import logging
 import numpy as np
 from permetrics.regression import RegressionMetric
