@@ -135,7 +135,7 @@ def make_general_comparison_view(
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate general mode comparison plots")
-    parser.add_argument('--step', type=int, default=168, help='Forecasting horizon (hours)')
+    parser.add_argument('--step', type=int, default=24, help='Forecasting horizon (hours)')
     parser.add_argument('--fold', type=str, default='last', help='Fold number, "all", or "last" (default)')
     
     args = parser.parse_args()

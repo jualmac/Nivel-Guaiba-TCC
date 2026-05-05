@@ -148,7 +148,7 @@ class SARIMAModels(BaseEstimator, RegressorMixin):
                     start_p=1, start_q=1, start_d=1,
                     max_p=3, max_q=3, max_d=1,
                     max_order=None,
-                    m=12,                                   # Seasonality (Monthly) - Adjust if needed;
+                    m=24,                                   # Seasonality (Daily for hourly data) - Adjust if needed;
                     start_P=0, seasonal=True,
                     max_P=1, max_Q=1,                       # Constrained seasonal range for speed;
                     D=1,                                    # Force seasonal difference if needed, or set None;;

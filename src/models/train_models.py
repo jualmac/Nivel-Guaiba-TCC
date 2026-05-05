@@ -32,46 +32,28 @@ def create_model_pipeline(
     model, 
     preprocessor, 
     model_name, 
-    use_lags: bool = False, 
-    use_rolling_stats: bool = False,
-    use_cumulative: bool = False,
     use_feature_selection: bool = False, 
     n_features: Optional[int] = None,
     mode: str = 'CPU'
     ):
     """
-    Create a pipeline for a single model with optional lag features and feature selection.
+    Create a pipeline for a single model with optional feature selection.
     
     Parameters:
         model: Model instance (SARIMAModels, LSTMModels, etc.).
         preprocessor: Fitted ColumnTransformer from data_preparation.
         model_name (str): Name of the model ('SARIMA', 'LSTM', etc.).
-        use_lags (bool): If True, add lag features transformer (default: False).
-        use_rolling_stats (bool): If True, add rolling statistics transformer (default: False).
-        use_cumulative (bool): If True, add cumulative rolling-sum transformer (default: False).
         use_feature_selection (bool): If True, add feature selection step (default: False).
         n_features (Optional[int]): Number of features to select if use_feature_selection=True.
             If None, uses default (50) (default: None).
         mode (str): Device mode for feature selection GPU acceleration ('CPU', 'GPU', 'CUDA') (default: 'CPU').
     
     Returns:
-        Pipeline: sklearn Pipeline with preprocessing, optional lags, optional feature selection, and model.
+        Pipeline: sklearn Pipeline with preprocessing, optional feature selection, and model.
     """
     # Add preprocessor;
     steps = [("preprocessor", preprocessor)]
 
-    # Add lag features if requested;
-    if use_lags:
-        steps.append(("lags", LagFeaturesTransformer()))
-
-    # Add cumulative rolling-sum features if requested;
-    if use_cumulative:
-        steps.append(("cumulative", CumulativeFeaturesTransformer()))
-
-    # Add rolling statistics if requested;
-    if use_rolling_stats:
-        steps.append(("rolling_stats", RollingStatsTransformer()))
-    
     # Add feature selection if requested;
     if use_feature_selection:
         n_feat = n_features if n_features is not None else 50
@@ -90,9 +72,6 @@ def training_pipeline(
     batch: int = 128,
     freq: str = 'h',
     mode: str = 'CPU',
-    use_lags: bool = False,
-    use_rolling_stats: bool = False,
-    use_cumulative: bool = False,
     use_feature_selection: bool = False,
     n_features: Optional[int] = None,
     log_mlflow: bool = True,
@@ -102,7 +81,7 @@ def training_pipeline(
     Construct sklearn Pipeline combining preprocessing and model training;
     
     Creates a pipeline that chains the preprocessing step (feature encoding, scaling)
-    with optional lag features, optional feature selection, and the selected model;
+    with optional feature selection, and the selected model;
     
     Parameters:
         preprocessor (ColumnTransformer): Fitted preprocessing pipeline from data_preparation;
@@ -113,9 +92,6 @@ def training_pipeline(
         batch (int): Training batch size (default: 128);
         freq (str): Frequency of predictions (pandas offset) (default: 'h');
         mode (str): Training device mode ('CPU', 'GPU', 'CUDA') (default: 'CPU');
-        use_lags (bool): If True, add lag features transformer (default: False).
-        use_rolling_stats (bool): If True, add rolling statistics transformer (default: False).
-        use_cumulative (bool): If True, add cumulative rolling-sum transformer (default: False).
         use_feature_selection (bool): If True, add feature selection based on RandomForest importance (default: False);
         n_features (Optional[int]): Number of top features to select if use_feature_selection=True.
             If None, uses default (50) (default: None);
@@ -123,8 +99,7 @@ def training_pipeline(
         **kwargs: Additional parameters to pass to models;
     
     Returns:
-        dict: Dictionary of model names to Pipeline objects with preprocessing, optional lags, 
-            optional feature selection, and model steps;
+        dict: Dictionary of model names to Pipeline objects with preprocessing, optional feature selection, and model steps;
     """
     # Create separate pipeline for each model with arguments;
     pipelines = {
@@ -132,9 +107,6 @@ def training_pipeline(
             SARIMAModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
             preprocessor,
             model_name='SARIMA',
-            use_lags=use_lags,
-            use_rolling_stats=use_rolling_stats,
-            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=20, #Harcoded due to slowness of SARIMA;
             mode=mode
@@ -143,9 +115,6 @@ def training_pipeline(
             LSTMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
             preprocessor,
             model_name='LSTM',
-            use_lags=use_lags,
-            use_rolling_stats=use_rolling_stats,
-            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features,
             mode=mode
@@ -154,9 +123,6 @@ def training_pipeline(
             XGBoostModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
             preprocessor,
             model_name='XGBOOST',
-            use_lags=use_lags,
-            use_rolling_stats=use_rolling_stats,
-            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features,
             mode=mode
@@ -165,9 +131,6 @@ def training_pipeline(
             LightGBMModels(random_state=random_state, n_trials=n_trials, batch=batch, mode=mode, log_mlflow=log_mlflow, **kwargs), 
             preprocessor,
             model_name='LIGHTGBM',
-            use_lags=use_lags,
-            use_rolling_stats=use_rolling_stats,
-            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features,
             mode=mode
@@ -176,9 +139,6 @@ def training_pipeline(
             DummyModels(strategy='mean', random_state=random_state, log_mlflow=log_mlflow, **kwargs),
             preprocessor,
             model_name='DUMMY',
-            use_lags=use_lags,
-            use_rolling_stats=use_rolling_stats,
-            use_cumulative=use_cumulative,
             use_feature_selection=use_feature_selection,
             n_features=n_features,
             mode=mode

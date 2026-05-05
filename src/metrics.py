@@ -40,60 +40,6 @@ def kge(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return evaluator.kling_gupta_efficiency()
 
 
-def evaluate_multi_horizon(y_true: np.ndarray, y_pred: np.ndarray, steps: list) -> dict:
-    """
-    Evaluate metrics for different forecasting horizons.
-    
-    Parameters:
-        y_true (np.ndarray): True values.
-        y_pred (np.ndarray): Predicted values.
-        steps (list): List of integers representing horizons (e.g. [24, 72, 168]).
-    
-    Returns:
-        dict: Metrics computed for each step interval. For a step N, metrics are evaluated on the slice [0:N].
-              If prediction length is shorter than N, evaluates up to the available length.
-    """
-    from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
-    
-    y_true = np.asarray(y_true).ravel()
-    y_pred = np.asarray(y_pred).ravel()
-    
-    results = {}
-    
-    for step in sorted(steps):
-        # We slice up to the step horizon. If array is shorter, it uses whatever is available.
-        y_true_slice = y_true[:step]
-        y_pred_slice = y_pred[:step]
-        
-        if len(y_true_slice) == 0:
-            continue
-            
-        rmse = root_mean_squared_error(y_true_slice, y_pred_slice)
-        mae = mean_absolute_error(y_true_slice, y_pred_slice)
-        try:
-            nse_val = nse(y_true_slice, y_pred_slice)
-        except Exception:
-            nse_val = np.nan
-            
-        try:
-            r2 = r2_score(y_true_slice, y_pred_slice)
-        except Exception:
-            r2 = np.nan
-            
-        try:
-            kge_val = kge(y_true_slice, y_pred_slice)
-        except Exception:
-            kge_val = np.nan
-            
-        results[step] = {
-            'rmse': rmse,
-            'mae': mae,
-            'nse': nse_val,
-            'r2': r2,
-            'kge': kge_val
-        }
-        
-    return results
 
 
 

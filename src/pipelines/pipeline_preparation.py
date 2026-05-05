@@ -24,6 +24,7 @@ logger = configure_logging(__name__)
 
 
 def encoding_pipeline(
+    columns: list,
     target_column: Optional[str] = None
 ) -> ColumnTransformer:
     """
@@ -44,18 +45,8 @@ def encoding_pipeline(
             - Categorical pipeline: SimpleImputer(strategy='constant') -> OneHotEncoder();
             - MissingIndicator: Tracks missing values in specified columns;
     """
-    # Get list of column names from database (the table should be selectable);
-    logger.info("Loading data from database...")
-    db = DBConnection()
-    column_names = db.run(
-        """
-        SELECT 
-            column_name 
-        FROM INFORMATION_SCHEMA.COLUMNS 
-        WHERE TABLE_NAME='data_stations'
-        """
-        )['result']
-    column_list = list(column_names['column_name'])
+    # Use provided columns
+    column_list = columns
 
     # Define numerical columns;
     exclude_prefixes = {'Altitude', 'Area_Drenagem', 'Latitude', 'Longitude', 'Rio_Codigo', 'Data_Hora_Medicao'}

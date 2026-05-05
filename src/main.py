@@ -31,7 +31,7 @@ from src.etl.data_io import save_to_database
 from src.pipelines.pipeline_data import pipeline_data
 from src.etl.data_imputation import feature_imputation
 from src.util import configure_logging
-from src.metrics import evaluate_multi_horizon
+from src.metrics import nse, kge
 
 logger = configure_logging(__name__)
 
@@ -82,8 +82,7 @@ def _train_and_predict(name, pipeline, X_train, y_train, X_val, y_val, X_test,
 def _run_general_mode(
     df, target_column, models_to_use, steps, cv_folds,
     random_state, n_trials, batch, freq, mode, optimize,
-    early_stopping, use_lags, use_rolling_stats, use_cumulative,
-    use_feature_selection, n_features, mlflow_handler, log_mlflow
+    early_stopping, use_feature_selection, n_features, mlflow_handler, log_mlflow
 ):
     """
     Reliability evaluation: Nested CV (Walk-Forward) using the FULL dataset;
@@ -100,113 +99,128 @@ def _run_general_mode(
     all_metrics = []
     all_test_predictions = []
 
-    for fold in range(cv_folds):
-        logger.info("================================== FOLD %s / %s ==================================", fold+1, cv_folds)
+    for step in steps:
+        logger.info("==================== HORIZON: %s ====================", step)
+        
+        # Shift target for direct forecasting into a new column
+        target_shifted = f"{target_column}_target"
+        df_step = df.copy()
+        df_step[target_shifted] = df_step[target_column].shift(-step)
+        
+        # Drop rows where target is NaN due to shifting
+        df_step = df_step.dropna(subset=[target_shifted]).reset_index(drop=True)
+        N_step = len(df_step)
 
-        # Chronological split for the fold;
-        test_end = N - (cv_folds - 1 - fold) * max_horizon
-        test_start = test_end - max_horizon
+        for fold in range(cv_folds):
+            logger.info("================================== FOLD %s / %s (Horizon %s) ==================================", fold+1, cv_folds, step)
 
-        # Validation for early stopping: last max_horizon of the training fold;
-        val_end = test_start
-        val_start = val_end - max_horizon
-        train_end = val_start
+            # Chronological split for the fold;
+            test_end = N_step - (cv_folds - 1 - fold) * max_horizon
+            test_start = test_end - max_horizon
 
-        df_train_fold = df.iloc[:train_end].copy()
-        df_val_fold = df.iloc[val_start:val_end].copy()
-        df_test_fold = df.iloc[test_start:test_end].copy()
+            # Validation for early stopping: last max_horizon of the training fold;
+            val_end = test_start
+            val_start = val_end - max_horizon
+            train_end = val_start
 
-        logger.info("Fold %s lengths - Train: %s, Val: %s, Test: %s", fold+1, len(df_train_fold), len(df_val_fold), len(df_test_fold))
+            df_train_fold = df_step.iloc[:train_end].copy()
+            df_val_fold = df_step.iloc[val_start:val_end].copy()
+            df_test_fold = df_step.iloc[test_start:test_end].copy()
 
-        X_train = df_train_fold.drop(columns=[target_column])
-        y_train = df_train_fold[target_column]
-        X_val = df_val_fold.drop(columns=[target_column])
-        y_val = df_val_fold[target_column]
-        X_test = df_test_fold.drop(columns=[target_column])
-        y_test = df_test_fold[target_column]
+            logger.info("Fold %s lengths - Train: %s, Val: %s, Test: %s", fold+1, len(df_train_fold), len(df_val_fold), len(df_test_fold))
 
-        # Imputation;
-        X_train = feature_imputation(X_train)
-        X_val = feature_imputation(X_val)
-        X_test = feature_imputation(X_test)
+            X_train = df_train_fold.drop(columns=[target_shifted])
+            y_train = df_train_fold[target_shifted]
+            X_val = df_val_fold.drop(columns=[target_shifted])
+            y_val = df_val_fold[target_shifted]
+            X_test = df_test_fold.drop(columns=[target_shifted])
+            y_test = df_test_fold[target_shifted]
 
-        # Preprocessor;
-        preprocessor = encoding_pipeline(target_column=target_column)
-        preprocessor.fit(X_train, y_train)
+            # Imputation;
+            X_train = feature_imputation(X_train)
+            X_val = feature_imputation(X_val)
+            X_test = feature_imputation(X_test)
 
-        # Training pipelines;
-        pipelines = training_pipeline(
-            preprocessor=preprocessor,
-            models_to_use=models_to_use,
-            random_state=random_state,
-            n_trials=n_trials,
-            batch=batch,
-            freq=freq,
-            mode=mode,
-            use_lags=use_lags,
-            use_rolling_stats=use_rolling_stats,
-            use_cumulative=use_cumulative,
-            use_feature_selection=use_feature_selection,
-            n_features=n_features
-        )
+            # Preprocessor;
+            preprocessor = encoding_pipeline(columns=list(X_train.columns), target_column=target_shifted)
+            preprocessor.fit(X_train, y_train)
 
-        for name, pipeline in pipelines.items():
-            logger.info("Training %s for Fold %s...", name, fold+1)
-
-            if log_mlflow:
-                mlflow_handler.start_run(run_name=f"general_{name}_fold_{fold+1}")
-                mlflow_handler.log_params({"model_type": name, "fold": fold + 1, "pipeline_mode": "general"})
-
-            y_pred, _ = _train_and_predict(
-                name, pipeline, X_train, y_train, X_val, y_val, X_test,
-                optimize=optimize, early_stopping=early_stopping
+            # Training pipelines;
+            pipelines = training_pipeline(
+                preprocessor=preprocessor,
+                models_to_use=models_to_use,
+                random_state=random_state,
+                n_trials=n_trials,
+                batch=batch,
+                freq=freq,
+                mode=mode,
+                use_feature_selection=use_feature_selection,
+                n_features=n_features
             )
 
-            # Inverse log-transform predictions and true values back to original scale;
-            y_pred_orig = np.expm1(y_pred)
-            y_test_orig = np.expm1(y_test.values)
+            for name, pipeline in pipelines.items():
+                logger.info("Training %s for Fold %s, Horizon %s...", name, fold+1, step)
 
-            # Evaluate multi-horizon (original scale);
-            horizon_metrics = evaluate_multi_horizon(y_test_orig, y_pred_orig, steps)
+                if log_mlflow:
+                    mlflow_handler.start_run(run_name=f"general_{name}_fold_{fold+1}_step_{step}")
+                    mlflow_handler.log_params({"model_type": name, "fold": fold + 1, "pipeline_mode": "general", "step": step})
 
-            for step, h_metrics in horizon_metrics.items():
+                y_pred, _ = _train_and_predict(
+                    name, pipeline, X_train, y_train, X_val, y_val, X_test,
+                    optimize=optimize, early_stopping=early_stopping
+                )
+
+                # Inverse log-transform predictions and true values back to original scale;
+                y_pred_orig = np.expm1(y_pred)
+                y_test_orig = np.expm1(y_test.values)
+
+                # Evaluate single horizon directly
+                from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
+                
+                try:
+                    rmse = root_mean_squared_error(y_test_orig, y_pred_orig)
+                    mae = mean_absolute_error(y_test_orig, y_pred_orig)
+                    nse_val = nse(y_test_orig, y_pred_orig)
+                    r2 = r2_score(y_test_orig, y_pred_orig)
+                    kge_val = kge(y_test_orig, y_pred_orig)
+                except Exception as e:
+                    logger.error("Error calculating metrics: %s", e)
+                    rmse = mae = nse_val = r2 = kge_val = np.nan
+
                 all_metrics.append({
                     'model_name': name,
                     'target_column': target_column,
                     'fold': fold + 1,
                     'step': step,
-                    'rmse': h_metrics['rmse'],
-                    'mae': h_metrics['mae'],
-                    'nse': h_metrics['nse'],
-                    'r2': h_metrics['r2'],
-                    'kge': h_metrics['kge']
+                    'rmse': rmse,
+                    'mae': mae,
+                    'nse': nse_val,
+                    'r2': r2,
+                    'kge': kge_val
                 })
 
-            # Collect test predictions for DB;
-            date_col = None
-            if "Data_Hora_Medicao" in X_test.columns:
-                date_col = X_test["Data_Hora_Medicao"].values
-            elif hasattr(X_test, "index"):
-                date_col = X_test.index.values
+                # Collect test predictions for DB;
+                date_col = None
+                if "Data_Hora_Medicao" in X_test.columns:
+                    date_col = X_test["Data_Hora_Medicao"].values
+                elif hasattr(X_test, "index"):
+                    date_col = X_test.index.values
 
-            for step in steps:
-                # Each step covers the first `step` hours of the test fold;
-                n = min(step, len(y_test_orig))
                 pred_df = pd.DataFrame({
                     'model_name': name,
                     'fold': fold + 1,
                     'step': step,
-                    'y_true': y_test_orig[:n],
-                    'y_pred': y_pred_orig[:n],
-                    'y_pred_log': y_pred[:n],
+                    'y_true': y_test_orig,
+                    'y_pred': y_pred_orig,
+                    'y_pred_log': y_pred,
                     'target_column': target_column
                 })
                 if date_col is not None:
-                    pred_df['date'] = date_col[:n]
+                    pred_df['date'] = date_col
                 all_test_predictions.append(pred_df)
 
-            if log_mlflow:
-                mlflow_handler.end_run()
+                if log_mlflow:
+                    mlflow_handler.end_run()
 
     # Aggregate results;
     df_metrics = pd.DataFrame(all_metrics)
@@ -240,7 +254,7 @@ def _run_general_mode(
 def _run_case_study_mode(
     df, target_column, models_to_use, steps,
     random_state, n_trials, batch, freq, mode,
-    early_stopping, save_to_db, use_lags, use_rolling_stats, use_cumulative,
+    early_stopping, save_to_db,
     use_feature_selection, n_features, mlflow_handler, log_mlflow
 ):
     """
@@ -250,136 +264,153 @@ def _run_case_study_mode(
     """
     logger.info("==================== CASE STUDY MODE: SPECIFIC FLOOD ====================")
 
-    case_study_start = pd.to_datetime('2025-06-20')
-    case_study_end = pd.to_datetime('2025-07-01')
-
-    df_train = df[df['Data_Hora_Medicao'] < case_study_start].copy().reset_index(drop=True)
-    df_test = df[(df['Data_Hora_Medicao'] >= case_study_start) & (df['Data_Hora_Medicao'] < case_study_end)].copy().reset_index(drop=True)
-
-    logger.info("Case Study - Training data: %s rows, Test data: %s rows", len(df_train), len(df_test))
-
-    if len(df_test) == 0:
-        logger.warning("No test data available for May 2024 case study. Skipping.")
-        return pd.DataFrame(), None, None
+    case_study_start = pd.to_datetime('2024-05-01')
+    case_study_end = pd.to_datetime('2024-06-01')
 
     max_horizon = max(steps)
-
-    X_train_cs = df_train.drop(columns=[target_column])
-    y_train_cs = df_train[target_column]
-
-    # Use last max_horizon from training as validation set for early stopping;
-    val_start = len(X_train_cs) - max_horizon
-    X_val_cs = X_train_cs.iloc[val_start:].copy()
-    y_val_cs = y_train_cs.iloc[val_start:].copy()
-    X_train_cs = X_train_cs.iloc[:val_start].copy()
-    y_train_cs = y_train_cs.iloc[:val_start].copy()
-
-    X_test_cs = df_test.drop(columns=[target_column])
-    y_test_cs = df_test[target_column]
-
-    # Imputation;
-    X_train_cs = feature_imputation(X_train_cs)
-    X_val_cs = feature_imputation(X_val_cs)
-    X_test_cs = feature_imputation(X_test_cs)
-
-    # Preprocessor;
-    preprocessor_cs = encoding_pipeline(target_column=target_column)
-    preprocessor_cs.fit(X_train_cs, y_train_cs)
-
-    pipelines_cs = training_pipeline(
-        preprocessor=preprocessor_cs,
-        models_to_use=models_to_use,
-        random_state=random_state,
-        n_trials=n_trials,
-        batch=batch,
-        freq=freq,
-        mode=mode,
-        use_lags=use_lags,
-        use_rolling_stats=use_rolling_stats,
-        use_cumulative=use_cumulative,
-        use_feature_selection=use_feature_selection,
-        n_features=n_features
-    )
 
     all_predictions_cs = []
     case_study_metrics = []
     all_features_cs = []
 
-    for name, pipeline in pipelines_cs.items():
-        logger.info("Training %s for Case Study...", name)
+    for step in steps:
+        logger.info("==================== CASE STUDY HORIZON: %s ====================", step)
+        
+        # Shift target for direct forecasting into a new column
+        target_shifted = f"{target_column}_target"
+        df_step = df.copy()
+        df_step[target_shifted] = df_step[target_column].shift(-step)
+        df_step = df_step.dropna(subset=[target_shifted]).reset_index(drop=True)
 
-        if log_mlflow:
-            mlflow_handler.start_run(run_name=f"case_study_{name}")
-            mlflow_handler.log_params({"model_type": name, "pipeline_mode": "case_study"})
+        df_train = df_step[df_step['Data_Hora_Medicao'] < case_study_start].copy().reset_index(drop=True)
+        df_test = df_step[(df_step['Data_Hora_Medicao'] >= case_study_start) & (df_step['Data_Hora_Medicao'] < case_study_end)].copy().reset_index(drop=True)
 
-        # optimize=False -> load best hyperparameters from Nested CV;
-        y_pred, fitted_pipeline = _train_and_predict(
-            name, pipeline, X_train_cs, y_train_cs, X_val_cs, y_val_cs, X_test_cs,
-            optimize=False, early_stopping=early_stopping
+        logger.info("Case Study - Training data: %s rows, Test data: %s rows", len(df_train), len(df_test))
+
+        if len(df_test) == 0:
+            logger.warning("No test data available for May 2024 case study at step %s. Skipping.", step)
+            continue
+
+        X_train_cs = df_train.drop(columns=[target_shifted])
+        y_train_cs = df_train[target_shifted]
+
+        # Use last max_horizon from training as validation set for early stopping;
+        val_start = len(X_train_cs) - max_horizon
+        X_val_cs = X_train_cs.iloc[val_start:].copy()
+        y_val_cs = y_train_cs.iloc[val_start:].copy()
+        X_train_cs = X_train_cs.iloc[:val_start].copy()
+        y_train_cs = y_train_cs.iloc[:val_start].copy()
+
+        X_test_cs = df_test.drop(columns=[target_shifted])
+        y_test_cs = df_test[target_shifted]
+
+        # Imputation;
+        X_train_cs = feature_imputation(X_train_cs)
+        X_val_cs = feature_imputation(X_val_cs)
+        X_test_cs = feature_imputation(X_test_cs)
+
+        # Preprocessor;
+        preprocessor_cs = encoding_pipeline(columns=list(X_train_cs.columns), target_column=target_shifted)
+        preprocessor_cs.fit(X_train_cs, y_train_cs)
+
+        pipelines_cs = training_pipeline(
+            preprocessor=preprocessor_cs,
+            models_to_use=models_to_use,
+            random_state=random_state,
+            n_trials=n_trials,
+            batch=batch,
+            freq=freq,
+            mode=mode,
+            use_feature_selection=use_feature_selection,
+            n_features=n_features
         )
 
-        # Inverse log-transform predictions and true values back to original scale;
-        y_pred_log = y_pred.copy()          # keep log-scale predictions for DB
-        y_pred = np.expm1(y_pred)
-        y_test_cs_orig = np.expm1(y_test_cs.values)
+        for name, pipeline in pipelines_cs.items():
+            logger.info("Training %s for Case Study, Horizon %s...", name, step)
 
-        # Collect features for DB;
-        if save_to_db:
-            def collect_features(split_name, X_split, y_split):
-                orig_index = X_split.index if hasattr(X_split, "index") else None
-                features = X_split
-                for step_name, step_transformer in fitted_pipeline.steps[:-1]:
-                    features = step_transformer.transform(features)
-                if not isinstance(features, pd.DataFrame):
-                    features = pd.DataFrame(features, index=orig_index)
-                features = features.copy()
-                target_series = y_split.reindex(features.index) if isinstance(y_split, pd.Series) else pd.Series(y_split, index=features.index, name='target')
-                features['target'] = target_series
-                features['model_name'] = name
-                features['split'] = split_name
-                return features
+            if log_mlflow:
+                mlflow_handler.start_run(run_name=f"case_study_{name}_step_{step}")
+                mlflow_handler.log_params({"model_type": name, "pipeline_mode": "case_study", "step": step})
 
-            all_features_cs.append(collect_features('train', X_train_cs, y_train_cs))
-            all_features_cs.append(collect_features('val', X_val_cs, y_val_cs))
-            all_features_cs.append(collect_features('test', X_test_cs, y_test_cs))
+            # optimize=False -> load best hyperparameters from Nested CV;
+            y_pred, fitted_pipeline = _train_and_predict(
+                name, pipeline, X_train_cs, y_train_cs, X_val_cs, y_val_cs, X_test_cs,
+                optimize=False, early_stopping=early_stopping
+            )
 
-        # Build predictions DataFrame;
-        date_col = None
-        if "Data_Hora_Medicao" in X_test_cs.columns:
-            date_col = X_test_cs["Data_Hora_Medicao"].copy()
-        elif hasattr(X_test_cs, "index"):
-            date_col = X_test_cs.index
+            # Inverse log-transform predictions and true values back to original scale;
+            y_pred_log = y_pred.copy()          # keep log-scale predictions for DB
+            y_pred = np.expm1(y_pred)
+            y_test_cs_orig = np.expm1(y_test_cs.values)
 
-        pred_df = pd.DataFrame({
-            'model_name': name,
-            'y_true': y_test_cs_orig,       # original scale
-            'y_pred': y_pred,               # original scale (after expm1)
-            'y_pred_log': y_pred_log,       # log scale (before expm1)
-            'target_column': target_column
-        })
-        if hasattr(X_test_cs, 'index'):
-            pred_df.index = X_test_cs.index
-        if date_col is not None:
-            pred_df['date'] = date_col
+            # Collect features for DB;
+            if save_to_db and step == steps[0]: # Only save features once
+                def collect_features(split_name, X_split, y_split):
+                    orig_index = X_split.index if hasattr(X_split, "index") else None
+                    features = X_split
+                    for step_name, step_transformer in fitted_pipeline.steps[:-1]:
+                        features = step_transformer.transform(features)
+                    if not isinstance(features, pd.DataFrame):
+                        features = pd.DataFrame(features, index=orig_index)
+                    features = features.copy()
+                    target_series = y_split.reindex(features.index) if isinstance(y_split, pd.Series) else pd.Series(y_split, index=features.index, name='target')
+                    features['target'] = target_series
+                    features['model_name'] = name
+                    features['split'] = split_name
+                    return features
 
-        all_predictions_cs.append(pred_df)
+                all_features_cs.append(collect_features('train', X_train_cs, y_train_cs))
+                all_features_cs.append(collect_features('val', X_val_cs, y_val_cs))
+                all_features_cs.append(collect_features('test', X_test_cs, y_test_cs))
 
-        # Evaluate multi-horizon (original scale);
-        horizon_metrics = evaluate_multi_horizon(y_test_cs_orig, y_pred, steps)
-        for step, h_metrics in horizon_metrics.items():
+            # Build predictions DataFrame;
+            date_col = None
+            if "Data_Hora_Medicao" in X_test_cs.columns:
+                date_col = X_test_cs["Data_Hora_Medicao"].copy()
+            elif hasattr(X_test_cs, "index"):
+                date_col = X_test_cs.index
+
+            pred_df = pd.DataFrame({
+                'model_name': name,
+                'step': step,
+                'y_true': y_test_cs_orig,       # original scale
+                'y_pred': y_pred,               # original scale (after expm1)
+                'y_pred_log': y_pred_log,       # log scale (before expm1)
+                'target_column': target_column
+            })
+            if hasattr(X_test_cs, 'index'):
+                pred_df.index = X_test_cs.index
+            if date_col is not None:
+                pred_df['date'] = date_col
+
+            all_predictions_cs.append(pred_df)
+
+            # Evaluate single horizon directly
+            from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
+            
+            try:
+                rmse = root_mean_squared_error(y_test_cs_orig, y_pred)
+                mae = mean_absolute_error(y_test_cs_orig, y_pred)
+                nse_val = nse(y_test_cs_orig, y_pred)
+                r2 = r2_score(y_test_cs_orig, y_pred)
+                kge_val = kge(y_test_cs_orig, y_pred)
+            except Exception as e:
+                logger.error("Error calculating metrics: %s", e)
+                rmse = mae = nse_val = r2 = kge_val = np.nan
+
             case_study_metrics.append({
                 'model_name': f"{name}_CASE_STUDY",
                 'target_column': target_column,
                 'step': step,
-                'rmse': h_metrics['rmse'],
-                'mae': h_metrics['mae'],
-                'nse': h_metrics['nse'],
-                'r2': h_metrics['r2'],
-                'kge': h_metrics['kge']
+                'rmse': rmse,
+                'mae': mae,
+                'nse': nse_val,
+                'r2': r2,
+                'kge': kge_val
             })
 
-        if log_mlflow:
-            mlflow_handler.end_run()
+            if log_mlflow:
+                mlflow_handler.end_run()
 
     df_cs_metrics = pd.DataFrame(case_study_metrics)
     df_predictions = None
@@ -485,13 +516,22 @@ def main(
     logger.info("Full dataset: %s rows (%s to %s)", len(df),
                 df['Data_Hora_Medicao'].min(), df['Data_Hora_Medicao'].max())
 
+    # Apply feature engineering to the full dataset before splitting/shifting
+    from src.pipelines.pipeline_transformations import LagFeaturesTransformer, RollingStatsTransformer, CumulativeFeaturesTransformer
+    logger.info("Applying feature engineering to full dataset...")
+    if use_lags:
+        df = LagFeaturesTransformer().fit_transform(df)
+    if use_rolling_stats:
+        df = RollingStatsTransformer().fit_transform(df)
+    if use_cumulative:
+        df = CumulativeFeaturesTransformer().fit_transform(df)
+
     # Shared model training kwargs;
     model_kwargs = dict(
         models_to_use=models_to_use, steps=steps,
         random_state=random_state, n_trials=n_trials, batch=batch,
         freq=freq, mode=mode, early_stopping=early_stopping,
-        use_lags=use_lags, use_rolling_stats=use_rolling_stats,
-        use_cumulative=use_cumulative, use_feature_selection=use_feature_selection,
+        use_feature_selection=use_feature_selection,
         n_features=n_features, mlflow_handler=mlflow_handler, log_mlflow=log_mlflow
     )
 
