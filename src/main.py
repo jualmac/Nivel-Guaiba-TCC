@@ -543,11 +543,11 @@ if __name__ == "__main__":
                         default='all', help="Pipeline mode: 'general' (Nested CV), 'case' (May 2024 flood), 'all' (both)")
     parser.add_argument('--steps', type=str, nargs='+', 
                         choices=['24', '72', '168', '360', '720', '1440'], 
-                        default=['24', '72', '168', '360'], 
+                        default=['24', '72', '168', '360', '720'], 
                         help='Forecasting horizons in hours')
     parser.add_argument('--models_to_use', type=str, nargs='+', 
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY'], 
-                        default=['XGBOOST', 'LIGHTGBM', 'DUMMY'], 
+                        default=['SARIMA', 'XGBOOST', 'LIGHTGBM', 'DUMMY'], 
                         help='List of models to train')
 
     parser.add_argument('--target_column', type=str, default='Cota_Adotada_87450004', help='Name of target column to predict')
@@ -555,7 +555,7 @@ if __name__ == "__main__":
     parser.add_argument('--random_state', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--mode', type=str, choices=['CPU', 'GPU', 'CUDA'], default='GPU', help='Training device mode: CPU (default), GPU (OpenCL), or CUDA')
     parser.add_argument('--batch', type=int, default=128, help='Training batch size')
-    parser.add_argument('--trials', type=int, default=10, help='Number of trials for hyperparameter optimization')
+    parser.add_argument('--trials', type=int, default=50, help='Number of trials for hyperparameter optimization')
     parser.add_argument('--early_stopping', type=int, default=10, help='Number of rounds for early stopping (default: 50)')
     parser.add_argument('--n_features', type=int, default=30, help='Number of top features to select if use_feature_selection=True (default: 50)')
     parser.add_argument('--freq', type=str, choices=['h', 'bh', 'min', 's', 'D', 'B', 'W', 'M', 'MS', 'SMS'], default='h', help='Frequency of predictions (pandas offset)')

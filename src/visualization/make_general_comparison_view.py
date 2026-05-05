@@ -11,12 +11,16 @@ and fold, calculates RMSE per model, and saves a stitched comparison chart.
 #
 ########################################################################################################################
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Union
 from sklearn.metrics import root_mean_squared_error
+
+# Add project root to sys.path to allow absolute imports from 'src' when run as a script;
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))  # Add parent dir
 
 from src.db_handler import DBConnection
 
@@ -27,7 +31,7 @@ from src.db_handler import DBConnection
 ########################################################################################################################
 def make_general_comparison_view(
     step: int = 168,
-    fold: Union[int, str] = 'all',
+    fold: Union[int, str] = 'last',
     output_path: str = None,
     db_path: str = "data/nivel_duck.db"
 ) -> str:
@@ -36,13 +40,24 @@ def make_general_comparison_view(
     
     Args:
         step (int): The forecasting horizon to visualize (e.g., 24, 168, 720).
-        fold (int or 'all'): Specific fold to show, or 'all' to stitch them together.
+        fold (int or 'all' or 'last'): Specific fold to show, 'all' to stitch them, or 'last' for the most recent.
         output_path (str): Destination path for the saved plot.
         db_path (str): Path to DuckDB file.
     
     Returns:
         str: Absolute path to the saved plot image;
     """
+    # Initialize DB;
+    db = DBConnection(path=db_path)
+
+    # Handle 'last' fold detection;
+    if fold == 'last':
+        max_fold_res = db.run("SELECT MAX(fold) as max_fold FROM models_test_predictions")["result"]
+        if not max_fold_res.empty and max_fold_res.iloc[0]['max_fold'] is not None:
+            fold = int(max_fold_res.iloc[0]['max_fold'])
+        else:
+            raise ValueError("Could not determine last fold; table might be empty.")
+
     if output_path is None:
         fold_str = f"fold_{fold}" if fold != 'all' else "all_folds"
         output_path = f"data/general_comparison_{step}h_{fold_str}.png"
@@ -50,8 +65,7 @@ def make_general_comparison_view(
     # Ensure output directory exists;
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    # Load predictions table from DuckDB;
-    db = DBConnection(path=db_path)
+    # Load predictions table;
     query = f"SELECT * FROM models_test_predictions WHERE step = {step}"
     if fold != 'all':
         query += f" AND fold = {fold}"
@@ -121,8 +135,8 @@ def make_general_comparison_view(
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate general mode comparison plots")
-    parser.add_argument('--step', type=int, default=72, help='Forecasting horizon (hours)')
-    parser.add_argument('--fold', type=str, default='all', help='Fold number or "all"')
+    parser.add_argument('--step', type=int, default=168, help='Forecasting horizon (hours)')
+    parser.add_argument('--fold', type=str, default='last', help='Fold number, "all", or "last" (default)')
     
     args = parser.parse_args()
     
