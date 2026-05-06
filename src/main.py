@@ -650,8 +650,8 @@ if __name__ == "__main__":
     parser.add_argument('--pipeline_mode', type=str, choices=['general', 'case', 'all'],
                         default='all', help="Pipeline mode: 'general' (Nested CV), 'case' (May 2024 flood), 'all' (both)")
     parser.add_argument('--steps', type=str, nargs='+', 
-                        choices=['24', '72', '168', '360', '720', '1440'], 
-                        default=['24', '72', '168', '360', '720'], 
+                        choices=['1', '6', '24', '72', '168', '360', '720'], 
+                        default=['1', '6', '24', '72', '168', '360', '720'], 
                         help='Forecasting horizons in hours')
     parser.add_argument('--models_to_use', type=str, nargs='+', 
                         choices=['SARIMA', 'LSTM', 'XGBOOST', 'LIGHTGBM', 'DUMMY'], 
