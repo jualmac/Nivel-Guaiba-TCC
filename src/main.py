@@ -671,7 +671,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--data_end_date',
         type=str,
-        default='2025-07-15',
+        default='2025-07-30',
         help='YYYY-MM-DD: keep rows with Data_Hora_Medicao before midnight of the next day (inclusive of that day); omit to use full ETL output',
     )
     parser.add_argument(
